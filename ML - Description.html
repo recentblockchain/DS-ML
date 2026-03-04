@@ -1,0 +1,2179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ML Models Interactive</title>
+    <script crossorigin src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        * { box-sizing: border-box; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+
+
+/**
+ * Interactive Machine Learning Models Educational Web Application
+ * 
+ * This single-file React component teaches 5 ML models from beginner to intermediate:
+ * - Decision Tree
+ * - Random Forest
+ * - Gradient Boosting
+ * - XGBoost
+ * - Support Vector Machines (SVM)
+ * 
+ * Features:
+ * - No external dependencies (pure React)
+ * - Interactive visualizations with simulated data
+ * - Real-time parameter adjustments
+ * - Conceptual connections to scikit-learn and XGBoost
+ */
+
+// Utility function to generate styles based on dark mode
+const getStyles = (isDarkMode) => ({
+  container: {
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    maxWidth: '1200px',
+    margin: '0 auto',
+    padding: '20px',
+    backgroundColor: isDarkMode ? '#1a1a1a' : '#ffffff',
+    color: isDarkMode ? '#e0e0e0' : '#333333',
+    minHeight: '100vh',
+  },
+  header: {
+    textAlign: 'center',
+    marginBottom: '40px',
+    borderBottom: `3px solid ${isDarkMode ? '#4a9eff' : '#2196F3'}`,
+    paddingBottom: '20px',
+  },
+  title: {
+    fontSize: '2.5em',
+    margin: '0 0 10px 0',
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+  },
+  subtitle: {
+    fontSize: '1.2em',
+    color: isDarkMode ? '#a0a0a0' : '#666666',
+    margin: '0',
+  },
+  navigation: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '10px',
+    marginBottom: '30px',
+    justifyContent: 'center',
+  },
+  navButton: (isActive) => ({
+    padding: '12px 24px',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '1em',
+    fontWeight: '600',
+    transition: 'all 0.3s ease',
+    backgroundColor: isActive 
+      ? (isDarkMode ? '#4a9eff' : '#2196F3')
+      : (isDarkMode ? '#2a2a2a' : '#f0f0f0'),
+    color: isActive ? '#ffffff' : (isDarkMode ? '#e0e0e0' : '#333333'),
+    boxShadow: isActive ? '0 4px 12px rgba(33, 150, 243, 0.3)' : 'none',
+  }),
+  themeToggle: {
+    position: 'fixed',
+    top: '20px',
+    right: '20px',
+    padding: '10px 20px',
+    border: 'none',
+    borderRadius: '20px',
+    cursor: 'pointer',
+    backgroundColor: isDarkMode ? '#4a9eff' : '#2196F3',
+    color: '#ffffff',
+    fontWeight: '600',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+  },
+  content: {
+    backgroundColor: isDarkMode ? '#252525' : '#f9f9f9',
+    padding: '30px',
+    borderRadius: '12px',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+  },
+  sectionTitle: {
+    fontSize: '2em',
+    marginTop: '0',
+    marginBottom: '20px',
+    color: isDarkMode ? '#4a9eff' : '#2196F3',
+  },
+  codeBlock: {
+    backgroundColor: isDarkMode ? '#1a1a1a' : '#f4f4f4',
+    padding: '15px',
+    borderRadius: '8px',
+    fontFamily: 'Monaco, Consolas, "Courier New", monospace',
+    fontSize: '0.9em',
+    overflowX: 'auto',
+    border: `1px solid ${isDarkMode ? '#3a3a3a' : '#e0e0e0'}`,
+    margin: '15px 0',
+  },
+  infoBox: {
+    backgroundColor: isDarkMode ? '#2a4a2a' : '#e8f5e9',
+    padding: '15px',
+    borderRadius: '8px',
+    borderLeft: `4px solid ${isDarkMode ? '#4caf50' : '#4caf50'}`,
+    margin: '15px 0',
+  },
+  warningBox: {
+    backgroundColor: isDarkMode ? '#4a3a2a' : '#fff3e0',
+    padding: '15px',
+    borderRadius: '8px',
+    borderLeft: `4px solid ${isDarkMode ? '#ff9800' : '#ff9800'}`,
+    margin: '15px 0',
+  },
+});
+
+function MLModelsInteractive() {
+  const [activeModel, setActiveModel] = useState('decision-tree');
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  const styles = getStyles(isDarkMode);
+
+  const models = [
+    { id: 'decision-tree', name: 'Decision Tree' },
+    { id: 'random-forest', name: 'Random Forest' },
+    { id: 'gradient-boosting', name: 'Gradient Boosting' },
+    { id: 'xgboost', name: 'XGBoost' },
+    { id: 'svm', name: 'SVM' },
+  ];
+
+  return (
+    <div style={styles.container}>
+      <button style={styles.themeToggle} onClick={() => setIsDarkMode(!isDarkMode)}>
+        {isDarkMode ? '☀️ Light' : '🌙 Dark'}
+      </button>
+
+      <header style={styles.header}>
+        <h1 style={styles.title}>Machine Learning Models Explorer</h1>
+        <p style={styles.subtitle}>Interactive Guide to 5 Essential ML Algorithms</p>
+      </header>
+
+      <nav style={styles.navigation}>
+        {models.map(model => (
+          <button
+            key={model.id}
+            style={styles.navButton(activeModel === model.id)}
+            onClick={() => setActiveModel(model.id)}
+          >
+            {model.name}
+          </button>
+        ))}
+      </nav>
+
+      <main style={styles.content}>
+        {activeModel === 'decision-tree' && <DecisionTreeSection isDarkMode={isDarkMode} />}
+        {activeModel === 'random-forest' && <RandomForestSection isDarkMode={isDarkMode} />}
+        {activeModel === 'gradient-boosting' && <GradientBoostingSection isDarkMode={isDarkMode} />}
+        {activeModel === 'xgboost' && <XGBoostSection isDarkMode={isDarkMode} />}
+        {activeModel === 'svm' && <SVMSection isDarkMode={isDarkMode} />}
+      </main>
+    </div>
+  );
+};
+
+/**
+ * DECISION TREE SECTION
+ * Teaches the fundamentals of decision tree classification
+ */
+const DecisionTreeSection = ({ isDarkMode }) => {
+  const styles = getStyles(isDarkMode);
+  const [maxDepth, setMaxDepth] = useState(3);
+  const [minSamples, setMinSamples] = useState(2);
+  const [dataPoints, setDataPoints] = useState([]);
+
+  // Generate sample data on component mount
+  useEffect(() => {
+    generateData();
+  }, []);
+
+  const generateData = () => {
+    const points = [];
+    // Generate data for two classes
+    for (let i = 0; i < 50; i++) {
+      points.push({
+        x: Math.random() * 100,
+        y: Math.random() * 100,
+        class: Math.random() > 0.5 ? 'A' : 'B'
+      });
+    }
+    setDataPoints(points);
+  };
+
+  return (
+    <div>
+      <h2 style={styles.sectionTitle}>🌳 Decision Tree Classifier</h2>
+      
+      <div style={styles.infoBox}>
+        <strong>What is it?</strong> A decision tree makes predictions by asking a series of yes/no questions 
+        about the data, splitting it into smaller groups until reaching a decision. Think of it like the game 
+        "20 Questions" - each question narrows down the possibilities.
+      </div>
+
+      <h3>📚 Beginner Explanation</h3>
+      <p>
+        Imagine you're trying to decide if you should bring an umbrella. You might ask:
+      </p>
+      <ul>
+        <li>"Is it cloudy?" → If YES, ask "Is the humidity high?"</li>
+        <li>If humidity is high → "Bring umbrella!"</li>
+        <li>If humidity is low → "Don't bring umbrella"</li>
+      </ul>
+      <p>
+        Decision trees work the same way but with data. At each "node" (decision point), the tree asks a 
+        question about a feature (like "Is age &gt; 30?") and splits the data based on the answer.
+      </p>
+
+      <h3>🔧 In scikit-learn</h3>
+      <div style={styles.codeBlock}>
+        <pre>{`from sklearn.tree import DecisionTreeClassifier
+
+# Create the model
+dt = DecisionTreeClassifier(
+    max_depth=${maxDepth},           # How deep the tree can grow
+    min_samples_split=${minSamples}  # Minimum samples to split a node
+)
+
+# Train the model
+dt.fit(X_train, y_train)
+
+# Make predictions
+predictions = dt.predict(X_test)`}</pre>
+      </div>
+
+      <h3>🎮 Interactive Demo</h3>
+      <InteractiveDecisionTree 
+        maxDepth={maxDepth} 
+        minSamples={minSamples}
+        dataPoints={dataPoints}
+        isDarkMode={isDarkMode}
+      />
+
+      <div style={{ margin: '20px 0' }}>
+        <label style={{ display: 'block', marginBottom: '10px' }}>
+          <strong>Max Depth:</strong> {maxDepth}
+          <input 
+            type="range" 
+            min="1" 
+            max="10" 
+            value={maxDepth}
+            onChange={(e) => setMaxDepth(parseInt(e.target.value))}
+            style={{ width: '100%', marginTop: '5px' }}
+          />
+        </label>
+        <label style={{ display: 'block', marginBottom: '10px' }}>
+          <strong>Min Samples Split:</strong> {minSamples}
+          <input 
+            type="range" 
+            min="2" 
+            max="20" 
+            value={minSamples}
+            onChange={(e) => setMinSamples(parseInt(e.target.value))}
+            style={{ width: '100%', marginTop: '5px' }}
+          />
+        </label>
+        <button 
+          onClick={generateData}
+          style={{
+            padding: '10px 20px',
+            backgroundColor: isDarkMode ? '#4a9eff' : '#2196F3',
+            color: '#ffffff',
+            border: 'none',
+            borderRadius: '5px',
+            cursor: 'pointer',
+            fontWeight: '600',
+          }}
+        >
+          Generate New Data
+        </button>
+      </div>
+
+      <h3>💡 Key Concepts</h3>
+      <ul>
+        <li><strong>Splitting Criteria:</strong> The tree uses Gini impurity or entropy to decide the best question to ask</li>
+        <li><strong>Max Depth:</strong> Controls how many questions the tree can ask. Too deep = overfitting!</li>
+        <li><strong>Overfitting:</strong> When the tree memorizes training data instead of learning patterns</li>
+        <li><strong>Pruning:</strong> Removing unnecessary branches to improve generalization</li>
+      </ul>
+
+      <div style={styles.warningBox}>
+        <strong>⚠️ Common Pitfall:</strong> Decision trees can easily overfit if allowed to grow too deep. 
+        They'll create very specific rules that work perfectly on training data but fail on new data.
+      </div>
+
+      <h3>🎯 When to Use</h3>
+      <ul>
+        <li>✅ Need interpretable results (can explain decisions to non-technical stakeholders)</li>
+        <li>✅ Have mixed data types (numerical and categorical)</li>
+        <li>✅ Want fast training and prediction</li>
+        <li>❌ Have noisy data (trees are sensitive to small variations)</li>
+        <li>❌ Need the highest accuracy (ensemble methods usually better)</li>
+      </ul>
+
+      <h3>🏆 Real-World Applications</h3>
+      <ul>
+        <li><strong>Medical Diagnosis:</strong> "If symptom A present AND test B positive → Disease X likely"</li>
+        <li><strong>Credit Scoring:</strong> "If income &gt; $50k AND credit history good → Approve loan"</li>
+        <li><strong>Customer Segmentation:</strong> "If age &lt; 25 AND online shopper → Target with mobile ads"</li>
+      </ul>
+    </div>
+  );
+};
+
+/**
+ * Interactive Decision Tree Visualization Component
+ * Simulates a decision tree splitting data into regions
+ */
+const InteractiveDecisionTree = ({ maxDepth, minSamples, dataPoints, isDarkMode }) => {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    if (!canvasRef.current || dataPoints.length === 0) return;
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+
+    // Clear canvas
+    ctx.fillStyle = isDarkMode ? '#1a1a1a' : '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+
+    // Draw grid
+    ctx.strokeStyle = isDarkMode ? '#333333' : '#e0e0e0';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 10; i++) {
+      ctx.beginPath();
+      ctx.moveTo((i * width) / 10, 0);
+      ctx.lineTo((i * width) / 10, height);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, (i * height) / 10);
+      ctx.lineTo(width, (i * height) / 10);
+      ctx.stroke();
+    }
+
+    // Simulate decision boundaries (simplified - real trees are more complex)
+    const splits = Math.min(maxDepth, 3); // Limit visual splits
+    ctx.strokeStyle = isDarkMode ? '#4a9eff' : '#2196F3';
+    ctx.lineWidth = 2;
+    
+    for (let i = 0; i < splits; i++) {
+      const splitPoint = (i + 1) * (width / (splits + 1));
+      ctx.beginPath();
+      ctx.moveTo(splitPoint, 0);
+      ctx.lineTo(splitPoint, height);
+      ctx.stroke();
+    }
+
+    // Draw data points
+    dataPoints.forEach(point => {
+      const x = (point.x / 100) * width;
+      const y = (point.y / 100) * height;
+      
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, 2 * Math.PI);
+      ctx.fillStyle = point.class === 'A' 
+        ? (isDarkMode ? '#ff6b6b' : '#e53935')
+        : (isDarkMode ? '#51cf66' : '#43a047');
+      ctx.fill();
+      ctx.strokeStyle = isDarkMode ? '#ffffff' : '#000000';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    });
+
+    // Add labels
+    ctx.fillStyle = isDarkMode ? '#e0e0e0' : '#333333';
+    ctx.font = '14px sans-serif';
+    ctx.fillText('Decision Boundaries', 10, 20);
+    ctx.fillText(`Depth: ${maxDepth}, Min Samples: ${minSamples}`, 10, 40);
+
+  }, [maxDepth, minSamples, dataPoints, isDarkMode]);
+
+  return (
+    <div style={{ border: `2px solid ${isDarkMode ? '#4a9eff' : '#2196F3'}`, borderRadius: '8px', padding: '10px', margin: '20px 0' }}>
+      <canvas 
+        ref={canvasRef} 
+        width={600} 
+        height={400}
+        style={{ display: 'block', margin: '0 auto', maxWidth: '100%', height: 'auto' }}
+      />
+      <div style={{ textAlign: 'center', marginTop: '10px', fontSize: '0.9em' }}>
+        <span style={{ color: isDarkMode ? '#ff6b6b' : '#e53935' }}>● Class A</span>
+        {' | '}
+        <span style={{ color: isDarkMode ? '#51cf66' : '#43a047' }}>● Class B</span>
+        {' | '}
+        <span style={{ color: isDarkMode ? '#4a9eff' : '#2196F3' }}>━ Decision Boundaries</span>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * RANDOM FOREST SECTION
+ * Explains ensemble learning through multiple decision trees
+ */
+const RandomForestSection = ({ isDarkMode }) => {
+  const styles = getStyles(isDarkMode);
+  const [numTrees, setNumTrees] = useState(10);
+  const [maxDepth, setMaxDepth] = useState(5);
+  const [showAnimation, setShowAnimation] = useState(false);
+
+  return (
+    <div>
+      <h2 style={styles.sectionTitle}>🌲 Random Forest Classifier</h2>
+      
+      <div style={styles.infoBox}>
+        <strong>What is it?</strong> A Random Forest is like getting advice from multiple experts instead of 
+        just one. It creates many decision trees (a "forest") and combines their predictions through voting. 
+        This "wisdom of crowds" approach usually gives better results than any single tree.
+      </div>
+
+      <h3>📚 Beginner Explanation</h3>
+      <p>
+        Imagine you're trying to predict if a movie will be good. Instead of asking just one friend, you ask 10 friends. 
+        Each friend has different tastes (different trees), but together their consensus is usually more reliable than 
+        any individual opinion.
+      </p>
+      <p>
+        Random Forest does this with decision trees:
+      </p>
+      <ul>
+        <li>Creates many trees, each trained on a random subset of data (bootstrapping)</li>
+        <li>Each tree considers only a random subset of features at each split</li>
+        <li>Final prediction is the majority vote from all trees</li>
+      </ul>
+
+      <h3>🔧 In scikit-learn</h3>
+      <div style={styles.codeBlock}>
+        <pre>{`from sklearn.ensemble import RandomForestClassifier
+
+# Create the model
+rf = RandomForestClassifier(
+    n_estimators=${numTrees},      # Number of trees in the forest
+    max_depth=${maxDepth},          # Maximum depth of each tree
+    max_features='sqrt',    # Number of features to consider per split
+    bootstrap=True,         # Use bootstrap samples
+    n_jobs=-1              # Use all CPU cores
+)
+
+# Train the model
+rf.fit(X_train, y_train)
+
+# Get predictions with probability
+predictions = rf.predict(X_test)
+probabilities = rf.predict_proba(X_test)
+
+# Feature importance
+importance = rf.feature_importances_`}</pre>
+      </div>
+
+      <h3>🎮 Interactive Demo: Forest Voting</h3>
+      <RandomForestVoting 
+        numTrees={numTrees}
+        showAnimation={showAnimation}
+        isDarkMode={isDarkMode}
+      />
+
+      <div style={{ margin: '20px 0' }}>
+        <label style={{ display: 'block', marginBottom: '10px' }}>
+          <strong>Number of Trees:</strong> {numTrees}
+          <input 
+            type="range" 
+            min="1" 
+            max="100" 
+            value={numTrees}
+            onChange={(e) => setNumTrees(parseInt(e.target.value))}
+            style={{ width: '100%', marginTop: '5px' }}
+          />
+        </label>
+        <label style={{ display: 'block', marginBottom: '10px' }}>
+          <strong>Max Depth per Tree:</strong> {maxDepth}
+          <input 
+            type="range" 
+            min="1" 
+            max="20" 
+            value={maxDepth}
+            onChange={(e) => setMaxDepth(parseInt(e.target.value))}
+            style={{ width: '100%', marginTop: '5px' }}
+          />
+        </label>
+        <button 
+          onClick={() => setShowAnimation(!showAnimation)}
+          style={{
+            padding: '10px 20px',
+            backgroundColor: isDarkMode ? '#4a9eff' : '#2196F3',
+            color: '#ffffff',
+            border: 'none',
+            borderRadius: '5px',
+            cursor: 'pointer',
+            fontWeight: '600',
+          }}
+        >
+          {showAnimation ? 'Stop Animation' : 'Animate Voting'}
+        </button>
+      </div>
+
+      <h3>💡 Key Concepts</h3>
+      <ul>
+        <li><strong>Bagging (Bootstrap Aggregating):</strong> Each tree trains on a random sample with replacement</li>
+        <li><strong>Feature Randomness:</strong> Each split considers only a subset of features (typically √n features)</li>
+        <li><strong>Out-of-Bag (OOB) Error:</strong> Free validation using data not seen by each tree</li>
+        <li><strong>Ensemble Learning:</strong> Combining weak learners to create a strong learner</li>
+        <li><strong>Feature Importance:</strong> Ranks which features are most useful for predictions</li>
+      </ul>
+
+      <h3>🔬 Intermediate Concepts</h3>
+      
+      <h4>Why Random Forest Reduces Overfitting</h4>
+      <p>
+        Single decision trees are "high variance" - small changes in training data cause big changes in the tree structure. 
+        Random Forest reduces variance through:
+      </p>
+      <ol>
+        <li><strong>Averaging:</strong> Averaging many high-variance models reduces overall variance</li>
+        <li><strong>Decorrelation:</strong> Random feature selection makes trees less correlated</li>
+        <li><strong>Regularization:</strong> Each tree sees different data, preventing memorization</li>
+      </ol>
+
+      <h4>Bias-Variance Tradeoff</h4>
+      <div style={styles.codeBlock}>
+        <pre>{`# Single tree: Low bias, High variance
+# → Can fit data perfectly but predictions vary wildly
+
+# Random Forest: Low bias, Lower variance  
+# → Maintains flexibility while stabilizing predictions
+
+# Mathematical intuition:
+# Var(Average) = Var(Tree) / n_trees * (1 + (n-1)*ρ)
+# where ρ is correlation between trees`}</pre>
+      </div>
+
+      <div style={styles.warningBox}>
+        <strong>⚠️ Common Pitfall:</strong> More trees is almost always better, but there are diminishing returns 
+        after ~100-500 trees. Training time increases linearly, but accuracy improvement plateaus.
+      </div>
+
+      <h3>🎯 Hyperparameter Tuning Guide</h3>
+      <ul>
+        <li><strong>n_estimators:</strong> Start with 100, increase if validation error still decreasing</li>
+        <li><strong>max_depth:</strong> Start with None (unlimited), reduce if overfitting</li>
+        <li><strong>min_samples_split:</strong> Higher values prevent overfitting (try 2-10)</li>
+        <li><strong>max_features:</strong> 'sqrt' for classification, 'log2' or 1/3 for regression</li>
+        <li><strong>bootstrap:</strong> Keep True for standard RF, False for "Extremely Randomized Trees"</li>
+      </ul>
+
+      <h3>🏆 Real-World Applications</h3>
+      <ul>
+        <li><strong>Banking:</strong> Credit risk assessment, fraud detection (handles imbalanced data well)</li>
+        <li><strong>Healthcare:</strong> Disease prediction from patient records (provides feature importance)</li>
+        <li><strong>E-commerce:</strong> Customer churn prediction, recommendation systems</li>
+        <li><strong>Finance:</strong> Stock price movement prediction, algorithmic trading</li>
+      </ul>
+
+      <h3>📊 When Random Forest Excels</h3>
+      <ul>
+        <li>✅ Tabular data with mixed feature types</li>
+        <li>✅ Need feature importance rankings</li>
+        <li>✅ Want good "out-of-box" performance without much tuning</li>
+        <li>✅ Can tolerate longer training time for better accuracy</li>
+        <li>❌ Need model interpretability (individual trees are interpretable, forest as whole is not)</li>
+        <li>❌ Working with very high-dimensional sparse data (like text, XGBoost may be better)</li>
+      </ul>
+    </div>
+  );
+};
+
+/**
+ * Random Forest Voting Visualization
+ * Shows how individual tree predictions combine into final decision
+ */
+const RandomForestVoting = ({ numTrees, showAnimation, isDarkMode }) => {
+  const [votes, setVotes] = useState([]);
+  const [finalPrediction, setFinalPrediction] = useState(null);
+
+  useEffect(() => {
+    // Simulate tree predictions
+    const treeVotes = [];
+    let classAVotes = 0;
+    let classBVotes = 0;
+
+    for (let i = 0; i < numTrees; i++) {
+      // Random prediction with slight bias
+      const prediction = Math.random() > 0.45 ? 'A' : 'B';
+      treeVotes.push({
+        id: i,
+        prediction: prediction,
+        confidence: 0.6 + Math.random() * 0.3
+      });
+      
+      if (prediction === 'A') classAVotes++;
+      else classBVotes++;
+    }
+
+    setVotes(treeVotes);
+    setFinalPrediction(classAVotes > classBVotes ? 'A' : 'B');
+  }, [numTrees, showAnimation]);
+
+  const classACount = votes.filter(v => v.prediction === 'A').length;
+  const classBCount = votes.filter(v => v.prediction === 'B').length;
+  const classAPercentage = numTrees > 0 ? ((classACount / numTrees) * 100).toFixed(1) : 0;
+  const classBPercentage = numTrees > 0 ? ((classBCount / numTrees) * 100).toFixed(1) : 0;
+
+  return (
+    <div style={{ 
+      border: `2px solid ${isDarkMode ? '#4a9eff' : '#2196F3'}`, 
+      borderRadius: '8px', 
+      padding: '20px', 
+      margin: '20px 0',
+      backgroundColor: isDarkMode ? '#1a1a1a' : '#ffffff'
+    }}>
+      <h4 style={{ marginTop: 0 }}>Forest Prediction Process</h4>
+      
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(auto-fill, minmax(40px, 1fr))', 
+        gap: '5px',
+        marginBottom: '20px'
+      }}>
+        {votes.slice(0, 100).map(vote => (
+          <div 
+            key={vote.id}
+            style={{
+              width: '40px',
+              height: '40px',
+              backgroundColor: vote.prediction === 'A'
+                ? (isDarkMode ? '#ff6b6b' : '#e53935')
+                : (isDarkMode ? '#51cf66' : '#43a047'),
+              borderRadius: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '0.8em',
+              fontWeight: 'bold',
+              color: '#ffffff',
+              opacity: showAnimation ? (0.5 + vote.confidence * 0.5) : 1,
+              transition: 'opacity 0.3s ease',
+            }}
+            title={`Tree ${vote.id + 1}: ${vote.prediction} (${(vote.confidence * 100).toFixed(0)}%)`}
+          >
+            {vote.prediction}
+          </div>
+        ))}
+      </div>
+
+      <div style={{ 
+        display: 'flex', 
+        gap: '20px', 
+        alignItems: 'center',
+        justifyContent: 'space-around',
+        marginTop: '20px',
+        padding: '15px',
+        backgroundColor: isDarkMode ? '#252525' : '#f5f5f5',
+        borderRadius: '8px'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '2em', fontWeight: 'bold', color: isDarkMode ? '#ff6b6b' : '#e53935' }}>
+            {classACount}
+          </div>
+          <div>Class A Votes</div>
+          <div style={{ fontSize: '0.9em', color: isDarkMode ? '#a0a0a0' : '#666' }}>
+            ({classAPercentage}%)
+          </div>
+        </div>
+
+        <div style={{ fontSize: '3em', color: isDarkMode ? '#4a9eff' : '#2196F3' }}>
+          →
+        </div>
+
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '2em', fontWeight: 'bold', color: isDarkMode ? '#51cf66' : '#43a047' }}>
+            {classBCount}
+          </div>
+          <div>Class B Votes</div>
+          <div style={{ fontSize: '0.9em', color: isDarkMode ? '#a0a0a0' : '#666' }}>
+            ({classBPercentage}%)
+          </div>
+        </div>
+
+        <div style={{ fontSize: '3em', color: isDarkMode ? '#4a9eff' : '#2196F3' }}>
+          →
+        </div>
+
+        <div style={{ 
+          padding: '20px',
+          backgroundColor: finalPrediction === 'A'
+            ? (isDarkMode ? '#ff6b6b' : '#e53935')
+            : (isDarkMode ? '#51cf66' : '#43a047'),
+          borderRadius: '8px',
+          color: '#ffffff'
+        }}>
+          <div style={{ fontSize: '0.9em' }}>Final Prediction</div>
+          <div style={{ fontSize: '2.5em', fontWeight: 'bold' }}>
+            Class {finalPrediction}
+          </div>
+        </div>
+      </div>
+
+      <p style={{ marginTop: '20px', fontSize: '0.9em', textAlign: 'center', fontStyle: 'italic' }}>
+        The forest votes: majority wins! This is why Random Forest is more stable than a single tree.
+      </p>
+    </div>
+  );
+};
+
+/**
+ * GRADIENT BOOSTING SECTION
+ * Explains sequential ensemble learning
+ */
+const GradientBoostingSection = ({ isDarkMode }) => {
+  const styles = getStyles(isDarkMode);
+  const [numEstimators, setNumEstimators] = useState(50);
+  const [learningRate, setLearningRate] = useState(0.1);
+  const [maxDepth, setMaxDepth] = useState(3);
+
+  return (
+    <div>
+      <h2 style={styles.sectionTitle}>📈 Gradient Boosting Machines</h2>
+      
+      <div style={styles.infoBox}>
+        <strong>What is it?</strong> Gradient Boosting builds trees sequentially, where each new tree tries to 
+        fix the mistakes made by the previous trees. It's like learning from your errors - each iteration focuses 
+        on the examples you got wrong before.
+      </div>
+
+      <h3>📚 Beginner Explanation</h3>
+      <p>
+        Imagine you're learning to shoot basketball free throws:
+      </p>
+      <ol>
+        <li><strong>Attempt 1:</strong> You shoot and miss short. You learn "need more power"</li>
+        <li><strong>Attempt 2:</strong> You overshoot. You learn "a bit less power"</li>
+        <li><strong>Attempt 3:</strong> Getting closer! You adjust again...</li>
+      </ol>
+      <p>
+        Gradient Boosting works similarly:
+      </p>
+      <ul>
+        <li>Build a simple model (weak learner)</li>
+        <li>Find where it makes mistakes (residuals)</li>
+        <li>Build another model to predict those mistakes</li>
+        <li>Add the correction to the original prediction</li>
+        <li>Repeat until predictions are good enough</li>
+      </ul>
+
+      <h3>🔧 In scikit-learn</h3>
+      <div style={styles.codeBlock}>
+        <pre>{`from sklearn.ensemble import GradientBoostingClassifier
+
+# Create the model
+gb = GradientBoostingClassifier(
+    n_estimators=${numEstimators},      # Number of boosting stages
+    learning_rate=${learningRate},     # Shrinks contribution of each tree
+    max_depth=${maxDepth},              # Depth of individual trees (usually shallow)
+    subsample=0.8,              # Fraction of samples for each tree
+    min_samples_split=2,        # Min samples to split node
+    loss='log_loss',            # Loss function to optimize
+    validation_fraction=0.1,    # For early stopping
+    n_iter_no_change=10        # Stop if no improvement
+)
+
+# Train the model
+gb.fit(X_train, y_train)
+
+# Predictions
+predictions = gb.predict(X_test)
+
+# Staged predictions (from each boosting iteration)
+staged_preds = list(gb.staged_predict(X_test))`}</pre>
+      </div>
+
+      <h3>🎮 Interactive Demo: Boosting Iterations</h3>
+      <GradientBoostingVisualization 
+        numEstimators={numEstimators}
+        learningRate={learningRate}
+        maxDepth={maxDepth}
+        isDarkMode={isDarkMode}
+      />
+
+      <div style={{ margin: '20px 0' }}>
+        <label style={{ display: 'block', marginBottom: '10px' }}>
+          <strong>Number of Estimators (Trees):</strong> {numEstimators}
+          <input 
+            type="range" 
+            min="10" 
+            max="200" 
+            step="10"
+            value={numEstimators}
+            onChange={(e) => setNumEstimators(parseInt(e.target.value))}
+            style={{ width: '100%', marginTop: '5px' }}
+          />
+        </label>
+        <label style={{ display: 'block', marginBottom: '10px' }}>
+          <strong>Learning Rate:</strong> {learningRate.toFixed(2)}
+          <input 
+            type="range" 
+            min="0.01" 
+            max="1" 
+            step="0.01"
+            value={learningRate}
+            onChange={(e) => setLearningRate(parseFloat(e.target.value))}
+            style={{ width: '100%', marginTop: '5px' }}
+          />
+        </label>
+        <label style={{ display: 'block', marginBottom: '10px' }}>
+          <strong>Max Depth (per tree):</strong> {maxDepth}
+          <input 
+            type="range" 
+            min="1" 
+            max="10" 
+            value={maxDepth}
+            onChange={(e) => setMaxDepth(parseInt(e.target.value))}
+            style={{ width: '100%', marginTop: '5px' }}
+          />
+        </label>
+      </div>
+
+      <h3>💡 Key Concepts</h3>
+      <ul>
+        <li><strong>Boosting:</strong> Sequential learning where each model corrects its predecessor</li>
+        <li><strong>Residuals:</strong> The errors/mistakes from the current prediction</li>
+        <li><strong>Gradient Descent:</strong> Uses calculus to find the best direction to improve</li>
+        <li><strong>Weak Learners:</strong> Simple models (shallow trees) that are slightly better than random</li>
+        <li><strong>Learning Rate:</strong> Controls how much each tree contributes (smaller = more trees needed but better generalization)</li>
+      </ul>
+
+      <h3>🔬 Intermediate: The Math Behind It</h3>
+      <div style={styles.codeBlock}>
+        <pre>{`# Gradient Boosting Algorithm (Simplified)
+
+# Initialize with a constant prediction
+F₀(x) = average(y)
+
+# For each iteration m = 1 to M:
+for m in range(M):
+    # 1. Calculate residuals (negative gradient)
+    residuals = y_true - F_{m-1}(x)
+    
+    # 2. Fit a new tree to the residuals
+    h_m(x) = DecisionTree(X, residuals, max_depth=${maxDepth})
+    
+    # 3. Update the model with learning rate
+    F_m(x) = F_{m-1}(x) + learning_rate * h_m(x)
+
+# Final prediction
+prediction = F_M(x)`}</pre>
+      </div>
+
+      <h4>Why "Gradient"?</h4>
+      <p>
+        The algorithm minimizes a loss function using gradient descent:
+      </p>
+      <ul>
+        <li>Loss function L(y, F(x)) measures prediction error</li>
+        <li>Gradient ∂L/∂F tells us the direction to improve</li>
+        <li>Each tree approximates the negative gradient (steepest descent direction)</li>
+        <li>Learning rate α controls step size: F_new = F_old - α * gradient</li>
+      </ul>
+
+      <h3>⚖️ Random Forest vs. Gradient Boosting</h3>
+      <table style={{ width: '100%', borderCollapse: 'collapse', margin: '20px 0' }}>
+        <thead>
+          <tr style={{ backgroundColor: isDarkMode ? '#2a2a2a' : '#f0f0f0' }}>
+            <th style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Aspect</th>
+            <th style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Random Forest</th>
+            <th style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Gradient Boosting</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Tree Building</td>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Parallel (independent)</td>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Sequential (dependent)</td>
+          </tr>
+          <tr>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Tree Depth</td>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Deep trees</td>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Shallow trees (3-8 levels)</td>
+          </tr>
+          <tr>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Overfitting Risk</td>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Lower (averaging reduces variance)</td>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Higher (if not regularized)</td>
+          </tr>
+          <tr>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Training Speed</td>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Fast (can parallelize)</td>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Slower (sequential)</td>
+          </tr>
+          <tr>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Accuracy</td>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Good</td>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Often better with tuning</td>
+          </tr>
+          <tr>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Interpretability</td>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Moderate</td>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Lower (complex interactions)</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style={styles.warningBox}>
+        <strong>⚠️ Common Pitfalls:</strong>
+        <ul>
+          <li><strong>Overfitting:</strong> Too many trees or too high learning rate causes memorization</li>
+          <li><strong>Long Training:</strong> Sequential nature makes training slow on large datasets</li>
+          <li><strong>Sensitive to Noise:</strong> Outliers in data can throw off the boosting process</li>
+        </ul>
+      </div>
+
+      <h3>🎯 Hyperparameter Tuning Strategy</h3>
+      <ol>
+        <li><strong>Start with:</strong> n_estimators=100, learning_rate=0.1, max_depth=3</li>
+        <li><strong>Tune learning_rate and n_estimators together:</strong>
+          <ul>
+            <li>Lower learning_rate requires more estimators</li>
+            <li>Try: (0.1, 100), (0.05, 200), (0.01, 500)</li>
+          </ul>
+        </li>
+        <li><strong>Adjust max_depth:</strong> Usually 3-8 for GB (vs deeper for RF)</li>
+        <li><strong>Add regularization:</strong> subsample &lt; 1.0, min_samples_split &gt; 2</li>
+        <li><strong>Enable early stopping:</strong> Saves time and prevents overfitting</li>
+      </ol>
+
+      <h3>🏆 Real-World Applications</h3>
+      <ul>
+        <li><strong>Kaggle Competitions:</strong> Historically dominated by GBMs before deep learning</li>
+        <li><strong>Click-Through Rate Prediction:</strong> Ad platforms use GBM for CTR prediction</li>
+        <li><strong>Risk Assessment:</strong> Insurance pricing, loan default prediction</li>
+        <li><strong>Ranking Problems:</strong> Search engines, recommendation systems</li>
+      </ul>
+
+      <h3>📊 When to Use Gradient Boosting</h3>
+      <ul>
+        <li>✅ Need highest possible accuracy on structured data</li>
+        <li>✅ Have time for hyperparameter tuning</li>
+        <li>✅ Data is relatively clean (not too many outliers)</li>
+        <li>✅ Can afford longer training time</li>
+        <li>❌ Need fast training (use Random Forest)</li>
+        <li>❌ Want robust model without much tuning (use Random Forest)</li>
+        <li>❌ Have extremely large datasets (consider XGBoost/LightGBM instead)</li>
+      </ul>
+    </div>
+  );
+};
+
+/**
+ * Gradient Boosting Visualization
+ * Shows how error decreases over boosting iterations
+ */
+const GradientBoostingVisualization = ({ numEstimators, learningRate, maxDepth, isDarkMode }) => {
+  const styles = getStyles(isDarkMode);
+  const [trainingError, setTrainingError] = useState([]);
+  const [validationError, setValidationError] = useState([]);
+
+  useEffect(() => {
+    // Simulate error reduction over iterations
+    const trainErr = [];
+    const valErr = [];
+    
+    let currentTrainError = 0.5; // Start at 50% error
+    let currentValError = 0.52;
+    
+    for (let i = 0; i < numEstimators; i++) {
+      // Training error decreases faster
+      const trainReduction = learningRate * 0.01 * (1 - i/numEstimators);
+      currentTrainError = Math.max(0.05, currentTrainError - trainReduction);
+      
+      // Validation error decreases slower and may increase (overfitting)
+      const valReduction = learningRate * 0.008 * (1 - i/numEstimators);
+      if (i < numEstimators * 0.7) {
+        currentValError = Math.max(0.08, currentValError - valReduction);
+      } else {
+        // Overfitting starts
+        currentValError += learningRate * 0.001;
+      }
+      
+      trainErr.push(currentTrainError);
+      valErr.push(currentValError);
+    }
+    
+    setTrainingError(trainErr);
+    setValidationError(valErr);
+  }, [numEstimators, learningRate, maxDepth]);
+
+  return (
+    <div style={{ 
+      border: `2px solid ${isDarkMode ? '#4a9eff' : '#2196F3'}`, 
+      borderRadius: '8px', 
+      padding: '20px', 
+      margin: '20px 0',
+      backgroundColor: isDarkMode ? '#1a1a1a' : '#ffffff'
+    }}>
+      <h4 style={{ marginTop: 0 }}>Error Reduction Over Boosting Iterations</h4>
+      
+      <ErrorPlot 
+        trainingError={trainingError}
+        validationError={validationError}
+        numEstimators={numEstimators}
+        isDarkMode={isDarkMode}
+      />
+
+      <div style={{ marginTop: '20px', fontSize: '0.9em' }}>
+        <p><strong>Key Observations:</strong></p>
+        <ul>
+          <li>🔵 <strong>Training Error</strong> continuously decreases (model learning)</li>
+          <li>🟢 <strong>Validation Error</strong> decreases then may increase (overfitting)</li>
+          <li>⚠️ <strong>Optimal Point:</strong> Where validation error is minimized</li>
+          <li>💡 <strong>Learning Rate Effect:</strong> Lower LR = smoother curve, more iterations needed</li>
+        </ul>
+      </div>
+
+      <div style={styles.infoBox}>
+        <strong>Early Stopping:</strong> In practice, you'd stop training when validation error stops improving 
+        for N consecutive iterations. This prevents overfitting and saves computation time.
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Simple line chart for error visualization
+ */
+const ErrorPlot = ({ trainingError, validationError, numEstimators, isDarkMode }) => {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    if (!canvasRef.current) return;
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+    const padding = 40;
+
+    // Clear canvas
+    ctx.fillStyle = isDarkMode ? '#1a1a1a' : '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+
+    // Draw axes
+    ctx.strokeStyle = isDarkMode ? '#666666' : '#999999';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(padding, padding);
+    ctx.lineTo(padding, height - padding);
+    ctx.lineTo(width - padding, height - padding);
+    ctx.stroke();
+
+    // Labels
+    ctx.fillStyle = isDarkMode ? '#e0e0e0' : '#333333';
+    ctx.font = '12px sans-serif';
+    ctx.fillText('Error', 5, padding);
+    ctx.fillText('Iterations', width / 2 - 20, height - 10);
+
+    if (trainingError.length === 0) return;
+
+    const plotWidth = width - 2 * padding;
+    const plotHeight = height - 2 * padding;
+    const maxError = Math.max(...trainingError, ...validationError);
+    
+    // Plot training error
+    ctx.strokeStyle = isDarkMode ? '#4a9eff' : '#2196F3';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    trainingError.forEach((error, i) => {
+      const x = padding + (i / (trainingError.length - 1)) * plotWidth;
+      const y = padding + (1 - error / maxError) * plotHeight;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    // Plot validation error
+    ctx.strokeStyle = isDarkMode ? '#51cf66' : '#43a047';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    validationError.forEach((error, i) => {
+      const x = padding + (i / (validationError.length - 1)) * plotWidth;
+      const y = padding + (1 - error / maxError) * plotHeight;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    // Find optimal point (min validation error)
+    const minValError = Math.min(...validationError);
+    const optimalIdx = validationError.indexOf(minValError);
+    const optimalX = padding + (optimalIdx / (validationError.length - 1)) * plotWidth;
+    const optimalY = padding + (1 - minValError / maxError) * plotHeight;
+
+    // Mark optimal point
+    ctx.fillStyle = isDarkMode ? '#ff6b6b' : '#e53935';
+    ctx.beginPath();
+    ctx.arc(optimalX, optimalY, 5, 0, 2 * Math.PI);
+    ctx.fill();
+
+    // Legend
+    const legendX = width - padding - 150;
+    const legendY = padding + 10;
+    
+    ctx.fillStyle = isDarkMode ? '#4a9eff' : '#2196F3';
+    ctx.fillRect(legendX, legendY, 20, 10);
+    ctx.fillStyle = isDarkMode ? '#e0e0e0' : '#333333';
+    ctx.fillText('Training Error', legendX + 25, legendY + 10);
+    
+    ctx.fillStyle = isDarkMode ? '#51cf66' : '#43a047';
+    ctx.fillRect(legendX, legendY + 20, 20, 10);
+    ctx.fillStyle = isDarkMode ? '#e0e0e0' : '#333333';
+    ctx.fillText('Validation Error', legendX + 25, legendY + 30);
+
+    ctx.fillStyle = isDarkMode ? '#ff6b6b' : '#e53935';
+    ctx.fillRect(legendX, legendY + 40, 20, 10);
+    ctx.fillStyle = isDarkMode ? '#e0e0e0' : '#333333';
+    ctx.fillText('Optimal Point', legendX + 25, legendY + 50);
+
+  }, [trainingError, validationError, numEstimators, isDarkMode]);
+
+  return (
+    <canvas 
+      ref={canvasRef} 
+      width={600} 
+      height={400}
+      style={{ display: 'block', margin: '0 auto', maxWidth: '100%', height: 'auto' }}
+    />
+  );
+};
+
+/**
+ * XGBOOST SECTION
+ * Explains the most popular gradient boosting implementation
+ */
+const XGBoostSection = ({ isDarkMode }) => {
+  const styles = getStyles(isDarkMode);
+  const [eta, setEta] = useState(0.3);
+  const [maxDepth, setMaxDepth] = useState(6);
+  const [numRounds, setNumRounds] = useState(100);
+
+  return (
+    <div>
+      <h2 style={styles.sectionTitle}>🚀 XGBoost (Extreme Gradient Boosting)</h2>
+      
+      <div style={styles.infoBox}>
+        <strong>What is it?</strong> XGBoost is an optimized, production-ready implementation of gradient boosting 
+        with additional features like regularization, parallel processing, and handling missing values. It's the 
+        algorithm that won countless Kaggle competitions and is used by tech giants for production ML systems.
+      </div>
+
+      <h3>📚 From Gradient Boosting to XGBoost</h3>
+      <p>
+        XGBoost takes the gradient boosting concept and adds crucial improvements:
+      </p>
+      <ul>
+        <li><strong>Regularization:</strong> Built-in L1 (Lasso) and L2 (Ridge) regularization to prevent overfitting</li>
+        <li><strong>Parallel Processing:</strong> Fast tree construction using parallel computation</li>
+        <li><strong>Tree Pruning:</strong> Uses "max_depth" first then prunes backward (more efficient)</li>
+        <li><strong>Missing Values:</strong> Learns best direction for missing values during training</li>
+        <li><strong>Cross-Validation:</strong> Built-in CV for early stopping</li>
+        <li><strong>Continues Training:</strong> Can add more trees to an existing model</li>
+      </ul>
+
+      <h3>🔧 In XGBoost Library</h3>
+      <div style={styles.codeBlock}>
+        <pre>{`import xgboost as xgb
+from xgboost import XGBClassifier
+
+# Method 1: Scikit-learn compatible API
+xgb_clf = XGBClassifier(
+    n_estimators=${numRounds},     # Number of boosting rounds
+    learning_rate=${eta},    # Step size (eta)
+    max_depth=${maxDepth},          # Maximum tree depth
+    min_child_weight=1,     # Minimum sum of instance weight in child
+    gamma=0,                # Minimum loss reduction for split
+    subsample=0.8,          # Fraction of samples per tree
+    colsample_bytree=0.8,   # Fraction of features per tree
+    reg_alpha=0,            # L1 regularization
+    reg_lambda=1,           # L2 regularization
+    objective='binary:logistic',  # Loss function
+    eval_metric='auc',      # Evaluation metric
+    early_stopping_rounds=10,
+    n_jobs=-1               # Use all CPU cores
+)
+
+# Train with validation set
+xgb_clf.fit(
+    X_train, y_train,
+    eval_set=[(X_train, y_train), (X_val, y_val)],
+    verbose=True
+)
+
+# Method 2: Native XGBoost API (more features)
+dtrain = xgb.DMatrix(X_train, label=y_train)
+dval = xgb.DMatrix(X_val, label=y_val)
+
+params = {
+    'eta': ${eta},
+    'max_depth': ${maxDepth},
+    'objective': 'binary:logistic',
+    'eval_metric': 'auc'
+}
+
+evals = [(dtrain, 'train'), (dval, 'val')]
+bst = xgb.train(
+    params, 
+    dtrain, 
+    num_boost_round=${numRounds},
+    evals=evals,
+    early_stopping_rounds=10,
+    verbose_eval=10
+)
+
+# Feature importance
+importance = bst.get_score(importance_type='gain')
+
+# Save model
+bst.save_model('xgb_model.json')`}</pre>
+      </div>
+
+      <h3>🎮 Interactive Demo: XGBoost Training</h3>
+      <XGBoostTraining 
+        eta={eta}
+        maxDepth={maxDepth}
+        numRounds={numRounds}
+        isDarkMode={isDarkMode}
+      />
+
+      <div style={{ margin: '20px 0' }}>
+        <label style={{ display: 'block', marginBottom: '10px' }}>
+          <strong>Learning Rate (eta):</strong> {eta.toFixed(2)}
+          <input 
+            type="range" 
+            min="0.01" 
+            max="0.5" 
+            step="0.01"
+            value={eta}
+            onChange={(e) => setEta(parseFloat(e.target.value))}
+            style={{ width: '100%', marginTop: '5px' }}
+          />
+        </label>
+        <label style={{ display: 'block', marginBottom: '10px' }}>
+          <strong>Max Depth:</strong> {maxDepth}
+          <input 
+            type="range" 
+            min="3" 
+            max="15" 
+            value={maxDepth}
+            onChange={(e) => setMaxDepth(parseInt(e.target.value))}
+            style={{ width: '100%', marginTop: '5px' }}
+          />
+        </label>
+        <label style={{ display: 'block', marginBottom: '10px' }}>
+          <strong>Number of Rounds:</strong> {numRounds}
+          <input 
+            type="range" 
+            min="50" 
+            max="500" 
+            step="50"
+            value={numRounds}
+            onChange={(e) => setNumRounds(parseInt(e.target.value))}
+            style={{ width: '100%', marginTop: '5px' }}
+          />
+        </label>
+      </div>
+
+      <h3>💡 Key XGBoost Concepts</h3>
+      <ul>
+        <li><strong>DMatrix:</strong> Optimized data structure for XGBoost (faster than numpy arrays)</li>
+        <li><strong>eta (learning_rate):</strong> Shrinkage to prevent overfitting (typical: 0.01-0.3)</li>
+        <li><strong>gamma:</strong> Minimum loss reduction to make split (regularization)</li>
+        <li><strong>lambda & alpha:</strong> L2 and L1 regularization terms</li>
+        <li><strong>subsample & colsample:</strong> Fraction of samples/features per tree (like RF)</li>
+        <li><strong>early_stopping:</strong> Stops training when validation metric stops improving</li>
+      </ul>
+
+      <h3>🔬 Advanced: What Makes XGBoost Fast?</h3>
+      
+      <h4>1. Histogram-Based Algorithm</h4>
+      <p>
+        Instead of sorting continuous features for every split (O(n log n)), XGBoost bins features into 
+        histograms and uses these for split finding (much faster):
+      </p>
+      <div style={styles.codeBlock}>
+        <pre>{`# Traditional approach: Sort for each split
+for each feature:
+    sorted_values = sort(feature_values)  # O(n log n)
+    find_best_split(sorted_values)
+
+# XGBoost histogram approach: Pre-compute bins
+histograms = create_histograms(features)  # Once
+for each feature:
+    find_best_split(histograms[feature])  # O(k) where k << n`}</pre>
+      </div>
+
+      <h4>2. Parallel Tree Construction</h4>
+      <p>
+        XGBoost parallelizes the split finding process across features, not trees (trees are sequential):
+      </p>
+      <ul>
+        <li>Each CPU core evaluates different features for the best split</li>
+        <li>Results are aggregated to choose the optimal split</li>
+        <li>Achieves near-linear speedup with multiple cores</li>
+      </ul>
+
+      <h4>3. Cache-Aware Access</h4>
+      <p>
+        Data is organized to maximize CPU cache hits, reducing memory access time significantly.
+      </p>
+
+      <h4>4. Sparsity-Aware Algorithm</h4>
+      <p>
+        Efficiently handles missing values and sparse data (common in real-world datasets):
+      </p>
+      <ul>
+        <li>Learns default direction for missing values during training</li>
+        <li>Only stores non-zero values in memory</li>
+        <li>Crucial for text data and datasets with many missing values</li>
+      </ul>
+
+      <h3>⚙️ XGBoost vs. Scikit-learn GBM vs. LightGBM</h3>
+      <table style={{ width: '100%', borderCollapse: 'collapse', margin: '20px 0' }}>
+        <thead>
+          <tr style={{ backgroundColor: isDarkMode ? '#2a2a2a' : '#f0f0f0' }}>
+            <th style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Feature</th>
+            <th style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Scikit-learn</th>
+            <th style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>XGBoost</th>
+            <th style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>LightGBM</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Speed</td>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Moderate</td>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Fast</td>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Very Fast</td>
+          </tr>
+          <tr>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Memory</td>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Moderate</td>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>High</td>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Low</td>
+          </tr>
+          <tr>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Accuracy</td>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Good</td>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Excellent</td>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Excellent</td>
+          </tr>
+          <tr>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Missing Values</td>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>No</td>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Yes</td>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Yes</td>
+          </tr>
+          <tr>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Large Datasets</td>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Slow</td>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Good</td>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Best</td>
+          </tr>
+          <tr>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Categorical</td>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Manual encoding</td>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Manual encoding</td>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Native support</td>
+          </tr>
+          <tr>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Small Data</td>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Good</td>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Best</td>
+            <td style={{ padding: '10px', border: `1px solid ${isDarkMode ? '#3a3a3a' : '#ddd'}` }}>Can overfit</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>🎯 Hyperparameter Tuning Roadmap</h3>
+      <ol>
+        <li>
+          <strong>Step 1: Fix learning_rate=0.1, tune tree parameters</strong>
+          <ul>
+            <li>max_depth: 3-10</li>
+            <li>min_child_weight: 1-10</li>
+            <li>gamma: 0-0.5</li>
+          </ul>
+        </li>
+        <li>
+          <strong>Step 2: Tune subsample and colsample_bytree</strong>
+          <ul>
+            <li>subsample: 0.6-0.9</li>
+            <li>colsample_bytree: 0.6-0.9</li>
+          </ul>
+        </li>
+        <li>
+          <strong>Step 3: Add regularization</strong>
+          <ul>
+            <li>reg_alpha: 0-1</li>
+            <li>reg_lambda: 1-2</li>
+          </ul>
+        </li>
+        <li>
+          <strong>Step 4: Lower learning_rate, increase n_estimators</strong>
+          <ul>
+            <li>Try: eta=0.05, n_estimators=200</li>
+            <li>Then: eta=0.01, n_estimators=500</li>
+          </ul>
+        </li>
+      </ol>
+
+      <div style={styles.warningBox}>
+        <strong>⚠️ Common Mistakes:</strong>
+        <ul>
+          <li><strong>Not using DMatrix:</strong> Slower training with numpy arrays</li>
+          <li><strong>Ignoring early_stopping:</strong> Training too long wastes time and overfits</li>
+          <li><strong>Wrong objective function:</strong> Use 'binary:logistic' for binary classification, 'multi:softmax' for multiclass</li>
+          <li><strong>Not scaling:</strong> While tree methods don't require scaling, it helps with regularization</li>
+        </ul>
+      </div>
+
+      <h3>🏆 Why XGBoost Dominates Kaggle</h3>
+      <ul>
+        <li><strong>Wins competitions:</strong> Used in majority of winning Kaggle solutions (2015-2020)</li>
+        <li><strong>Out-of-box performance:</strong> Works well with default parameters</li>
+        <li><strong>Handles real-world data:</strong> Missing values, imbalanced classes, mixed types</li>
+        <li><strong>Fast iteration:</strong> Can experiment with hyperparameters quickly</li>
+        <li><strong>Feature engineering:</strong> Built-in feature importance guides feature creation</li>
+      </ul>
+
+      <h3>🌍 Real-World Production Use</h3>
+      <ul>
+        <li><strong>Airbnb:</strong> Listing search ranking</li>
+        <li><strong>Uber:</strong> ETA prediction, driver-rider matching</li>
+        <li><strong>Microsoft:</strong> Malware detection</li>
+        <li><strong>PayPal:</strong> Fraud detection</li>
+        <li><strong>Zillow:</strong> Home price estimation (Zestimate)</li>
+      </ul>
+
+      <h3>📊 When to Use XGBoost</h3>
+      <ul>
+        <li>✅ Structured/tabular data</li>
+        <li>✅ Need state-of-the-art accuracy</li>
+        <li>✅ Have missing values</li>
+        <li>✅ Medium-sized datasets (1K - 10M rows)</li>
+        <li>✅ Competitions and important production models</li>
+        <li>❌ Very large datasets (&gt;10M rows → use LightGBM)</li>
+        <li>❌ Image/text data (use deep learning)</li>
+        <li>❌ Need simple interpretable model (use decision tree)</li>
+        <li>❌ Extremely limited compute (use logistic regression)</li>
+      </ul>
+    </div>
+  );
+};
+
+/**
+ * XGBoost Training Visualization
+ * Shows training progress and feature importance
+ */
+const XGBoostTraining = ({ eta, maxDepth, numRounds, isDarkMode }) => {
+  const [isTraining, setIsTraining] = useState(false);
+  const [currentRound, setCurrentRound] = useState(0);
+  const [featureImportance, setFeatureImportance] = useState([]);
+
+  useEffect(() => {
+    // Generate random feature importance
+    const features = ['Feature_A', 'Feature_B', 'Feature_C', 'Feature_D', 'Feature_E'];
+    const importance = features.map(name => ({
+      name,
+      score: Math.random() * 100
+    }));
+    // Sort by score descending
+    importance.sort((a, b) => b.score - a.score);
+    setFeatureImportance(importance);
+  }, [numRounds]);
+
+  const startTraining = () => {
+    setIsTraining(true);
+    setCurrentRound(0);
+    
+    const interval = setInterval(() => {
+      setCurrentRound(prev => {
+        if (prev >= numRounds - 1) {
+          clearInterval(interval);
+          setIsTraining(false);
+          return numRounds;
+        }
+        return prev + 1;
+      });
+    }, 20);
+  };
+
+  const trainingProgress = numRounds > 0 ? (currentRound / numRounds) * 100 : 0;
+
+  return (
+    <div style={{ 
+      border: `2px solid ${isDarkMode ? '#4a9eff' : '#2196F3'}`, 
+      borderRadius: '8px', 
+      padding: '20px', 
+      margin: '20px 0',
+      backgroundColor: isDarkMode ? '#1a1a1a' : '#ffffff'
+    }}>
+      <h4 style={{ marginTop: 0 }}>XGBoost Training Simulation</h4>
+      
+      <div style={{ marginBottom: '20px' }}>
+        <button
+          onClick={startTraining}
+          disabled={isTraining}
+          style={{
+            padding: '12px 24px',
+            backgroundColor: isTraining 
+              ? (isDarkMode ? '#666666' : '#cccccc')
+              : (isDarkMode ? '#4a9eff' : '#2196F3'),
+            color: '#ffffff',
+            border: 'none',
+            borderRadius: '5px',
+            cursor: isTraining ? 'not-allowed' : 'pointer',
+            fontWeight: '600',
+            fontSize: '1em',
+          }}
+        >
+          {isTraining ? 'Training...' : 'Start Training'}
+        </button>
+      </div>
+
+      <div style={{ marginBottom: '20px' }}>
+        <div style={{ marginBottom: '5px', fontSize: '0.9em' }}>
+          Round: {currentRound} / {numRounds} ({trainingProgress.toFixed(1)}%)
+        </div>
+        <div style={{
+          width: '100%',
+          height: '30px',
+          backgroundColor: isDarkMode ? '#2a2a2a' : '#e0e0e0',
+          borderRadius: '15px',
+          overflow: 'hidden'
+        }}>
+          <div style={{
+            width: `${trainingProgress}%`,
+            height: '100%',
+            backgroundColor: isDarkMode ? '#4a9eff' : '#2196F3',
+            transition: 'width 0.3s ease',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#ffffff',
+            fontWeight: 'bold',
+            fontSize: '0.9em'
+          }}>
+            {trainingProgress > 10 && `${trainingProgress.toFixed(0)}%`}
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h4>Feature Importance (Gain)</h4>
+        <div style={{ marginTop: '15px' }}>
+          {featureImportance.map((feature, idx) => {
+            const barWidth = (feature.score / featureImportance[0].score) * 100;
+            return (
+              <div key={feature.name} style={{ marginBottom: '12px' }}>
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between',
+                  marginBottom: '4px',
+                  fontSize: '0.9em'
+                }}>
+                  <span>{feature.name}</span>
+                  <span>{feature.score.toFixed(1)}</span>
+                </div>
+                <div style={{
+                  width: '100%',
+                  height: '20px',
+                  backgroundColor: isDarkMode ? '#2a2a2a' : '#e0e0e0',
+                  borderRadius: '10px',
+                  overflow: 'hidden'
+                }}>
+                  <div style={{
+                    width: `${barWidth}%`,
+                    height: '100%',
+                    backgroundColor: ['#e53935', '#fb8c00', '#fdd835', '#43a047', '#1e88e5'][idx],
+                    transition: 'width 0.5s ease'
+                  }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{ 
+        marginTop: '20px', 
+        padding: '15px',
+        backgroundColor: isDarkMode ? '#252525' : '#f5f5f5',
+        borderRadius: '8px',
+        fontSize: '0.9em'
+      }}>
+        <strong>Training Parameters:</strong>
+        <ul style={{ margin: '10px 0', paddingLeft: '20px' }}>
+          <li>Learning Rate (eta): {eta.toFixed(2)}</li>
+          <li>Max Depth: {maxDepth}</li>
+          <li>Number of Rounds: {numRounds}</li>
+        </ul>
+        <p style={{ margin: 0, fontStyle: 'italic' }}>
+          💡 Feature importance shows which features contribute most to prediction accuracy.
+          Higher values mean the feature is more useful for making splits.
+        </p>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * SVM SECTION
+ * Explains Support Vector Machines
+ */
+const SVMSection = ({ isDarkMode }) => {
+  const styles = getStyles(isDarkMode);
+  const [C, setC] = useState(1.0);
+  const [kernel, setKernel] = useState('rbf');
+  const [gamma, setGamma] = useState(0.1);
+
+  return (
+    <div>
+      <h2 style={styles.sectionTitle}>🎯 Support Vector Machines (SVM)</h2>
+      
+      <div style={styles.infoBox}>
+        <strong>What is it?</strong> SVM finds the optimal boundary (hyperplane) that best separates different 
+        classes by maximizing the margin - the distance between the boundary and the nearest data points from 
+        each class. Think of it as drawing the "safest" line between two groups of points.
+      </div>
+
+      <h3>📚 Beginner Explanation</h3>
+      <p>
+        Imagine you're a referee separating two teams on a field. You want to draw a line that:
+      </p>
+      <ol>
+        <li>Keeps the teams as far apart as possible</li>
+        <li>Has the maximum "buffer zone" on both sides</li>
+        <li>Is positioned based on the players closest to the line (support vectors)</li>
+      </ol>
+      <p>
+        The players closest to the line are the "support vectors" - they're the ones who matter most 
+        for determining where the boundary should be. Players far from the line don't influence its position.
+      </p>
+
+      <h3>🔍 The Margin Concept</h3>
+      <p>
+        The <strong>margin</strong> is the space between the decision boundary and the nearest data points. 
+        SVM tries to maximize this margin because:
+      </p>
+      <ul>
+        <li>Larger margin = more confident predictions</li>
+        <li>New data points have more room for variation</li>
+        <li>Model is more robust to noise</li>
+      </ul>
+
+      <h3>🔧 In scikit-learn</h3>
+      <div style={styles.codeBlock}>
+        <pre>{`from sklearn.svm import SVC
+from sklearn.preprocessing import StandardScaler
+
+# IMPORTANT: Always scale data for SVM!
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+# Create the model
+svm = SVC(
+    C=${C.toFixed(1)},                    # Regularization parameter
+    kernel='${kernel}',          # Kernel type: 'linear', 'rbf', 'poly', 'sigmoid'
+    gamma=${gamma.toFixed(1)},            # Kernel coefficient (for rbf, poly, sigmoid)
+    degree=3,               # Degree for polynomial kernel
+    class_weight='balanced', # Handle imbalanced classes
+    probability=True,       # Enable probability estimates
+    random_state=42
+)
+
+# Train the model
+svm.fit(X_train_scaled, y_train)
+
+# Make predictions
+predictions = svm.predict(X_test_scaled)
+probabilities = svm.predict_proba(X_test_scaled)
+
+# Get support vectors
+support_vectors = svm.support_vectors_
+n_support = svm.n_support_  # Number of support vectors per class`}</pre>
+      </div>
+
+      <h3>🎮 Interactive Demo: SVM Decision Boundary</h3>
+      <SVMVisualization 
+        C={C}
+        kernel={kernel}
+        gamma={gamma}
+        isDarkMode={isDarkMode}
+      />
+
+      <div style={{ margin: '20px 0' }}>
+        <label style={{ display: 'block', marginBottom: '10px' }}>
+          <strong>C (Regularization):</strong> {C.toFixed(1)}
+          <input 
+            type="range" 
+            min="0.1" 
+            max="10" 
+            step="0.1"
+            value={C}
+            onChange={(e) => setC(parseFloat(e.target.value))}
+            style={{ width: '100%', marginTop: '5px' }}
+          />
+          <div style={{ fontSize: '0.85em', color: isDarkMode ? '#a0a0a0' : '#666', marginTop: '3px' }}>
+            Low C: Large margin, more errors allowed. High C: Small margin, fewer errors.
+          </div>
+        </label>
+        
+        <label style={{ display: 'block', marginBottom: '10px' }}>
+          <strong>Kernel:</strong>
+          <select 
+            value={kernel}
+            onChange={(e) => setKernel(e.target.value)}
+            style={{ 
+              width: '100%', 
+              padding: '8px', 
+              marginTop: '5px',
+              backgroundColor: isDarkMode ? '#2a2a2a' : '#ffffff',
+              color: isDarkMode ? '#e0e0e0' : '#333333',
+              border: `1px solid ${isDarkMode ? '#4a4a4a' : '#cccccc'}`,
+              borderRadius: '4px'
+            }}
+          >
+            <option value="linear">Linear</option>
+            <option value="rbf">RBF (Radial Basis Function)</option>
+            <option value="poly">Polynomial</option>
+            <option value="sigmoid">Sigmoid</option>
+          </select>
+        </label>
+
+        {kernel !== 'linear' && (
+          <label style={{ display: 'block', marginBottom: '10px' }}>
+            <strong>Gamma:</strong> {gamma.toFixed(2)}
+            <input 
+              type="range" 
+              min="0.01" 
+              max="2" 
+              step="0.01"
+              value={gamma}
+              onChange={(e) => setGamma(parseFloat(e.target.value))}
+              style={{ width: '100%', marginTop: '5px' }}
+            />
+            <div style={{ fontSize: '0.85em', color: isDarkMode ? '#a0a0a0' : '#666', marginTop: '3px' }}>
+              Low gamma: Far-reaching influence. High gamma: Close-range influence (can overfit).
+            </div>
+          </label>
+        )}
+      </div>
+
+      <h3>💡 Key SVM Concepts</h3>
+      <ul>
+        <li><strong>Support Vectors:</strong> Data points closest to the decision boundary (these define the model)</li>
+        <li><strong>Margin:</strong> Distance between boundary and nearest support vectors</li>
+        <li><strong>C Parameter:</strong> Controls trade-off between margin width and misclassification</li>
+        <li><strong>Kernel:</strong> Function that transforms data to higher dimensions</li>
+        <li><strong>Gamma:</strong> Defines how far the influence of a single training example reaches</li>
+      </ul>
+
+      <h3>🔬 Understanding Kernels</h3>
+      
+      <h4>Linear Kernel</h4>
+      <p>
+        Draws a straight line (or plane in higher dimensions). Use when data is linearly separable.
+      </p>
+      <div style={styles.codeBlock}>
+        <pre>{`K(x, y) = x · y  # Simple dot product`}</pre>
+      </div>
+
+      <h4>RBF (Radial Basis Function) Kernel - Most Popular</h4>
+      <p>
+        Can create circular/curved boundaries. Works well for most problems.
+      </p>
+      <div style={styles.codeBlock}>
+        <pre>{`K(x, y) = exp(-γ ||x - y||²)  # Gaussian-like influence
+
+# Think of it as: "How similar are these points?"
+# - Same point: K = 1
+# - Far apart: K → 0
+# - γ controls the "far apart" threshold`}</pre>
+      </div>
+
+      <h4>Polynomial Kernel</h4>
+      <p>
+        Can model complex curved boundaries. Degree parameter controls complexity.
+      </p>
+      <div style={styles.codeBlock}>
+        <pre>{`K(x, y) = (γ x · y + r)^d
+
+# Example with degree=2:
+# Transforms [x₁, x₂] → [x₁², √2·x₁·x₂, x₂², √2·x₁, √2·x₂, 1]`}</pre>
+      </div>
+
+      <h4>Sigmoid Kernel</h4>
+      <p>
+        Similar to neural network activation. Rarely used in practice.
+      </p>
+
+      <h3>🎓 The Kernel Trick Explained</h3>
+      <p>
+        The "kernel trick" is SVM's secret weapon. Instead of explicitly transforming data to high dimensions 
+        (expensive), kernels compute similarities in the transformed space without doing the transformation!
+      </p>
+      
+      <div style={{ 
+        backgroundColor: isDarkMode ? '#2a2a4a' : '#e3f2fd',
+        padding: '15px',
+        borderRadius: '8px',
+        margin: '15px 0'
+      }}>
+        <strong>Example: Making Non-Linear Data Linear</strong>
+        <p>Problem: Points arranged in circles aren't linearly separable in 2D</p>
+        <div style={styles.codeBlock}>
+          <pre>{`# Original 2D data: Can't draw a straight line to separate
+Class A: points inside circle
+Class B: points outside circle
+
+# Kernel trick: Implicitly map to 3D
+# Add feature: z = x² + y² (distance from origin)
+# Now data is linearly separable in 3D space!
+
+# But we never actually compute the 3D coordinates
+# The kernel computes dot products in 3D space directly`}</pre>
+        </div>
+      </div>
+
+      <h3>⚖️ The C Parameter Trade-off</h3>
+      <ul>
+        <li>
+          <strong>Small C (C → 0):</strong>
+          <ul>
+            <li>Wide margin</li>
+            <li>More training errors allowed</li>
+            <li>Simpler decision boundary</li>
+            <li>Better generalization (less overfitting)</li>
+            <li>Use when: Noisy data, want robust model</li>
+          </ul>
+        </li>
+        <li>
+          <strong>Large C (C → ∞):</strong>
+          <ul>
+            <li>Narrow margin</li>
+            <li>Few training errors</li>
+            <li>Complex decision boundary</li>
+            <li>Risk of overfitting</li>
+            <li>Use when: Clean data, confident in training set</li>
+          </ul>
+        </li>
+      </ul>
+
+      <h3>📏 Why Scaling is CRITICAL for SVM</h3>
+      <p>
+        SVM uses distances in its calculations. If features have different scales, SVM will be biased toward 
+        large-scale features:
+      </p>
+      <div style={styles.codeBlock}>
+        <pre>{`# Without scaling:
+Feature 1: Age (20-80)        → Small numbers
+Feature 2: Income (20k-200k)  → Large numbers
+# SVM will think income is more important just because numbers are bigger!
+
+# With scaling (StandardScaler):
+Feature 1: Age (-1 to +1)      → Normalized
+Feature 2: Income (-1 to +1)   → Normalized
+# Now SVM treats both features fairly`}</pre>
+      </div>
+
+      <div style={styles.warningBox}>
+        <strong>⚠️ Critical Mistakes to Avoid:</strong>
+        <ul>
+          <li><strong>Not scaling data:</strong> Most common mistake, ruins performance</li>
+          <li><strong>Using RBF for linearly separable data:</strong> Unnecessary complexity</li>
+          <li><strong>Not tuning C and gamma:</strong> Default values often suboptimal</li>
+          <li><strong>Using SVM on huge datasets:</strong> Training time is O(n²) to O(n³)</li>
+        </ul>
+      </div>
+
+      <h3>🎯 Hyperparameter Tuning Guide</h3>
+      
+      <h4>Step 1: Choose Kernel</h4>
+      <ul>
+        <li>Start with RBF (works for most problems)</li>
+        <li>Try linear if you have many features (text data, high-dimensional)</li>
+        <li>Polynomial if you suspect polynomial relationships</li>
+      </ul>
+
+      <h4>Step 2: Grid Search for C and gamma (RBF kernel)</h4>
+      <div style={styles.codeBlock}>
+        <pre>{`from sklearn.model_selection import GridSearchCV
+
+param_grid = {
+    'C': [0.1, 1, 10, 100],
+    'gamma': [1, 0.1, 0.01, 0.001],
+    'kernel': ['rbf']
+}
+
+grid = GridSearchCV(SVC(), param_grid, cv=5, scoring='f1')
+grid.fit(X_train_scaled, y_train)
+
+print(f"Best parameters: {grid.best_params_}")
+print(f"Best score: {grid.best_score_:.3f}")`}</pre>
+      </div>
+
+      <h4>Step 3: Common Good Starting Points</h4>
+      <ul>
+        <li><strong>Balanced data:</strong> C=1.0, gamma='scale' (default)</li>
+        <li><strong>Imbalanced data:</strong> C=10, class_weight='balanced'</li>
+        <li><strong>Many features:</strong> kernel='linear', C=1.0</li>
+        <li><strong>Small dataset (&lt;1000):</strong> RBF kernel usually works well</li>
+      </ul>
+
+      <h3>🏆 When SVM Excels</h3>
+      <ul>
+        <li>✅ High-dimensional data (text classification, genomics)</li>
+        <li>✅ Clear margin of separation</li>
+        <li>✅ Small to medium datasets (&lt;10,000 samples)</li>
+        <li>✅ Need robust model against outliers (with appropriate C)</li>
+        <li>✅ Binary classification problems</li>
+        <li>❌ Very large datasets (slow training)</li>
+        <li>❌ Lots of noise or overlapping classes</li>
+        <li>❌ Need probability estimates (SVM's probabilities less reliable than logistic regression)</li>
+        <li>❌ Need model interpretability (kernel SVMs are black boxes)</li>
+      </ul>
+
+      <h3>🌍 Real-World Applications</h3>
+      <ul>
+        <li><strong>Text Classification:</strong> Spam detection, sentiment analysis (linear kernel excels)</li>
+        <li><strong>Image Recognition:</strong> Face detection, handwritten digit recognition</li>
+        <li><strong>Bioinformatics:</strong> Protein classification, cancer classification</li>
+        <li><strong>Financial Markets:</strong> Stock price prediction (though neural networks now preferred)</li>
+      </ul>
+
+      <h3>📊 SVM vs. Other Classifiers</h3>
+      <ul>
+        <li><strong>vs. Logistic Regression:</strong> SVM better for non-linear boundaries, LR better for probabilities</li>
+        <li><strong>vs. Random Forest:</strong> SVM better for high-dimensional data, RF better for interpretability and large datasets</li>
+        <li><strong>vs. Neural Networks:</strong> SVM better for small data, NN better for complex patterns and very large datasets</li>
+        <li><strong>vs. XGBoost:</strong> XGBoost usually wins on tabular data, SVM wins on text/high-dimensional</li>
+      </ul>
+
+      <h3>🔬 Advanced: Multi-class SVM</h3>
+      <p>
+        SVM is naturally binary. For multi-class problems, scikit-learn uses:
+      </p>
+      <ul>
+        <li><strong>One-vs-Rest (OvR):</strong> Train N binary classifiers (one per class vs. all others)</li>
+        <li><strong>One-vs-One (OvO):</strong> Train N(N-1)/2 classifiers (all pairs of classes)</li>
+      </ul>
+      <div style={styles.codeBlock}>
+        <pre>{`# Automatically handles multi-class
+from sklearn.multiclass import OneVsRestClassifier, OneVsOneClassifier
+
+# One-vs-Rest (default in SVC)
+ovr = OneVsRestClassifier(SVC(kernel='rbf'))
+ovr.fit(X_train, y_train)
+
+# One-vs-One
+ovo = OneVsOneClassifier(SVC(kernel='rbf'))
+ovo.fit(X_train, y_train)
+
+# OvO is more accurate but slower
+# OvR is faster but sometimes less accurate`}</pre>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * SVM Visualization Component
+ * Shows decision boundaries and support vectors
+ */
+const SVMVisualization = ({ C, kernel, gamma, isDarkMode }) => {
+  const canvasRef = useRef(null);
+  const [dataPoints, setDataPoints] = useState([]);
+  const [supportVectors, setSupportVectors] = useState([]);
+
+  useEffect(() => {
+    // Generate sample data
+    const points = [];
+    // Class A - cluster around (30, 30)
+    for (let i = 0; i < 25; i++) {
+      points.push({
+        x: 30 + (Math.random() - 0.5) * 30,
+        y: 30 + (Math.random() - 0.5) * 30,
+        class: 'A'
+      });
+    }
+    // Class B - cluster around (70, 70)
+    for (let i = 0; i < 25; i++) {
+      points.push({
+        x: 70 + (Math.random() - 0.5) * 30,
+        y: 70 + (Math.random() - 0.5) * 30,
+        class: 'B'
+      });
+    }
+    setDataPoints(points);
+
+    // Identify "support vectors" (points near boundary)
+    // Simplified: just take points near the middle
+    const sv = points.filter(p => {
+      const distFromCenter = Math.sqrt(Math.pow(p.x - 50, 2) + Math.pow(p.y - 50, 2));
+      return distFromCenter < 25 && distFromCenter > 15;
+    });
+    setSupportVectors(sv);
+  }, []);
+
+  useEffect(() => {
+    if (!canvasRef.current || dataPoints.length === 0) return;
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+
+    // Clear canvas
+    ctx.fillStyle = isDarkMode ? '#1a1a1a' : '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+
+    // Draw decision boundary based on kernel type
+    ctx.strokeStyle = isDarkMode ? '#4a9eff' : '#2196F3';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+
+    if (kernel === 'linear') {
+      // Draw a straight line
+      ctx.moveTo(0, height);
+      ctx.lineTo(width, 0);
+    } else if (kernel === 'rbf') {
+      // Draw a curved boundary (circle-ish)
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const radius = 150 / (1 + gamma * 5);
+      ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+    } else if (kernel === 'poly') {
+      // Draw a wavy polynomial curve
+      ctx.moveTo(0, height * 0.8);
+      for (let x = 0; x <= width; x += 5) {
+        const y = height * 0.8 - Math.sin(x * 0.02) * 50 - (x / width) * height * 0.6;
+        ctx.lineTo(x, y);
+      }
+    } else if (kernel === 'sigmoid') {
+      // Draw S-curve
+      ctx.moveTo(0, height);
+      for (let x = 0; x <= width; x += 5) {
+        const sigmoid = 1 / (1 + Math.exp(-0.02 * (x - width/2)));
+        const y = height - sigmoid * height;
+        ctx.lineTo(x, y);
+      }
+    }
+    ctx.stroke();
+
+    // Draw margin lines (simplified)
+    const marginWidth = 20 / C; // Smaller C = wider margin
+    ctx.strokeStyle = isDarkMode ? '#666666' : '#cccccc';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([5, 5]);
+    
+    if (kernel === 'linear') {
+      ctx.beginPath();
+      ctx.moveTo(0, height + marginWidth * 10);
+      ctx.lineTo(width, 0 + marginWidth * 10);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, height - marginWidth * 10);
+      ctx.lineTo(width, 0 - marginWidth * 10);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    // Draw support vectors with special highlight
+    supportVectors.forEach(point => {
+      const x = (point.x / 100) * width;
+      const y = (point.y / 100) * height;
+      
+      // Outer ring for support vectors
+      ctx.beginPath();
+      ctx.arc(x, y, 8, 0, 2 * Math.PI);
+      ctx.strokeStyle = '#ffd700'; // Gold color
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    });
+
+    // Draw all data points
+    dataPoints.forEach(point => {
+      const x = (point.x / 100) * width;
+      const y = (point.y / 100) * height;
+      
+      ctx.beginPath();
+      ctx.arc(x, y, 5, 0, 2 * Math.PI);
+      ctx.fillStyle = point.class === 'A'
+        ? (isDarkMode ? '#ff6b6b' : '#e53935')
+        : (isDarkMode ? '#51cf66' : '#43a047');
+      ctx.fill();
+      ctx.strokeStyle = isDarkMode ? '#ffffff' : '#000000';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    });
+
+    // Add labels
+    ctx.fillStyle = isDarkMode ? '#e0e0e0' : '#333333';
+    ctx.font = '14px sans-serif';
+    ctx.fillText(`Kernel: ${kernel}, C: ${C.toFixed(1)}${kernel !== 'linear' ? `, γ: ${gamma.toFixed(2)}` : ''}`, 10, 20);
+    
+  }, [C, kernel, gamma, dataPoints, supportVectors, isDarkMode]);
+
+  return (
+    <div style={{ 
+      border: `2px solid ${isDarkMode ? '#4a9eff' : '#2196F3'}`, 
+      borderRadius: '8px', 
+      padding: '10px', 
+      margin: '20px 0',
+      backgroundColor: isDarkMode ? '#1a1a1a' : '#ffffff'
+    }}>
+      <canvas 
+        ref={canvasRef} 
+        width={600} 
+        height={400}
+        style={{ display: 'block', margin: '0 auto', maxWidth: '100%', height: 'auto' }}
+      />
+      <div style={{ textAlign: 'center', marginTop: '10px', fontSize: '0.9em' }}>
+        <span style={{ color: isDarkMode ? '#ff6b6b' : '#e53935' }}>● Class A</span>
+        {' | '}
+        <span style={{ color: isDarkMode ? '#51cf66' : '#43a047' }}>● Class B</span>
+        {' | '}
+        <span style={{ color: isDarkMode ? '#4a9eff' : '#2196F3' }}>━ Decision Boundary</span>
+        {' | '}
+        <span style={{ color: '#ffd700' }}>◯ Support Vectors</span>
+      </div>
+      <p style={{ marginTop: '15px', fontSize: '0.9em', textAlign: 'center', fontStyle: 'italic' }}>
+        💡 Support vectors (gold rings) are the critical points that define the boundary. 
+        Other points don't affect the model!
+      </p>
+    </div>
+  );
+};
+
+// Export the main component
+
+
+
+        console.log('Rendering MLModelsInteractive...');
+        ReactDOM.render(React.createElement(MLModelsInteractive), document.getElementById('root'));
+        console.log('Render complete!');
+    </script>
+</body>
+</html>

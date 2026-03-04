@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deep Learning & LSTM for Audio AI</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+        
+        // Icon Components (converted from Lucide)
+        const ChevronDown = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+        );
+        
+        const ChevronUp = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+            </svg>
+        );
+        
+        const Code = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+            </svg>
+        );
+        
+        const Brain = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
+        );
+        
+        const Layers = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 2l10 6-10 6L2 8l10-6zm0 0v12m0 0l10-6m-10 6L2 8" />
+            </svg>
+        );
+        
+        const Grid = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+            </svg>
+        );
+        
+        const Music = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+            </svg>
+        );
+        
+        const Mic = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+            </svg>
+        );
+        
+        const TrendingUp = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+            </svg>
+        );
+        
+        const Zap = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+        );
+        
+        const Activity = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M22 12h-4l-3 9L9 3l-3 9H2" />
+            </svg>
+        );
+        
+        const Radio = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="2"/>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.24 7.76a6 6 0 010 8.49m-8.48-.01a6 6 0 010-8.49m11.31-2.82a10 10 0 010 14.14m-14.14 0a10 10 0 010-14.14" />
+            </svg>
+        );
+        
+        const BarChart3 = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 3v18h18M7 16V9m5 7V6m5 10v-4" />
+            </svg>
+        );
+        
+        const Clock = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10"/>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2" />
+            </svg>
+        );
+
+        const DeepLearningLSTMAudioGuide = () => {
+          const [activeTab, setActiveTab] = useState('basics');
+          const [activeSection, setActiveSection] = useState(0);
+          const [expandedCode, setExpandedCode] = useState({});
+
+          const toggleCode = (id) => {
+            setExpandedCode(prev => ({ ...prev, [id]: !prev[id] }));
+          };
+
+          const basicsSections = [
+            { id: 0, title: "What is Deep Learning?", icon: <Brain className="w-6 h-6" /> },
+            { id: 1, title: "Neural Networks 101", icon: <Layers className="w-6 h-6" /> },
+            { id: 2, title: "Training Process", icon: <TrendingUp className="w-6 h-6" /> },
+            { id: 3, title: "Activation Functions", icon: <Zap className="w-6 h-6" /> },
+            { id: 4, title: "Backpropagation", icon: <Activity className="w-6 h-6" /> }
+          ];
+
+          const lstmSections = [
+            { id: 0, title: "LSTM Architecture", icon: <Grid className="w-6 h-6" /> },
+            { id: 1, title: "LSTM for Audio", icon: <Music className="w-6 h-6" /> },
+            { id: 2, title: "Speech Recognition", icon: <Mic className="w-6 h-6" /> },
+            { id: 3, title: "Audio Generation", icon: <Radio className="w-6 h-6" /> },
+            { id: 4, title: "Complete Projects", icon: <BarChart3 className="w-6 h-6" /> }
+          ];
+
+          const sections = activeTab === 'basics' ? basicsSections : lstmSections;
+
+          return (
+            <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-8">
+              <div className="max-w-7xl mx-auto">
+                {/* Header */}
+                <div className="bg-white rounded-lg shadow-xl p-8 mb-8">
+                  <h1 className="text-5xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-4">
+                    Deep Learning & LSTM for Audio AI
+                  </h1>
+                  <p className="text-gray-700 text-xl">
+                    From fundamentals to advanced LSTM audio applications with complete code examples
+                  </p>
+                </div>
+
+                {/* Main Topic Tabs */}
+                <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <button
+                      onClick={() => { setActiveTab('basics'); setActiveSection(0); }}
+                      className={`flex items-center justify-center gap-3 px-6 py-4 rounded-lg font-semibold text-lg transition-all ${
+                        activeTab === 'basics'
+                          ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg scale-105'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      <Brain className="w-7 h-7" />
+                      <div className="text-left">
+                        <div>Deep Learning Basics</div>
+                        <div className="text-xs opacity-80">Neural Networks & Training</div>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => { setActiveTab('lstm'); setActiveSection(0); }}
+                      className={`flex items-center justify-center gap-3 px-6 py-4 rounded-lg font-semibold text-lg transition-all ${
+                        activeTab === 'lstm'
+                          ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg scale-105'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      <Music className="w-7 h-7" />
+                      <div className="text-left">
+                        <div>LSTM for Audio</div>
+                        <div className="text-xs opacity-80">Speech, Music & Sound AI</div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Sub-Navigation */}
+                <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
+                  <div className="flex flex-wrap gap-3">
+                    {sections.map((section) => (
+                      <button
+                        key={section.id}
+                        onClick={() => setActiveSection(section.id)}
+                        className={`flex items-center gap-2 px-4 py-3 rounded-lg transition-all ${
+                          activeSection === section.id
+                            ? activeTab === 'basics' 
+                              ? 'bg-indigo-600 text-white shadow-md'
+                              : 'bg-purple-600 text-white shadow-md'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {section.icon}
+                        <span className="font-medium">{section.title}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* DEEP LEARNING BASICS CONTENT */}
+                {activeTab === 'basics' && (
+                  <>
+                    {/* Section 0: What is Deep Learning */}
+                    {activeSection === 0 && (
+                      <div className="space-y-6">
+                        <div className="bg-white rounded-lg shadow-lg p-8">
+                          <h2 className="text-4xl font-bold text-indigo-900 mb-6">What is Deep Learning?</h2>
+                          
+                          <div className="bg-gradient-to-r from-blue-100 to-indigo-100 rounded-lg p-6 mb-6">
+                            <h3 className="text-2xl font-semibold text-gray-800 mb-4">Introduction</h3>
+                            <p className="text-lg text-gray-700 leading-relaxed mb-4">
+                              Deep Learning is a subset of Machine Learning that uses artificial neural networks with multiple layers (hence "deep") to progressively extract higher-level features from raw input. It powers modern AI applications from image recognition to natural language processing to audio generation.
+                            </p>
+                            
+                            <div className="bg-white rounded-lg p-6">
+                              <h4 className="font-semibold text-indigo-700 mb-3 text-lg">The AI Hierarchy</h4>
+                              <div className="space-y-3">
+                                <div className="flex items-center gap-4">
+                                  <div className="w-48 h-16 bg-gradient-to-r from-blue-400 to-blue-600 rounded-lg flex items-center justify-center text-white font-bold">
+                                    Artificial Intelligence
+                                  </div>
+                                  <p className="text-sm text-gray-600">Machines that mimic human intelligence</p>
+                                </div>
+                                <div className="flex items-center gap-4 ml-8">
+                                  <div className="w-40 h-16 bg-gradient-to-r from-purple-400 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold">
+                                    Machine Learning
+                                  </div>
+                                  <p className="text-sm text-gray-600">Systems that learn from data</p>
+                                </div>
+                                <div className="flex items-center gap-4 ml-16">
+                                  <div className="w-32 h-16 bg-gradient-to-r from-pink-400 to-pink-600 rounded-lg flex items-center justify-center text-white font-bold">
+                                    Deep Learning
+                                  </div>
+                                  <p className="text-sm text-gray-600">Multi-layer neural networks</p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Key Concepts */}
+                          <div className="bg-purple-50 rounded-lg p-6 mb-6">
+                            <h3 className="text-2xl font-semibold text-gray-800 mb-4">Why "Deep"?</h3>
+                            <div className="grid md:grid-cols-2 gap-4">
+                              <div className="bg-white rounded-lg p-4">
+                                <div className="text-3xl mb-2">📚</div>
+                                <h4 className="font-semibold text-purple-700 mb-2">Multiple Layers</h4>
+                                <p className="text-sm text-gray-600">Networks with many hidden layers (10s to 100s) that learn hierarchical representations</p>
+                              </div>
+                              <div className="bg-white rounded-lg p-4">
+                                <div className="text-3xl mb-2">🎯</div>
+                                <h4 className="font-semibold text-purple-700 mb-2">Feature Learning</h4>
+                                <p className="text-sm text-gray-600">Automatically discovers features from raw data without manual engineering</p>
+                              </div>
+                              <div className="bg-white rounded-lg p-4">
+                                <div className="text-3xl mb-2">🔄</div>
+                                <h4 className="font-semibold text-purple-700 mb-2">End-to-End Learning</h4>
+                                <p className="text-sm text-gray-600">Learns directly from input to output without intermediate representations</p>
+                              </div>
+                              <div className="bg-white rounded-lg p-4">
+                                <div className="text-3xl mb-2">💪</div>
+                                <h4 className="font-semibold text-purple-700 mb-2">Scale with Data</h4>
+                                <p className="text-sm text-gray-600">Performance improves with more data, unlike traditional ML algorithms</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Applications */}
+                          <div className="bg-green-50 rounded-lg p-6">
+                            <h3 className="text-2xl font-semibold text-gray-800 mb-4">Real-World Applications</h3>
+                            <div className="grid md:grid-cols-3 gap-4">
+                              <div className="bg-white rounded-lg p-4">
+                                <div className="text-3xl mb-2">👁️</div>
+                                <h4 className="font-semibold text-green-700 mb-2">Computer Vision</h4>
+                                <ul className="text-sm text-gray-600 space-y-1">
+                                  <li>• Image classification</li>
+                                  <li>• Object detection</li>
+                                  <li>• Facial recognition</li>
+                                  <li>• Medical imaging</li>
+                                </ul>
+                              </div>
+                              <div className="bg-white rounded-lg p-4">
+                                <div className="text-3xl mb-2">💬</div>
+                                <h4 className="font-semibold text-green-700 mb-2">Natural Language</h4>
+                                <ul className="text-sm text-gray-600 space-y-1">
+                                  <li>• Language translation</li>
+                                  <li>• Chatbots (GPT, Claude)</li>
+                                  <li>• Sentiment analysis</li>
+                                  <li>• Text generation</li>
+                                </ul>
+                              </div>
+                              <div className="bg-white rounded-lg p-4">
+                                <div className="text-3xl mb-2">🎵</div>
+                                <h4 className="font-semibold text-green-700 mb-2">Audio Processing</h4>
+                                <ul className="text-sm text-gray-600 space-y-1">
+                                  <li>• Speech recognition</li>
+                                  <li>• Music generation</li>
+                                  <li>• Voice synthesis</li>
+                                  <li>• Sound classification</li>
+                                </ul>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Section 1: Neural Networks 101 */}
+                    {activeSection === 1 && (
+                      <div className="bg-white rounded-lg shadow-lg p-8">
+                        <h2 className="text-4xl font-bold text-indigo-900 mb-6">Neural Networks 101</h2>
+                        
+                        <div className="bg-gradient-to-r from-indigo-100 to-purple-100 rounded-lg p-6 mb-6">
+                          <h3 className="text-2xl font-semibold mb-4">The Neuron: Basic Building Block</h3>
+                          
+                          <div className="bg-white rounded-lg p-6 mb-4">
+                            <div className="flex items-center justify-center gap-8 flex-wrap">
+                              {/* Simplified neuron diagram */}
+                              <div className="text-center">
+                                <div className="w-24 h-24 bg-blue-400 rounded-full flex items-center justify-center text-white font-bold">
+                                  Inputs
+                                </div>
+                              </div>
+                              <div className="text-2xl">→</div>
+                              <div className="text-center">
+                                <div className="w-32 h-32 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                                  Σ + bias<br/>↓<br/>activation
+                                </div>
+                              </div>
+                              <div className="text-2xl">→</div>
+                              <div className="text-center">
+                                <div className="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center text-white font-bold">
+                                  Output
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="mt-6 bg-indigo-50 rounded-lg p-4">
+                              <h4 className="font-semibold mb-2">Mathematical Formula:</h4>
+                              <p className="text-lg font-mono text-center mb-2">y = f(Σ(w·x) + b)</p>
+                              <div className="text-sm text-gray-600 space-y-1">
+                                <p>• <strong>x</strong>: Input values</p>
+                                <p>• <strong>w</strong>: Weights (importance of each input)</p>
+                                <p>• <strong>b</strong>: Bias (shifts the activation)</p>
+                                <p>• <strong>f</strong>: Activation function (introduces non-linearity)</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Code Example */}
+                        <div className="bg-gray-50 rounded-lg p-6">
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-xl font-semibold flex items-center gap-2">
+                              <Code className="w-5 h-5" />
+                              Building a Neural Network
+                            </h3>
+                            <button
+                              onClick={() => toggleCode('nn-basic')}
+                              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                            >
+                              {expandedCode['nn-basic'] ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                              {expandedCode['nn-basic'] ? 'Hide' : 'Show'} Code
+                            </button>
+                          </div>
+                          
+                          {expandedCode['nn-basic'] && (
+                            <pre className="bg-gray-900 text-gray-100 rounded-lg p-6 overflow-x-auto text-sm">
+{`import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class SimpleNN(nn.Module):
+    def __init__(self, input_size, hidden_size, output_size):
+        super(SimpleNN, self).__init__()
+        self.fc1 = nn.Linear(input_size, hidden_size)
+        self.fc2 = nn.Linear(hidden_size, hidden_size)
+        self.fc3 = nn.Linear(hidden_size, output_size)
+    
+    def forward(self, x):
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
+
+# Create model
+model = SimpleNN(input_size=10, hidden_size=20, output_size=1)
+print(model)
+
+# Example input
+x = torch.randn(1, 10)
+output = model(x)
+print(f"Output: {output}")`}
+                            </pre>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Section 2: Training Process */}
+                    {activeSection === 2 && (
+                      <div className="bg-white rounded-lg shadow-lg p-8">
+                        <h2 className="text-4xl font-bold text-indigo-900 mb-6">The Training Process</h2>
+                        
+                        <div className="bg-gradient-to-r from-green-100 to-teal-100 rounded-lg p-6 mb-6">
+                          <h3 className="text-2xl font-semibold mb-4">Training Loop</h3>
+                          <div className="space-y-4">
+                            {[
+                              { num: 1, title: "Forward Pass", desc: "Input data flows through network to produce predictions" },
+                              { num: 2, title: "Calculate Loss", desc: "Measure error between predictions and true labels" },
+                              { num: 3, title: "Backward Pass", desc: "Compute gradients of loss with respect to weights" },
+                              { num: 4, title: "Update Weights", desc: "Adjust weights using optimizer (SGD, Adam)" },
+                              { num: 5, title: "Repeat", desc: "Continue for multiple epochs until convergence" }
+                            ].map(step => (
+                              <div key={step.num} className="bg-white rounded-lg p-4 flex items-start gap-4">
+                                <div className={`w-12 h-12 bg-indigo-500 text-white rounded-full flex items-center justify-center font-bold text-xl flex-shrink-0`}>
+                                  {step.num}
+                                </div>
+                                <div>
+                                  <h4 className="font-semibold text-lg mb-1">{step.title}</h4>
+                                  <p className="text-sm text-gray-600">{step.desc}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Code */}
+                        <div className="bg-gray-50 rounded-lg p-6">
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-xl font-semibold flex items-center gap-2">
+                              <Code className="w-5 h-5" />
+                              Complete Training Example
+                            </h3>
+                            <button
+                              onClick={() => toggleCode('training')}
+                              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                            >
+                              {expandedCode['training'] ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                              {expandedCode['training'] ? 'Hide' : 'Show'} Code
+                            </button>
+                          </div>
+                          
+                          {expandedCode['training'] && (
+                            <pre className="bg-gray-900 text-gray-100 rounded-lg p-6 overflow-x-auto text-sm">
+{`import torch
+import torch.nn as nn
+import torch.optim as optim
+
+# Create model
+model = SimpleNN(input_size=10, hidden_size=20, output_size=1)
+criterion = nn.MSELoss()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+# Training loop
+for epoch in range(100):
+    # Forward pass
+    predictions = model(X_train)
+    loss = criterion(predictions, y_train)
+    
+    # Backward pass
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+    
+    if (epoch + 1) % 10 == 0:
+        print(f'Epoch {epoch+1}, Loss: {loss.item():.4f}')`}
+                            </pre>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Section 3: Activation Functions */}
+                    {activeSection === 3 && (
+                      <div className="bg-white rounded-lg shadow-lg p-8">
+                        <h2 className="text-4xl font-bold text-indigo-900 mb-6">Activation Functions</h2>
+                        <div className="grid md:grid-cols-2 gap-4">
+                          {[
+                            { name: "ReLU", formula: "f(x) = max(0, x)", use: "Most common, fast computation" },
+                            { name: "Sigmoid", formula: "f(x) = 1/(1+e^-x)", use: "Binary classification output" },
+                            { name: "Tanh", formula: "f(x) = (e^x - e^-x)/(e^x + e^-x)", use: "Zero-centered" },
+                            { name: "Softmax", formula: "f(x_i) = e^x_i / Σe^x_j", use: "Multi-class classification" }
+                          ].map((act, i) => (
+                            <div key={i} className="bg-indigo-50 rounded-lg p-4">
+                              <h4 className="font-semibold text-lg mb-2">{act.name}</h4>
+                              <p className="text-sm font-mono bg-white rounded p-2 mb-2">{act.formula}</p>
+                              <p className="text-sm text-gray-600">{act.use}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Section 4: Backpropagation */}
+                    {activeSection === 4 && (
+                      <div className="bg-white rounded-lg shadow-lg p-8">
+                        <h2 className="text-4xl font-bold text-indigo-900 mb-6">Backpropagation</h2>
+                        <div className="bg-gradient-to-r from-purple-100 to-pink-100 rounded-lg p-6">
+                          <h3 className="text-xl font-semibold mb-4">The Chain Rule in Action</h3>
+                          <p className="text-lg text-gray-700 mb-4">
+                            Backpropagation uses the chain rule of calculus to efficiently compute gradients of the loss function with respect to all weights in the network, working backward from output to input layers.
+                          </p>
+                          <div className="bg-white rounded-lg p-4">
+                            <h4 className="font-semibold mb-2">Key Steps:</h4>
+                            <ol className="space-y-2 text-gray-700">
+                              <li>1. Calculate output error (loss)</li>
+                              <li>2. Propagate error backward through layers</li>
+                              <li>3. Compute gradient for each weight using chain rule</li>
+                              <li>4. Update weights proportional to gradient</li>
+                            </ol>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* LSTM FOR AUDIO CONTENT */}
+                {activeTab === 'lstm' && (
+                  <>
+                    {/* LSTM Section 0: Architecture */}
+                    {activeSection === 0 && (
+                      <div className="bg-white rounded-lg shadow-lg p-8">
+                        <h2 className="text-4xl font-bold text-purple-900 mb-6">LSTM Architecture</h2>
+                        
+                        <div className="bg-gradient-to-r from-purple-100 to-pink-100 rounded-lg p-6 mb-6">
+                          <h3 className="text-2xl font-semibold mb-4">Long Short-Term Memory Networks</h3>
+                          <p className="text-lg text-gray-700 mb-4">
+                            LSTMs are specialized RNNs designed to learn long-term dependencies. They solve the vanishing gradient problem through gating mechanisms that control information flow.
+                          </p>
+                          
+                          <div className="grid md:grid-cols-3 gap-4">
+                            <div className="bg-white rounded-lg p-4">
+                              <h4 className="font-semibold text-purple-700 mb-2">🚪 Forget Gate</h4>
+                              <p className="text-sm text-gray-600">Decides what information to discard from cell state</p>
+                            </div>
+                            <div className="bg-white rounded-lg p-4">
+                              <h4 className="font-semibold text-purple-700 mb-2">📥 Input Gate</h4>
+                              <p className="text-sm text-gray-600">Controls which values to update in cell state</p>
+                            </div>
+                            <div className="bg-white rounded-lg p-4">
+                              <h4 className="font-semibold text-purple-700 mb-2">📤 Output Gate</h4>
+                              <p className="text-sm text-gray-600">Determines what information to output</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-gray-50 rounded-lg p-6">
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-xl font-semibold flex items-center gap-2">
+                              <Code className="w-5 h-5" />
+                              LSTM in PyTorch
+                            </h3>
+                            <button
+                              onClick={() => toggleCode('lstm-arch')}
+                              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                            >
+                              {expandedCode['lstm-arch'] ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                              {expandedCode['lstm-arch'] ? 'Hide' : 'Show'} Code
+                            </button>
+                          </div>
+                          
+                          {expandedCode['lstm-arch'] && (
+                            <pre className="bg-gray-900 text-gray-100 rounded-lg p-6 overflow-x-auto text-sm">
+{`import torch
+import torch.nn as nn
+
+class LSTMModel(nn.Module):
+    def __init__(self, input_size, hidden_size, num_layers, output_size):
+        super(LSTMModel, self).__init__()
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        
+        # LSTM layer
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, 
+                           batch_first=True, dropout=0.2)
+        
+        # Output layer
+        self.fc = nn.Linear(hidden_size, output_size)
+    
+    def forward(self, x):
+        # Initialize hidden and cell states
+        h0 = torch.zeros(self.num_layers, x.size(0), 
+                        self.hidden_size).to(x.device)
+        c0 = torch.zeros(self.num_layers, x.size(0), 
+                        self.hidden_size).to(x.device)
+        
+        # Forward propagate LSTM
+        out, _ = self.lstm(x, (h0, c0))
+        
+        # Get output from last time step
+        out = self.fc(out[:, -1, :])
+        return out
+
+# Create model
+model = LSTMModel(input_size=40, hidden_size=128, 
+                 num_layers=2, output_size=10)
+print(model)`}
+                            </pre>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* LSTM Section 1: LSTM for Audio */}
+                    {activeSection === 1 && (
+                      <div className="bg-white rounded-lg shadow-lg p-8">
+                        <h2 className="text-4xl font-bold text-purple-900 mb-6">LSTM for Audio Processing</h2>
+                        
+                        <div className="bg-gradient-to-r from-blue-100 to-purple-100 rounded-lg p-6 mb-6">
+                          <h3 className="text-2xl font-semibold mb-4">Why LSTMs for Audio?</h3>
+                          <div className="grid md:grid-cols-2 gap-4">
+                            <div className="bg-white rounded-lg p-4">
+                              <h4 className="font-semibold text-purple-700 mb-2">🎵 Sequential Nature</h4>
+                              <p className="text-sm text-gray-600">Audio is inherently sequential - LSTMs excel at temporal dependencies</p>
+                            </div>
+                            <div className="bg-white rounded-lg p-4">
+                              <h4 className="font-semibold text-purple-700 mb-2">⏰ Long Dependencies</h4>
+                              <p className="text-sm text-gray-600">Capture patterns across extended time periods</p>
+                            </div>
+                            <div className="bg-white rounded-lg p-4">
+                              <h4 className="font-semibold text-purple-700 mb-2">🔄 Variable Length</h4>
+                              <p className="text-sm text-gray-600">Handle audio clips of different durations</p>
+                            </div>
+                            <div className="bg-white rounded-lg p-4">
+                              <h4 className="font-semibold text-purple-700 mb-2">🎤 Context Aware</h4>
+                              <p className="text-sm text-gray-600">Understand context from previous sounds</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-pink-50 rounded-lg p-6">
+                          <h3 className="text-xl font-semibold mb-4">Common Audio Tasks</h3>
+                          <ul className="space-y-2 text-gray-700">
+                            <li>• Speech Recognition (convert speech to text)</li>
+                            <li>• Speaker Identification (who is speaking)</li>
+                            <li>• Emotion Detection (sentiment from voice)</li>
+                            <li>• Music Generation (compose melodies)</li>
+                            <li>• Audio Classification (categorize sounds)</li>
+                            <li>• Speech Enhancement (noise reduction)</li>
+                          </ul>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* LSTM Section 2: Speech Recognition */}
+                    {activeSection === 2 && (
+                      <div className="bg-white rounded-lg shadow-lg p-8">
+                        <h2 className="text-4xl font-bold text-purple-900 mb-6">Speech Recognition with LSTM</h2>
+                        
+                        <div className="bg-gradient-to-r from-green-100 to-teal-100 rounded-lg p-6 mb-6">
+                          <h3 className="text-2xl font-semibold mb-4">Pipeline Overview</h3>
+                          <div className="flex items-center justify-around flex-wrap gap-4">
+                            <div className="text-center">
+                              <div className="w-32 h-24 bg-blue-500 text-white rounded-lg flex items-center justify-center font-bold">
+                                Audio<br/>Waveform
+                              </div>
+                            </div>
+                            <div className="text-2xl">→</div>
+                            <div className="text-center">
+                              <div className="w-32 h-24 bg-purple-500 text-white rounded-lg flex items-center justify-center font-bold">
+                                Feature<br/>Extraction
+                              </div>
+                            </div>
+                            <div className="text-2xl">→</div>
+                            <div className="text-center">
+                              <div className="w-32 h-24 bg-pink-500 text-white rounded-lg flex items-center justify-center font-bold">
+                                LSTM<br/>Model
+                              </div>
+                            </div>
+                            <div className="text-2xl">→</div>
+                            <div className="text-center">
+                              <div className="w-32 h-24 bg-green-500 text-white rounded-lg flex items-center justify-center font-bold">
+                                Text<br/>Output
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-gray-50 rounded-lg p-6">
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-xl font-semibold flex items-center gap-2">
+                              <Code className="w-5 h-5" />
+                              Speech Recognition Model
+                            </h3>
+                            <button
+                              onClick={() => toggleCode('speech-lstm')}
+                              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                            >
+                              {expandedCode['speech-lstm'] ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                              {expandedCode['speech-lstm'] ? 'Hide' : 'Show'} Code
+                            </button>
+                          </div>
+                          
+                          {expandedCode['speech-lstm'] && (
+                            <pre className="bg-gray-900 text-gray-100 rounded-lg p-6 overflow-x-auto text-sm">
+{`import torch
+import torch.nn as nn
+import torchaudio
+
+class SpeechLSTM(nn.Module):
+    def __init__(self, input_dim=40, hidden_dim=256, 
+                 num_layers=3, num_classes=29):
+        super(SpeechLSTM, self).__init__()
+        
+        self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers,
+                           batch_first=True, bidirectional=True,
+                           dropout=0.3)
+        
+        self.fc = nn.Linear(hidden_dim * 2, num_classes)
+        
+    def forward(self, x):
+        out, _ = self.lstm(x)
+        out = self.fc(out)
+        return out
+
+# Feature extraction
+def extract_features(audio_path):
+    waveform, sr = torchaudio.load(audio_path)
+    
+    # Compute MFCC features
+    mfcc = torchaudio.transforms.MFCC(
+        sample_rate=sr,
+        n_mfcc=40,
+        melkwargs={'n_fft': 400, 'hop_length': 160}
+    )(waveform)
+    
+    return mfcc.transpose(1, 2)  # [batch, time, features]
+
+# Create model
+model = SpeechLSTM()
+features = extract_features('speech.wav')
+output = model(features)
+print(f"Output shape: {output.shape}")  # [batch, time, classes]`}
+                            </pre>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* LSTM Section 3: Audio Generation */}
+                    {activeSection === 3 && (
+                      <div className="bg-white rounded-lg shadow-lg p-8">
+                        <h2 className="text-4xl font-bold text-purple-900 mb-6">Audio Generation with LSTM</h2>
+                        
+                        <div className="bg-gradient-to-r from-yellow-100 to-orange-100 rounded-lg p-6 mb-6">
+                          <h3 className="text-2xl font-semibold mb-4">Generative Audio Models</h3>
+                          <p className="text-lg text-gray-700 mb-4">
+                            LSTMs can generate audio by learning patterns in existing audio and producing new sequences. Applications include music composition, voice synthesis, and sound effects generation.
+                          </p>
+                          
+                          <div className="grid md:grid-cols-2 gap-4">
+                            <div className="bg-white rounded-lg p-4">
+                              <h4 className="font-semibold text-orange-700 mb-2">🎼 Music Generation</h4>
+                              <p className="text-sm text-gray-600">Compose melodies, harmonies, and rhythms</p>
+                            </div>
+                            <div className="bg-white rounded-lg p-4">
+                              <h4 className="font-semibold text-orange-700 mb-2">🗣️ Voice Synthesis</h4>
+                              <p className="text-sm text-gray-600">Generate natural-sounding speech</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-gray-50 rounded-lg p-6">
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-xl font-semibold flex items-center gap-2">
+                              <Code className="w-5 h-5" />
+                              Music Generation LSTM
+                            </h3>
+                            <button
+                              onClick={() => toggleCode('music-gen')}
+                              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                            >
+                              {expandedCode['music-gen'] ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                              {expandedCode['music-gen'] ? 'Hide' : 'Show'} Code
+                            </button>
+                          </div>
+                          
+                          {expandedCode['music-gen'] && (
+                            <pre className="bg-gray-900 text-gray-100 rounded-lg p-6 overflow-x-auto text-sm">
+{`import torch
+import torch.nn as nn
+
+class MusicLSTM(nn.Module):
+    def __init__(self, vocab_size, embedding_dim=128, 
+                 hidden_dim=256, num_layers=2):
+        super(MusicLSTM, self).__init__()
+        
+        self.embedding = nn.Embedding(vocab_size, embedding_dim)
+        self.lstm = nn.LSTM(embedding_dim, hidden_dim, 
+                           num_layers, dropout=0.3)
+        self.fc = nn.Linear(hidden_dim, vocab_size)
+        
+    def forward(self, x, hidden=None):
+        x = self.embedding(x)
+        out, hidden = self.lstm(x, hidden)
+        out = self.fc(out)
+        return out, hidden
+
+# Generate music
+def generate_music(model, start_seq, length=100, temperature=1.0):
+    model.eval()
+    generated = list(start_seq)
+    hidden = None
+    
+    with torch.no_grad():
+        for _ in range(length):
+            x = torch.tensor([generated[-1]]).unsqueeze(0)
+            output, hidden = model(x, hidden)
+            
+            # Apply temperature
+            output = output.squeeze() / temperature
+            probs = torch.softmax(output, dim=0)
+            
+            # Sample next note
+            next_note = torch.multinomial(probs, 1).item()
+            generated.append(next_note)
+    
+    return generated
+
+# Example usage
+model = MusicLSTM(vocab_size=128)  # 128 MIDI notes
+melody = generate_music(model, [60, 62, 64], length=50)
+print(f"Generated melody: {melody[:20]}...")`}
+                            </pre>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* LSTM Section 4: Complete Projects */}
+                    {activeSection === 4 && (
+                      <div className="bg-white rounded-lg shadow-lg p-8">
+                        <h2 className="text-4xl font-bold text-purple-900 mb-6">Complete Audio AI Projects</h2>
+                        
+                        <div className="space-y-6">
+                          <div className="bg-gradient-to-r from-blue-100 to-purple-100 rounded-lg p-6">
+                            <h3 className="text-xl font-semibold mb-3">🎯 Project 1: Voice Command Recognition</h3>
+                            <p className="text-gray-700 mb-3">Build a system that recognizes spoken commands like "play", "stop", "next"</p>
+                            <ul className="text-sm text-gray-600 space-y-1">
+                              <li>• Collect/use audio dataset (Google Speech Commands)</li>
+                              <li>• Extract MFCC features from audio</li>
+                              <li>• Train bidirectional LSTM classifier</li>
+                              <li>• Deploy for real-time recognition</li>
+                            </ul>
+                          </div>
+
+                          <div className="bg-gradient-to-r from-pink-100 to-red-100 rounded-lg p-6">
+                            <h3 className="text-xl font-semibold mb-3">🎼 Project 2: AI Music Composer</h3>
+                            <p className="text-gray-700 mb-3">Generate original melodies in different styles</p>
+                            <ul className="text-sm text-gray-600 space-y-1">
+                              <li>• Process MIDI files into sequences</li>
+                              <li>• Train LSTM on melody patterns</li>
+                              <li>• Generate new compositions</li>
+                              <li>• Convert back to playable MIDI</li>
+                            </ul>
+                          </div>
+
+                          <div className="bg-gradient-to-r from-green-100 to-teal-100 rounded-lg p-6">
+                            <h3 className="text-xl font-semibold mb-3">🎙️ Project 3: Emotion Detection from Speech</h3>
+                            <p className="text-gray-700 mb-3">Classify speaker emotion (happy, sad, angry, neutral)</p>
+                            <ul className="text-sm text-gray-600 space-y-1">
+                              <li>• Use RAVDESS or similar emotion dataset</li>
+                              <li>• Extract prosodic and spectral features</li>
+                              <li>• Build LSTM emotion classifier</li>
+                              <li>• Evaluate on test speakers</li>
+                            </ul>
+                          </div>
+                        </div>
+
+                        <div className="bg-indigo-50 rounded-lg p-6 mt-6">
+                          <h3 className="text-xl font-semibold mb-4">🚀 Next Steps</h3>
+                          <div className="grid md:grid-cols-2 gap-4">
+                            <div className="bg-white rounded-lg p-4">
+                              <h4 className="font-semibold mb-2">Learning Resources</h4>
+                              <ul className="text-sm text-gray-600 space-y-1">
+                                <li>• PyTorch audio tutorials</li>
+                                <li>• Librosa documentation</li>
+                                <li>• Speech & Audio Processing courses</li>
+                              </ul>
+                            </div>
+                            <div className="bg-white rounded-lg p-4">
+                              <h4 className="font-semibold mb-2">Tools & Libraries</h4>
+                              <ul className="text-sm text-gray-600 space-y-1">
+                                <li>• PyTorch / TensorFlow</li>
+                                <li>• librosa, torchaudio</li>
+                                <li>• pretty_midi for music</li>
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Footer */}
+                <div className="bg-white rounded-lg shadow-lg p-6 mt-8 text-center">
+                  <p className="text-gray-600 font-semibold text-lg">
+                    🎓 Complete Deep Learning & LSTM for Audio AI Guide
+                  </p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Master neural networks from fundamentals to advanced LSTM audio applications
+                  </p>
+                  <div className="mt-4 flex justify-center gap-4 text-xs text-gray-500">
+                    <span>Interactive Learning</span>
+                    <span>•</span>
+                    <span>Complete Code Examples</span>
+                    <span>•</span>
+                    <span>Real-World Projects</span>
+                  </div>
+                  <p className="text-sm text-gray-400 mt-4">
+                    @QCIC 2026
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        };
+
+        ReactDOM.render(<DeepLearningLSTMAudioGuide />, document.getElementById('root'));
+    </script>
+</body>
+</html>

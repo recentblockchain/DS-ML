@@ -1,0 +1,1855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classroom - Runner</title>
+    <!-- React and ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- Babel Standalone for JSX transpilation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,700;1,400;1,700&family=Lora:ital,wght@0,400;0,600;1,400&family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; padding: 0; background-color: #080c14; color: #d4ddf0; font-family: sans-serif; }
+        #root { min-height: 100vh; }
+        #error-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.9);
+            color: #ff4d4d;
+            padding: 40px;
+            font-family: 'JetBrains Mono', monospace;
+            z-index: 9999;
+            overflow: auto;
+            white-space: pre-wrap;
+        }
+        #error-overlay h1 { color: #fff; margin-top: 0; }
+        #loading {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 24px;
+            color: #00d4ff;
+            text-shadow: 0 0 10px rgba(0,212,255,0.5);
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">INITIALIZING ENGINE...</div>
+    <div id="root"></div>
+    <div id="error-overlay">
+        <h1>[CRITICAL ENGINE FAILURE]</h1>
+        <div id="error-message"></div>
+    </div>
+
+    <script>
+        window.onerror = function(msg, url, line, col, error) {
+            const overlay = document.getElementById('error-overlay');
+            const message = document.getElementById('error-message');
+            document.getElementById('loading').style.display = 'none';
+            overlay.style.display = 'block';
+            message.textContent = `Error: ${msg}\nLine: ${line}\nColumn: ${col}\n\nStack Trace:\n${error ? error.stack : 'N/A'}`;
+        };
+    </script>
+
+    <script type="text/babel" data-presets="env,react">
+        const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+        /* --- START OF EMBEDDED JSX --- */
+        
+
+// ── Color palette ──────────────────────────────────────────────────────────────
+const P = {
+  bg:     "#0b0e16",
+  panel:  "#111520",
+  card:   "#161b27",
+  border: "#1e2738",
+  muted:  "#263044",
+  text:   "#cdd5e0",
+  dim:    "#56657a",
+  gold:   "#f0c040",
+  teal:   "#2dd4bf",
+  rose:   "#fb7185",
+  violet: "#a78bfa",
+  sky:    "#38bdf8",
+  green:  "#4ade80",
+  orange: "#fb923c",
+};
+
+// ── Shared helpers ─────────────────────────────────────────────────────────────
+const sigmoid = (x) => 1 / (1 + Math.exp(-x));
+const relu    = (x) => Math.max(0, x);
+
+// ── Inline styles helpers ──────────────────────────────────────────────────────
+const mono = { fontFamily: "'JetBrains Mono', 'Courier New', monospace" };
+const card = {
+  background: P.card,
+  border: `1px solid ${P.border}`,
+  borderRadius: 12,
+  padding: 20,
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  DATA
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const TOPICS = [
+  // ── DEEP LEARNING ────────────────────────────────────────────────────────────
+  {
+    section: "dl",
+    id: "weights",
+    label: "Weights & Bias",
+    icon: "⊕",
+    color: P.teal,
+    formula: "z = Σ(wᵢ · xᵢ) + b   →   a = activation(z)",
+    concept: [
+      "A WEIGHT (w) scales how strongly each input influences a neuron.",
+      "A BIAS (b) shifts the threshold, allowing the neuron to fire even when all inputs are zero.",
+      "",
+      "Single neuron forward pass:",
+      "  z = w₁x₁ + w₂x₂ + … + wₙxₙ + b      ← pre-activation (linear)",
+      "  a = activation(z)                       ← post-activation (non-linear)",
+      "",
+      "Layer (matrix form):",
+      "  Z = X · Wᵀ + b",
+      "  where X:(batch×in),  W:(out×in),  b:(out,)",
+      "",
+      "Weight initialization matters:",
+      "  Xavier/Glorot → Var(w) = 2/(fan_in + fan_out)   [sigmoid/tanh]",
+      "  He/Kaiming    → Var(w) = 2/fan_in               [ReLU layers]",
+      "",
+      "Weights and biases are the LEARNABLE PARAMETERS updated by backpropagation.",
+    ],
+    activities: [
+      {
+        title: "Compute Neuron Output",
+        q: [
+          "# Given: x=[0.5, 0.8, 0.3], w=[0.4, -0.6, 0.9], b=0.1",
+          "# Step 1: compute z (weighted sum + bias)",
+          "# Step 2: apply ReLU activation",
+          "import numpy as np",
+          "",
+          "x = np.array([0.5, 0.8, 0.3])",
+          "w = np.array([0.4, -0.6, 0.9])",
+          "b = 0.1",
+          "",
+          "z      = ???           # dot product + bias",
+          "output = ???           # ReLU: max(0, z)",
+          "",
+          "print(f'z      = {z:.4f}')",
+          "print(f'output = {output:.4f}')",
+        ].join("\n"),
+        sol: [
+          "import numpy as np",
+          "",
+          "x = np.array([0.5, 0.8, 0.3])",
+          "w = np.array([0.4, -0.6, 0.9])",
+          "b = 0.1",
+          "",
+          "z      = np.dot(w, x) + b   # 0.4*0.5 + (-0.6)*0.8 + 0.9*0.3 + 0.1 = 0.07",
+          "output = np.maximum(0, z)   # ReLU",
+          "",
+          "print(f'z      = {z:.4f}')  # z      = 0.0700",
+          "print(f'output = {output:.4f}')  # output = 0.0700",
+        ].join("\n"),
+        hint: "np.dot(w, x) gives the weighted sum. ReLU = np.maximum(0, z).",
+      },
+      {
+        title: "Dense Layer from Scratch",
+        q: [
+          "# Build a fully-connected layer: W(4x3), b(3,), x(4,)",
+          "import numpy as np",
+          "",
+          "np.random.seed(42)",
+          "W = np.random.randn(4, 3) * 0.1   # weight matrix (in=4, out=3)",
+          "b = np.zeros(3)                    # bias vector",
+          "x = np.array([1.0, 0.5, -0.3, 0.8])",
+          "",
+          "z       = ???          # shape (3,)",
+          "sigmoid = lambda v: ???",
+          "out     = ???",
+          "",
+          "print('z  :', z.round(4))",
+          "print('out:', out.round(4))",
+        ].join("\n"),
+        sol: [
+          "import numpy as np",
+          "",
+          "np.random.seed(42)",
+          "W = np.random.randn(4, 3) * 0.1",
+          "b = np.zeros(3)",
+          "x = np.array([1.0, 0.5, -0.3, 0.8])",
+          "",
+          "z       = x @ W + b                       # (4,) @ (4,3) = (3,)",
+          "sigmoid = lambda v: 1 / (1 + np.exp(-v))",
+          "out     = sigmoid(z)",
+          "",
+          "print('z  :', z.round(4))",
+          "print('out:', out.round(4))",
+        ].join("\n"),
+        hint: "x @ W gives shape (3,) when x is (4,) and W is (4,3). Then apply sigmoid.",
+      },
+    ],
+  },
+
+  {
+    section: "dl",
+    id: "activation",
+    label: "Activation Functions",
+    icon: "ƒ",
+    color: P.rose,
+    formula: "ReLU=max(0,x)  |  σ(x)=1/(1+e⁻ˣ)  |  tanh=(eˣ-e⁻ˣ)/(eˣ+e⁻ˣ)",
+    concept: [
+      "Activation functions add NON-LINEARITY. Without them, deep networks",
+      "collapse to a single linear transformation — no matter how many layers.",
+      "",
+      "Function      Formula                    Range       Use Case",
+      "────────────────────────────────────────────────────────────────",
+      "ReLU          max(0, x)                  [0, ∞)      Hidden (CNN/MLP)",
+      "Leaky ReLU    max(0.01x, x)              (-∞, ∞)     Avoid dying ReLU",
+      "Sigmoid       1/(1+e⁻ˣ)                  (0, 1)      Binary output",
+      "Tanh          (eˣ-e⁻ˣ)/(eˣ+e⁻ˣ)          (-1, 1)     RNN hidden states",
+      "Softmax       eˣⁱ/Σeˣʲ                    (0,1),Σ=1  Multi-class output",
+      "GELU          x·Φ(x)                       ≈(-0.17,∞) Transformers/BERT",
+      "",
+      "Dying ReLU problem: if z≤0, gradient=0, neuron never updates.",
+      "Fix: Leaky ReLU, ELU, good weight init, or Batch Normalization.",
+      "",
+      "Vanishing gradient: sigmoid/tanh saturate → gradients ≈0 in deep nets.",
+      "Fix: Use ReLU family, residual connections (ResNet), or LSTM gates.",
+    ],
+    activities: [
+      {
+        title: "Implement All Activation Functions",
+        q: [
+          "import numpy as np",
+          "",
+          "x = np.linspace(-4, 4, 9)",
+          "",
+          "relu       = lambda x: ???",
+          "leaky      = lambda x: ???   # alpha = 0.01",
+          "sigmoid    = lambda x: ???",
+          "tanh_fn    = lambda x: ???",
+          "",
+          "for name, fn in [('ReLU', relu), ('Leaky', leaky),",
+          "                 ('Sigmoid', sigmoid), ('Tanh', tanh_fn)]:",
+          "    print(f'{name:8}: {fn(x).round(3)}')",
+        ].join("\n"),
+        sol: [
+          "import numpy as np",
+          "",
+          "x = np.linspace(-4, 4, 9)",
+          "",
+          "relu    = lambda x: np.maximum(0, x)",
+          "leaky   = lambda x: np.where(x > 0, x, 0.01 * x)",
+          "sigmoid = lambda x: 1 / (1 + np.exp(-x))",
+          "tanh_fn = lambda x: np.tanh(x)",
+          "",
+          "for name, fn in [('ReLU', relu), ('Leaky', leaky),",
+          "                 ('Sigmoid', sigmoid), ('Tanh', tanh_fn)]:",
+          "    print(f'{name:8}: {fn(x).round(3)}')",
+        ].join("\n"),
+        hint: "np.maximum(0,x) for ReLU. np.where(condition, x, 0.01*x) for Leaky. np.tanh for tanh.",
+      },
+      {
+        title: "Softmax & Cross-Entropy Loss",
+        q: [
+          "import numpy as np",
+          "",
+          "logits = np.array([2.1, 0.8, -0.3, 1.5])",
+          "target = 0   # correct class index",
+          "",
+          "# Numerically stable softmax (subtract max first):",
+          "def softmax(z):",
+          "    e = np.exp(z - ???)   # subtract ??? for stability",
+          "    return e / e.sum()",
+          "",
+          "# Cross-entropy: L = -log(prob of correct class)",
+          "def cross_entropy(probs, y):",
+          "    return ???",
+          "",
+          "probs = softmax(logits)",
+          "loss  = cross_entropy(probs, target)",
+          "print('Probs:', probs.round(4))",
+          "print(f'Loss: {loss:.4f}')",
+          "print(f'Predicted: {np.argmax(probs)}')",
+        ].join("\n"),
+        sol: [
+          "import numpy as np",
+          "",
+          "logits = np.array([2.1, 0.8, -0.3, 1.5])",
+          "target = 0",
+          "",
+          "def softmax(z):",
+          "    e = np.exp(z - z.max())   # subtract max prevents overflow",
+          "    return e / e.sum()",
+          "",
+          "def cross_entropy(probs, y):",
+          "    return -np.log(probs[y] + 1e-9)   # +eps prevents log(0)",
+          "",
+          "probs = softmax(logits)",
+          "loss  = cross_entropy(probs, target)",
+          "print('Probs:', probs.round(4))   # [0.5371 0.1543 0.0514 0.2572]",
+          "print(f'Loss: {loss:.4f}')        # 0.6224",
+          "print(f'Predicted: {np.argmax(probs)}')  # 0 (correct!)",
+        ].join("\n"),
+        hint: "Stable: exp(z - max(z)). Cross-entropy: -log(probs[target]). Add 1e-9 to prevent log(0).",
+      },
+    ],
+  },
+
+  {
+    section: "dl",
+    id: "cnn",
+    label: "CNN / VGGNet",
+    icon: "⊞",
+    color: P.sky,
+    formula: "F[i,j] = Σ W[k,l]·X[i+k,j+l] + b   |   out = (W-K+2P)/S + 1",
+    concept: [
+      "CNN exploits SPATIAL STRUCTURE via learnable filters sliding over input.",
+      "",
+      "Key properties:",
+      "  Local connectivity — filter sees small patch (e.g. 3×3), not all pixels",
+      "  Weight sharing    — same filter at every position → far fewer params",
+      "  Translation equiv.— detects features regardless of location",
+      "",
+      "Architecture layers:",
+      "  Conv2D  → K filters produce K feature maps",
+      "  BN      → Batch Normalization (faster, stable training)",
+      "  ReLU    → Non-linearity",
+      "  MaxPool → Halves spatial size, keeps dominant features",
+      "  FC      → Flatten + dense layers for classification",
+      "",
+      "VGGNet (Simonyan & Zisserman, 2014) — stacks of 3×3 convolutions:",
+      "  Block 1: Conv(64)  → Conv(64)  → MaxPool",
+      "  Block 2: Conv(128) → Conv(128) → MaxPool",
+      "  Block 3: Conv(256) → Conv(256) → Conv(256) → MaxPool",
+      "  ...5 blocks total → FC(4096) → FC(4096) → Softmax(1000)",
+      "",
+      "Why 3×3? Two 3×3 layers = receptive field of one 5×5, but fewer params",
+      "and an extra non-linearity — the key VGG insight.",
+    ],
+    activities: [
+      {
+        title: "Manual 2D Convolution",
+        q: [
+          "import numpy as np",
+          "",
+          "image = np.array([",
+          "    [1,2,3,0,1],",
+          "    [4,5,6,1,2],",
+          "    [7,8,9,0,3],",
+          "    [0,1,2,4,5],",
+          "    [3,2,1,0,1]], dtype=float)",
+          "",
+          "# Sobel vertical edge filter:",
+          "kernel = np.array([[1, 0,-1],",
+          "                   [2, 0,-2],",
+          "                   [1, 0,-1]], dtype=float)",
+          "",
+          "# Convolve: no padding, stride=1 → output shape (3,3)",
+          "H, W = image.shape",
+          "kH, kW = kernel.shape",
+          "out = np.zeros((H-kH+1, W-kW+1))",
+          "",
+          "for i in ???:",
+          "    for j in ???:",
+          "        out[i,j] = ???   # element-wise multiply + sum",
+          "",
+          "print(out.astype(int))",
+        ].join("\n"),
+        sol: [
+          "import numpy as np",
+          "",
+          "image  = np.array([[1,2,3,0,1],[4,5,6,1,2],[7,8,9,0,3],",
+          "                   [0,1,2,4,5],[3,2,1,0,1]], dtype=float)",
+          "kernel = np.array([[1,0,-1],[2,0,-2],[1,0,-1]], dtype=float)",
+          "",
+          "H, W = image.shape",
+          "kH, kW = kernel.shape",
+          "out = np.zeros((H-kH+1, W-kW+1))",
+          "",
+          "for i in range(H - kH + 1):",
+          "    for j in range(W - kW + 1):",
+          "        out[i,j] = np.sum(image[i:i+kH, j:j+kW] * kernel)",
+          "",
+          "print(out.astype(int))",
+          "# [[-13 -10  -3]",
+          "#  [-18 -12  -2]",
+          "#  [ -3  -7  -6]]",
+        ].join("\n"),
+        hint: "Slice image[i:i+kH, j:j+kW] gives a 3x3 patch. Multiply element-wise with kernel, then np.sum.",
+      },
+      {
+        title: "VGGNet Block in PyTorch",
+        q: [
+          "import torch, torch.nn as nn",
+          "",
+          "class VGGBlock(nn.Module):",
+          "    '''Two Conv3x3 layers + MaxPool2x2 (one VGG block)'''",
+          "    def __init__(self, in_ch, out_ch):",
+          "        super().__init__()",
+          "        self.block = nn.Sequential(",
+          "            # Conv(in->out, kernel=3, padding=1)",
+          "            ???,",
+          "            ???,   # BatchNorm2d",
+          "            ???,   # ReLU",
+          "            # Conv(out->out, kernel=3, padding=1)",
+          "            ???,",
+          "            ???,",
+          "            ???,",
+          "            nn.MaxPool2d(2, 2)",
+          "        )",
+          "    def forward(self, x): return self.block(x)",
+          "",
+          "blk = VGGBlock(3, 64)",
+          "x   = torch.randn(1, 3, 224, 224)",
+          "print(blk(x).shape)  # torch.Size([1, 64, 112, 112])",
+        ].join("\n"),
+        sol: [
+          "import torch, torch.nn as nn",
+          "",
+          "class VGGBlock(nn.Module):",
+          "    def __init__(self, in_ch, out_ch):",
+          "        super().__init__()",
+          "        self.block = nn.Sequential(",
+          "            nn.Conv2d(in_ch, out_ch, kernel_size=3, padding=1),",
+          "            nn.BatchNorm2d(out_ch),",
+          "            nn.ReLU(inplace=True),",
+          "            nn.Conv2d(out_ch, out_ch, kernel_size=3, padding=1),",
+          "            nn.BatchNorm2d(out_ch),",
+          "            nn.ReLU(inplace=True),",
+          "            nn.MaxPool2d(2, 2)",
+          "        )",
+          "    def forward(self, x): return self.block(x)",
+          "",
+          "blk = VGGBlock(3, 64)",
+          "x   = torch.randn(1, 3, 224, 224)",
+          "print(blk(x).shape)   # torch.Size([1, 64, 112, 112])",
+        ].join("\n"),
+        hint: "Conv2d(in, out, 3, padding=1) keeps size. MaxPool2d(2,2) halves it to 112x112.",
+      },
+    ],
+  },
+
+  {
+    section: "dl",
+    id: "rnn",
+    label: "RNN / LSTM",
+    icon: "↺",
+    color: P.violet,
+    formula: "hₜ = tanh(Wₓ·xₜ + Wₕ·hₜ₋₁ + b)   |   Cₜ = fₜ⊙Cₜ₋₁ + iₜ⊙c̃ₜ",
+    concept: [
+      "RNN processes SEQUENCES by maintaining a hidden state (memory) hₜ.",
+      "",
+      "Vanilla RNN:",
+      "  hₜ = tanh(Wₓ·xₜ + Wₕ·hₜ₋₁ + b)",
+      "  yₜ = Wᵧ·hₜ + bᵧ",
+      "",
+      "Problem: VANISHING GRADIENTS — gradients shrink over long sequences,",
+      "making it impossible to learn long-range dependencies.",
+      "",
+      "LSTM (1997) — 4 gates control information flow:",
+      "  fₜ = σ(Wf·[hₜ₋₁,xₜ] + bf)       Forget gate — what to erase",
+      "  iₜ = σ(Wi·[hₜ₋₁,xₜ] + bi)       Input gate  — what to write",
+      "  c̃ₜ = tanh(Wc·[hₜ₋₁,xₜ] + bc)   Candidate   — new information",
+      "  Cₜ = fₜ⊙Cₜ₋₁ + iₜ⊙c̃ₜ           Cell state  — long-term memory",
+      "  oₜ = σ(Wo·[hₜ₋₁,xₜ] + bo)       Output gate",
+      "  hₜ = oₜ⊙tanh(Cₜ)                Hidden state",
+      "",
+      "Cell state Cₜ flows almost unchanged → gradients don't vanish!",
+      "",
+      "GRU (simpler): merges forget+input into update gate z.",
+      "  zₜ=σ(Wz·[h,x])  rₜ=σ(Wr·[h,x])",
+      "  hₜ=(1-z)⊙h + z⊙tanh(W·[r⊙h, x])",
+    ],
+    activities: [
+      {
+        title: "Vanilla RNN Cell (NumPy)",
+        q: [
+          "import numpy as np",
+          "",
+          "np.random.seed(0)",
+          "input_size, hidden_size, seq_len = 4, 3, 5",
+          "",
+          "Wx = np.random.randn(hidden_size, input_size) * 0.1",
+          "Wh = np.random.randn(hidden_size, hidden_size) * 0.1",
+          "b  = np.zeros(hidden_size)",
+          "X  = np.random.randn(seq_len, input_size)  # input sequence",
+          "",
+          "h = np.zeros(hidden_size)   # h0 = zeros",
+          "hidden_states = []",
+          "",
+          "for t in range(seq_len):",
+          "    h = ???   # tanh(Wx @ X[t]  +  Wh @ h  +  b)",
+          "    hidden_states.append(h.copy())",
+          "",
+          "print(np.array(hidden_states).round(4))",
+        ].join("\n"),
+        sol: [
+          "import numpy as np",
+          "",
+          "np.random.seed(0)",
+          "input_size, hidden_size, seq_len = 4, 3, 5",
+          "Wx = np.random.randn(hidden_size, input_size) * 0.1",
+          "Wh = np.random.randn(hidden_size, hidden_size) * 0.1",
+          "b  = np.zeros(hidden_size)",
+          "X  = np.random.randn(seq_len, input_size)",
+          "",
+          "h = np.zeros(hidden_size)",
+          "hidden_states = []",
+          "",
+          "for t in range(seq_len):",
+          "    h = np.tanh(Wx @ X[t] + Wh @ h + b)  # same W at every step",
+          "    hidden_states.append(h.copy())",
+          "",
+          "print(np.array(hidden_states).round(4))",
+        ].join("\n"),
+        hint: "h_t = np.tanh(Wx @ X[t] + Wh @ h + b). The same Wx and Wh are reused every timestep.",
+      },
+      {
+        title: "LSTM Cell from Scratch",
+        q: [
+          "import numpy as np",
+          "sigmoid = lambda z: 1 / (1 + np.exp(-z))",
+          "",
+          "def lstm_cell(x, h_prev, c_prev, Wf,Wi,Wc,Wo, bf,bi,bc,bo):",
+          "    combined = np.concatenate([h_prev, x])  # [h; x]",
+          "",
+          "    f  = ???   # Forget gate  -> sigmoid",
+          "    i  = ???   # Input gate   -> sigmoid",
+          "    c_ = ???   # Candidate    -> tanh",
+          "    c  = ???   # Cell state   -> f*c_prev + i*c_",
+          "    o  = ???   # Output gate  -> sigmoid",
+          "    h  = ???   # Hidden state -> o * tanh(c)",
+          "    return h, c",
+          "",
+          "np.random.seed(1)",
+          "hd, xd = 4, 3",
+          "sz = hd + xd",
+          "Wf=np.random.randn(sz,hd)*0.1; bf=np.zeros(hd)",
+          "Wi=np.random.randn(sz,hd)*0.1; bi=np.zeros(hd)",
+          "Wc=np.random.randn(sz,hd)*0.1; bc=np.zeros(hd)",
+          "Wo=np.random.randn(sz,hd)*0.1; bo=np.zeros(hd)",
+          "x=np.random.randn(xd)",
+          "h1,c1=lstm_cell(x,np.zeros(hd),np.zeros(hd),Wf,Wi,Wc,Wo,bf,bi,bc,bo)",
+          "print('h1:', h1.round(4))",
+          "print('c1:', c1.round(4))",
+        ].join("\n"),
+        sol: [
+          "import numpy as np",
+          "sigmoid = lambda z: 1 / (1 + np.exp(-z))",
+          "",
+          "def lstm_cell(x, h_prev, c_prev, Wf,Wi,Wc,Wo, bf,bi,bc,bo):",
+          "    combined = np.concatenate([h_prev, x])",
+          "    f  = sigmoid(combined @ Wf + bf)",
+          "    i  = sigmoid(combined @ Wi + bi)",
+          "    c_ = np.tanh(combined @ Wc + bc)",
+          "    c  = f * c_prev + i * c_",
+          "    o  = sigmoid(combined @ Wo + bo)",
+          "    h  = o * np.tanh(c)",
+          "    return h, c",
+          "",
+          "np.random.seed(1)",
+          "hd, xd = 4, 3; sz = hd + xd",
+          "Wf=np.random.randn(sz,hd)*0.1; bf=np.zeros(hd)",
+          "Wi=np.random.randn(sz,hd)*0.1; bi=np.zeros(hd)",
+          "Wc=np.random.randn(sz,hd)*0.1; bc=np.zeros(hd)",
+          "Wo=np.random.randn(sz,hd)*0.1; bo=np.zeros(hd)",
+          "x=np.random.randn(xd)",
+          "h1,c1=lstm_cell(x,np.zeros(hd),np.zeros(hd),Wf,Wi,Wc,Wo,bf,bi,bc,bo)",
+          "print('h1:', h1.round(4))",
+          "print('c1:', c1.round(4))",
+        ].join("\n"),
+        hint: "Concatenate [h_prev, x] first. Forget/Input/Output → sigmoid. Candidate → tanh. Cell = f*c_prev + i*c_tilde.",
+      },
+    ],
+  },
+
+  // ── STATISTICS ───────────────────────────────────────────────────────────────
+  {
+    section: "stats",
+    id: "central",
+    label: "Mean & Median",
+    icon: "μ",
+    color: P.gold,
+    formula: "μ = Σxᵢ/n   |   σ² = Σ(xᵢ-μ)²/n   |   Median = middle value",
+    concept: [
+      "CENTRAL TENDENCY — where data clusters.",
+      "",
+      "Mean (μ): arithmetic average — sensitive to outliers",
+      "  μ = (x₁ + x₂ + … + xₙ) / n",
+      "",
+      "Median: middle value after sorting — robust to outliers",
+      "  n odd:  x[(n+1)/2]",
+      "  n even: (x[n/2] + x[n/2+1]) / 2",
+      "",
+      "Mode: most frequent value. Data can be bimodal or multimodal.",
+      "",
+      "SPREAD:",
+      "  Variance:  σ² = Σ(xᵢ−μ)²/n",
+      "  Std Dev:   σ  = √(σ²)",
+      "  IQR:       Q3 − Q1   (robust to outliers)",
+      "  CV:        σ/μ × 100%  (coefficient of variation)",
+      "",
+      "SKEWNESS:",
+      "  Right-skewed: mean > median  (income, house prices)",
+      "  Left-skewed:  mean < median  (exam scores near ceiling)",
+      "  Symmetric:    mean ≈ median",
+    ],
+    activities: [
+      {
+        title: "Central Tendency Without Built-ins",
+        q: [
+          "data = [23,45,12,67,34,89,56,23,78,45,",
+          "        34,23,56,91,12,45,67,34,89,23]",
+          "",
+          "# Compute WITHOUT np.mean / np.median / np.std:",
+          "n           = ???",
+          "mean        = ???",
+          "sorted_data = ???",
+          "median      = ???   # handle odd and even n",
+          "",
+          "variance = ???",
+          "std_dev  = ???",
+          "",
+          "print(f'n        = {n}')",
+          "print(f'mean     = {mean:.2f}')",
+          "print(f'median   = {median:.2f}')",
+          "print(f'variance = {variance:.2f}')",
+          "print(f'std_dev  = {std_dev:.2f}')",
+        ].join("\n"),
+        sol: [
+          "data = [23,45,12,67,34,89,56,23,78,45,",
+          "        34,23,56,91,12,45,67,34,89,23]",
+          "",
+          "n    = len(data)",
+          "mean = sum(data) / n",
+          "sorted_data = sorted(data)",
+          "",
+          "if n % 2 == 1:",
+          "    median = sorted_data[n // 2]",
+          "else:",
+          "    median = (sorted_data[n//2 - 1] + sorted_data[n//2]) / 2",
+          "",
+          "variance = sum((x - mean)**2 for x in data) / n",
+          "std_dev  = variance ** 0.5",
+          "",
+          "print(f'n        = {n}')        # 20",
+          "print(f'mean     = {mean:.2f}')    # 47.50",
+          "print(f'median   = {median:.2f}')  # 45.00",
+          "print(f'variance = {variance:.2f}')# 567.45",
+          "print(f'std_dev  = {std_dev:.2f}') # 23.82",
+        ].join("\n"),
+        hint: "Sort the list. Median: for even n, average the two middle elements. Variance = mean of squared deviations from mean.",
+      },
+      {
+        title: "Outlier Effect: Mean vs Median",
+        q: [
+          "import numpy as np",
+          "from scipy import stats",
+          "",
+          "# CEO outlier effect:",
+          "salaries = [42000,45000,47000,48000,50000,",
+          "            52000,55000,58000,60000,850000]",
+          "",
+          "mean_sal   = np.mean(salaries)",
+          "median_sal = np.median(salaries)",
+          "trimmed    = stats.trim_mean(salaries, 0.1)  # trim 10% each tail",
+          "",
+          "z_ceo = (salaries[-1] - mean_sal) / np.std(salaries)",
+          "",
+          "print(f'Mean          : ${mean_sal:>10,.0f}')",
+          "print(f'Median        : ${median_sal:>10,.0f}')",
+          "print(f'10% Trimmed   : ${trimmed:>10,.0f}')",
+          "print(f'CEO z-score   : {z_ceo:.2f} standard deviations')",
+        ].join("\n"),
+        sol: [
+          "import numpy as np",
+          "from scipy import stats",
+          "",
+          "salaries = [42000,45000,47000,48000,50000,",
+          "            52000,55000,58000,60000,850000]",
+          "",
+          "mean_sal   = np.mean(salaries)     # $130,700 <- distorted!",
+          "median_sal = np.median(salaries)   # $51,000  <- robust",
+          "trimmed    = stats.trim_mean(salaries, 0.1)  # $50,750 <- robust",
+          "",
+          "z_ceo = (salaries[-1] - mean_sal) / np.std(salaries)",
+          "",
+          "print(f'Mean          : ${mean_sal:>10,.0f}')  # $130,700",
+          "print(f'Median        : ${median_sal:>10,.0f}') # $51,000",
+          "print(f'10% Trimmed   : ${trimmed:>10,.0f}')   # $50,750",
+          "print(f'CEO z-score   : {z_ceo:.2f} sigma')    # 7.09 sigma",
+          "# Lesson: when outliers exist, median or trimmed mean is better",
+        ].join("\n"),
+        hint: "stats.trim_mean(data, 0.1) removes 10% from each tail. |z| > 3 is typically an extreme outlier.",
+      },
+    ],
+  },
+
+  {
+    section: "stats",
+    id: "probability",
+    label: "Probability & Bayes",
+    icon: "P",
+    color: P.green,
+    formula: "P(A|B) = P(B|A)·P(A) / P(B)   |   P(B) = ΣP(B|Aᵢ)·P(Aᵢ)",
+    concept: [
+      "Probability quantifies the likelihood of events, 0 ≤ P(A) ≤ 1.",
+      "",
+      "Rules:",
+      "  P(A∪B) = P(A) + P(B) − P(A∩B)          (addition rule)",
+      "  Independence: P(A∩B) = P(A)·P(B)        (if A⊥B)",
+      "  Conditional:  P(A|B) = P(A∩B)/P(B)",
+      "",
+      "BAYES' THEOREM — update beliefs with evidence:",
+      "  P(H|E) = P(E|H) · P(H) / P(E)",
+      "",
+      "  Prior:      P(H)    — belief before evidence",
+      "  Likelihood: P(E|H)  — how probable is evidence if H true",
+      "  Posterior:  P(H|E)  — updated belief after evidence",
+      "  Evidence:   P(E) = P(E|H)P(H) + P(E|Hᶜ)P(Hᶜ)  [law of total prob]",
+      "",
+      "Base rate fallacy: ignoring the prior P(H) leads to wrong conclusions.",
+      "Example: even 95%-accurate test gives mostly false positives",
+      "when the disease prevalence is only 1%.",
+      "",
+      "Distributions:",
+      "  Bernoulli: P(X=k) = p^k·(1-p)^(1-k)        [single trial]",
+      "  Binomial:  P(X=k) = C(n,k)·p^k·(1-p)^(n-k) [n trials]",
+      "  Poisson:   P(X=k) = λ^k·e^(-λ)/k!           [count events]",
+    ],
+    activities: [
+      {
+        title: "Bayes' Theorem: Medical Test",
+        q: [
+          "# Disease prevalence    P(Disease)     = 0.01",
+          "# Test sensitivity      P(+|Disease)   = 0.95",
+          "# False positive rate   P(+|NoDisease) = 0.10",
+          "",
+          "P_D        = 0.01",
+          "P_pos_D    = 0.95",
+          "P_pos_noD  = 0.10",
+          "",
+          "# Step 1: P(no disease)",
+          "P_noD = ???",
+          "",
+          "# Step 2: Law of total probability P(test+)",
+          "P_pos = ???",
+          "",
+          "# Step 3: Bayes — P(disease | test+)",
+          "P_D_pos = ???",
+          "",
+          "print(f'P(test+)            = {P_pos:.4f}')",
+          "print(f'P(Disease | test+)  = {P_D_pos:.4f} ({P_D_pos*100:.2f}%)')",
+          "print('Even 95% accurate test gives only ~9% if disease is rare!')",
+        ].join("\n"),
+        sol: [
+          "P_D       = 0.01",
+          "P_pos_D   = 0.95",
+          "P_pos_noD = 0.10",
+          "",
+          "P_noD = 1 - P_D                              # 0.99",
+          "P_pos = P_pos_D * P_D + P_pos_noD * P_noD   # 0.1085",
+          "P_D_pos = (P_pos_D * P_D) / P_pos            # 0.0876",
+          "",
+          "print(f'P(test+)            = {P_pos:.4f}')           # 0.1085",
+          "print(f'P(Disease | test+)  = {P_D_pos:.4f} ({P_D_pos*100:.2f}%)')  # 8.76%",
+          "# Low prevalence (P_D=0.01) makes most positive tests FALSE POSITIVES",
+          "# This is the 'base rate fallacy' — always consider P(Disease)!",
+        ].join("\n"),
+        hint: "P(pos) = P(+|D)*P(D) + P(+|nD)*P(nD). Then Bayes: P(D|+) = P(+|D)*P(D) / P(pos).",
+      },
+      {
+        title: "Simulation vs Analytical Probability",
+        q: [
+          "import numpy as np",
+          "",
+          "# Roll two fair dice 100,000 times.",
+          "# Estimate P(sum=7) and compare to analytical answer.",
+          "np.random.seed(42)",
+          "n = 100_000",
+          "",
+          "die1 = ???   # uniform integers in [1,6]",
+          "die2 = ???",
+          "sums = ???",
+          "p_sim = ???  # proportion where sum==7",
+          "",
+          "# Analytical: count all (d1,d2) pairs summing to 7",
+          "favorable    = ???  # list of tuples",
+          "p_analytical = ???  # len(favorable)/36",
+          "",
+          "print(f'Simulated  P(sum=7) = {p_sim:.4f}')",
+          "print(f'Analytical P(sum=7) = {p_analytical:.4f}')",
+          "print(f'Error               = {abs(p_sim-p_analytical):.4f}')",
+        ].join("\n"),
+        sol: [
+          "import numpy as np",
+          "",
+          "np.random.seed(42)",
+          "n = 100_000",
+          "",
+          "die1 = np.random.randint(1, 7, n)   # 1 to 6",
+          "die2 = np.random.randint(1, 7, n)",
+          "sums = die1 + die2",
+          "p_sim = np.mean(sums == 7)           # proportion == 7",
+          "",
+          "favorable    = [(i,j) for i in range(1,7) for j in range(1,7) if i+j==7]",
+          "p_analytical = len(favorable) / 36   # 6/36 = 1/6 = 0.1667",
+          "",
+          "print(f'Simulated  P(sum=7) = {p_sim:.4f}')   # ~0.1667",
+          "print(f'Analytical P(sum=7) = {p_analytical:.4f}')   # 0.1667",
+          "print(f'Error               = {abs(p_sim-p_analytical):.4f}')",
+        ].join("\n"),
+        hint: "np.random.randint(1, 7) gives uniform integers in [1,6]. np.mean(sums==7) estimates probability.",
+      },
+    ],
+  },
+
+  {
+    section: "stats",
+    id: "chisquare",
+    label: "Chi-Square Test",
+    icon: "χ²",
+    color: P.orange,
+    formula: "χ² = Σ(O−E)²/E   |   df=(r−1)(c−1)   |   E[i,j]=rowᵢ·colⱼ/N",
+    concept: [
+      "Chi-square tests whether observed frequencies differ from expected.",
+      "",
+      "GOODNESS-OF-FIT — does data follow a hypothesized distribution?",
+      "  H₀: data follows expected distribution",
+      "  χ² = Σᵢ (Oᵢ − Eᵢ)² / Eᵢ",
+      "  df = k − 1   (k = number of categories)",
+      "",
+      "TEST OF INDEPENDENCE — are two categorical variables independent?",
+      "  H₀: variable A and variable B are independent",
+      "  Expected: Eᵢⱼ = (row i total × col j total) / grand total",
+      "  χ² = Σᵢⱼ (Oᵢⱼ − Eᵢⱼ)² / Eᵢⱼ",
+      "  df = (rows − 1)(cols − 1)",
+      "",
+      "DECISION RULE:",
+      "  Reject H₀ if χ² > χ²_critical  OR  p-value < α",
+      "  Common: α = 0.05",
+      "",
+      "Critical values (α=0.05):",
+      "  df=1: 3.841   df=2: 5.991   df=3: 7.815   df=5: 11.070",
+      "",
+      "Assumptions:",
+      "  • Expected frequency ≥ 5 in each cell",
+      "  • Independent observations",
+      "  • Random sample",
+    ],
+    activities: [
+      {
+        title: "Goodness-of-Fit: Is the Die Fair?",
+        q: [
+          "from scipy.stats import chisquare",
+          "import numpy as np",
+          "",
+          "# Die rolled 120 times:",
+          "observed = np.array([25, 17, 22, 18, 26, 12])",
+          "expected = np.array([20, 20, 20, 20, 20, 20])",
+          "",
+          "# Manual chi-square:",
+          "chi2_manual = ???",
+          "df          = ???",
+          "",
+          "# Scipy verification:",
+          "chi2_sp, p_val = chisquare(observed, f_exp=expected)",
+          "",
+          "print(f'Manual chi2 = {chi2_manual:.4f}')",
+          "print(f'Scipy  chi2 = {chi2_sp:.4f}')",
+          "print(f'p-value     = {p_val:.4f}')",
+          "print(f'df          = {df}')",
+          "print(f'Decision: Reject H0' if p_val < 0.05 else 'Decision: Fail to reject H0')",
+        ].join("\n"),
+        sol: [
+          "from scipy.stats import chisquare",
+          "import numpy as np",
+          "",
+          "observed = np.array([25, 17, 22, 18, 26, 12])",
+          "expected = np.array([20, 20, 20, 20, 20, 20])",
+          "",
+          "chi2_manual = np.sum((observed - expected)**2 / expected)  # 5.70",
+          "df          = len(observed) - 1                             # 5",
+          "",
+          "chi2_sp, p_val = chisquare(observed, f_exp=expected)",
+          "",
+          "print(f'Manual chi2 = {chi2_manual:.4f}')  # 5.7000",
+          "print(f'Scipy  chi2 = {chi2_sp:.4f}')",
+          "print(f'p-value     = {p_val:.4f}')  # 0.3370",
+          "print(f'df          = {df}')          # 5",
+          "print('Decision: Fail to reject H0 -- die appears fair')",
+          "# p=0.337 > 0.05, critical value for df=5 is 11.07",
+        ].join("\n"),
+        hint: "chi2 = np.sum((O-E)**2 / E). df = number of categories - 1. Reject if p < 0.05.",
+      },
+      {
+        title: "Independence Test: Contingency Table",
+        q: [
+          "import numpy as np",
+          "from scipy.stats import chi2_contingency",
+          "",
+          "# Preference (A vs B) by Gender (Male vs Female):",
+          "#         Pref_A  Pref_B",
+          "# Male      30      10",
+          "# Female    20      40",
+          "table = np.array([[30, 10],",
+          "                  [20, 40]])",
+          "",
+          "chi2, p, dof, expected = chi2_contingency(table)",
+          "",
+          "print(f'chi2 = {chi2:.4f}')",
+          "print(f'p    = {p:.4f}')",
+          "print(f'dof  = {dof}')",
+          "print('Expected:'); print(expected.round(2))",
+          "",
+          "# Compute expected manually:",
+          "N          = table.sum()",
+          "row_totals = ???   # shape (2,1)",
+          "col_totals = ???   # shape (1,2)",
+          "E_manual   = ???   # outer product / N",
+          "print('Manual E:'); print(E_manual.round(2))",
+        ].join("\n"),
+        sol: [
+          "import numpy as np",
+          "from scipy.stats import chi2_contingency",
+          "",
+          "table = np.array([[30, 10], [20, 40]])",
+          "chi2, p, dof, expected = chi2_contingency(table)",
+          "",
+          "print(f'chi2 = {chi2:.4f}')   # 18.6667",
+          "print(f'p    = {p:.4f}')       # 0.0000",
+          "print(f'dof  = {dof}')         # 1",
+          "print('Expected:'); print(expected.round(2))",
+          "# [[20. 20.], [30. 30.]]",
+          "",
+          "N          = table.sum()                          # 100",
+          "row_totals = table.sum(axis=1, keepdims=True)     # [[40],[60]]",
+          "col_totals = table.sum(axis=0, keepdims=True)     # [[50,50]]",
+          "E_manual   = row_totals * col_totals / N          # broadcasting",
+          "print('Manual E:'); print(E_manual.round(2))",
+          "# Conclusion: p < 0.05, reject H0, gender and preference are RELATED",
+        ].join("\n"),
+        hint: "E[i,j] = row_total * col_total / N. Use keepdims=True for broadcasting. dof=(rows-1)*(cols-1).",
+      },
+    ],
+  },
+
+  {
+    section: "stats",
+    id: "normal",
+    label: "Normal Distribution",
+    icon: "🔔",
+    color: P.rose,
+    formula: "f(x) = e^{-(x-μ)²/2σ²} / (σ√2π)   |   z=(x-μ)/σ   |   CLT: x̄~N(μ,σ²/n)",
+    concept: [
+      "Normal (Gaussian) distribution N(μ, σ²) — central to statistics.",
+      "",
+      "PDF: f(x) = exp(-(x-μ)²/2σ²) / (σ√2π)",
+      "CDF: Φ(x) = P(X ≤ x) — use scipy.stats.norm.cdf()",
+      "",
+      "Empirical Rule (68-95-99.7):",
+      "  68.27% of data within μ ± 1σ",
+      "  95.45% of data within μ ± 2σ",
+      "  99.73% of data within μ ± 3σ",
+      "",
+      "Z-SCORE (standardization):",
+      "  z = (x − μ) / σ   →   transforms to Standard Normal N(0,1)",
+      "  Use standard normal table or norm.cdf(z)",
+      "",
+      "CENTRAL LIMIT THEOREM — arguably the most important theorem in stats:",
+      "  If X₁,...,Xₙ are i.i.d. with mean μ and variance σ²,",
+      "  then as n→∞:  x̄ ~ N(μ, σ²/n)",
+      "  Standard Error: SE = σ/√n",
+      "",
+      "CLT holds regardless of the shape of the original distribution!",
+      "Rule of thumb: n ≥ 30 is usually sufficient.",
+      "",
+      "norm.cdf(x, μ, σ)  — P(X ≤ x)",
+      "norm.ppf(p, μ, σ)  — inverse CDF (x such that P(X≤x)=p)",
+    ],
+    activities: [
+      {
+        title: "Normal Distribution & Z-scores",
+        q: [
+          "from scipy.stats import norm",
+          "",
+          "# Exam scores: N(mu=72, sigma=9)",
+          "mu, sigma = 72, 9",
+          "",
+          "# Q1: P(score > 85)?",
+          "p_above_85 = ???",
+          "",
+          "# Q2: P(60 < score < 80)?",
+          "p_between  = ???",
+          "",
+          "# Q3: Score at the 90th percentile?",
+          "score_90   = ???",
+          "",
+          "# Q4: Percentile of score=88?",
+          "pct_88     = ???",
+          "",
+          "# Q5: Z-score of 88?",
+          "z_88       = ???",
+          "",
+          "print(f'P(score>85)       = {p_above_85*100:.2f}%')",
+          "print(f'P(60<score<80)    = {p_between*100:.2f}%')",
+          "print(f'90th percentile   = {score_90:.2f}')",
+          "print(f'Percentile of 88  = {pct_88*100:.2f}th')",
+          "print(f'Z-score of 88     = {z_88:.4f}')",
+        ].join("\n"),
+        sol: [
+          "from scipy.stats import norm",
+          "",
+          "mu, sigma = 72, 9",
+          "",
+          "p_above_85 = 1 - norm.cdf(85, mu, sigma)                    # 7.36%",
+          "p_between  = norm.cdf(80, mu, sigma) - norm.cdf(60, mu, sigma)  # 67.70%",
+          "score_90   = norm.ppf(0.90, mu, sigma)                      # 83.54",
+          "pct_88     = norm.cdf(88, mu, sigma)                        # 0.9616",
+          "z_88       = (88 - mu) / sigma                              # 1.7778",
+          "",
+          "print(f'P(score>85)       = {p_above_85*100:.2f}%')   # 7.36%",
+          "print(f'P(60<score<80)    = {p_between*100:.2f}%')    # 67.70%",
+          "print(f'90th percentile   = {score_90:.2f}')          # 83.54",
+          "print(f'Percentile of 88  = {pct_88*100:.2f}th')      # 96.16th",
+          "print(f'Z-score of 88     = {z_88:.4f}')             # 1.7778",
+        ].join("\n"),
+        hint: "norm.cdf(x,mu,sigma) for P(X<=x). P(a<X<b)=cdf(b)-cdf(a). norm.ppf(p) for quantile.",
+      },
+      {
+        title: "Central Limit Theorem Simulation",
+        q: [
+          "import numpy as np",
+          "",
+          "# Population: right-skewed (Exponential, mean=2)",
+          "np.random.seed(42)",
+          "population = np.random.exponential(scale=2, size=100_000)",
+          "pop_std    = population.std()",
+          "",
+          "# For each sample size n, draw 5000 samples, compute means",
+          "for n in [2, 5, 30, 100]:",
+          "    sample_means = [np.random.choice(population, n).mean()",
+          "                    for _ in range(5000)]",
+          "    sm = np.array(sample_means)",
+          "    se_theory = ???   # sigma / sqrt(n)",
+          "    se_actual = ???   # std of sample means",
+          "    print(f'n={n:3d}  SE_theory={se_theory:.3f}  SE_actual={se_actual:.3f}')",
+          "",
+          "# What happens to SE as n grows?",
+        ].join("\n"),
+        sol: [
+          "import numpy as np",
+          "",
+          "np.random.seed(42)",
+          "population = np.random.exponential(scale=2, size=100_000)",
+          "pop_std    = population.std()",
+          "",
+          "for n in [2, 5, 30, 100]:",
+          "    sample_means = [np.random.choice(population, n).mean()",
+          "                    for _ in range(5000)]",
+          "    sm = np.array(sample_means)",
+          "    se_theory = pop_std / np.sqrt(n)   # theoretical SE",
+          "    se_actual = sm.std()               # empirical SE",
+          "    print(f'n={n:3d}  SE_theory={se_theory:.3f}  SE_actual={se_actual:.3f}')",
+          "",
+          "# n=2:   SE~1.42  -- still very non-normal",
+          "# n=30:  SE~0.37  -- approximately normal (CLT kicks in!)",
+          "# n=100: SE~0.20  -- very close to normal",
+          "# As n grows: SE decreases as sigma/sqrt(n), shape becomes Gaussian",
+        ].join("\n"),
+        hint: "SE = pop_std / sqrt(n). As n increases, the sampling distribution becomes Normal (CLT).",
+      },
+    ],
+  },
+
+  {
+    section: "stats",
+    id: "normalization",
+    label: "Normalization",
+    icon: "≡",
+    color: P.teal,
+    formula: "z=(x-μ)/σ  |  x̂=(x-min)/(max-min)  |  robust=(x-Q2)/(Q3-Q1)",
+    concept: [
+      "Scaling brings features to compatible ranges — critical for",
+      "gradient-based learning and distance-based algorithms.",
+      "",
+      "Method        Formula                      Range      When to Use",
+      "───────────────────────────────────────────────────────────────",
+      "Min-Max       (x-min)/(max-min)            [0,1]      Bounded data, images",
+      "Z-score       (x-μ)/σ                       ~N(0,1)    Gaussian features",
+      "Robust        (x-Q2)/(Q3-Q1)               varies     Many outliers",
+      "L2 Norm       x / ||x||₂                   ||·||=1    Cosine similarity",
+      "Log           log(1+x)                      varies     Skewed/count data",
+      "",
+      "Batch Normalization (BN) in neural networks:",
+      "  For mini-batch B = {x₁,...,xₘ}:",
+      "    μ_B = (1/m)Σxᵢ",
+      "    σ²_B = (1/m)Σ(xᵢ-μ_B)²",
+      "    x̂ᵢ = (xᵢ-μ_B)/√(σ²_B+ε)",
+      "    yᵢ = γx̂ᵢ + β         (learnable scale γ and shift β)",
+      "",
+      "Benefits of BN:",
+      "  • Allows higher learning rates",
+      "  • Reduces sensitivity to weight initialization",
+      "  • Acts as regularization (reduces need for dropout)",
+      "",
+      "Layer Norm: normalize over features (not batch) — used in Transformers.",
+    ],
+    activities: [
+      {
+        title: "All Scalers from Scratch",
+        q: [
+          "import numpy as np",
+          "",
+          "data = np.array([5, 200, 18, 45, 1200, 32, 78, 950, 12, 400], dtype=float)",
+          "",
+          "# 1. Min-Max Scaling -> [0, 1]",
+          "minmax = ???",
+          "",
+          "# 2. Z-score Standardization -> ~N(0,1)",
+          "zscore = ???",
+          "",
+          "# 3. Robust Scaling -> use Q1 and Q3",
+          "Q1, Q3 = ???, ???",
+          "robust = ???",
+          "",
+          "# 4. L2 Normalization -> unit norm",
+          "l2 = ???",
+          "",
+          "# 5. Log Transform -> compress large values",
+          "log_t = ???",
+          "",
+          "for name, arr in [('MinMax',minmax),('ZScore',zscore),",
+          "                  ('Robust',robust),('L2',l2),('Log',log_t)]:",
+          "    print(f'{name:7}: min={arr.min():7.3f} max={arr.max():7.3f} mean={arr.mean():7.3f}')",
+        ].join("\n"),
+        sol: [
+          "import numpy as np",
+          "",
+          "data = np.array([5, 200, 18, 45, 1200, 32, 78, 950, 12, 400], dtype=float)",
+          "",
+          "minmax = (data - data.min()) / (data.max() - data.min())",
+          "zscore = (data - data.mean()) / data.std()",
+          "",
+          "Q1, Q3 = np.percentile(data, 25), np.percentile(data, 75)",
+          "robust = (data - np.median(data)) / (Q3 - Q1)",
+          "",
+          "l2    = data / np.linalg.norm(data)",
+          "log_t = np.log1p(data)   # log(1+x) -- handles 0 safely",
+          "",
+          "for name, arr in [('MinMax',minmax),('ZScore',zscore),",
+          "                  ('Robust',robust),('L2',l2),('Log',log_t)]:",
+          "    print(f'{name:7}: min={arr.min():7.3f} max={arr.max():7.3f} mean={arr.mean():7.3f}')",
+        ].join("\n"),
+        hint: "L2: data / np.linalg.norm(data). Robust uses median and IQR=Q3-Q1. np.log1p = log(1+x).",
+      },
+    ],
+  },
+];
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  MINI INTERACTIVE DEMOS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function WeightBiasDemo() {
+  const [w1, setW1] = useState(0.5);
+  const [w2, setW2] = useState(-0.3);
+  const [b,  setB]  = useState(0.1);
+  const x1 = 0.8, x2 = 0.6;
+  const z    = w1 * x1 + w2 * x2 + b;
+  const rOut = relu(z);
+  const sOut = sigmoid(z);
+  const tOut = Math.tanh(z);
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <div>
+        {[["w₁  (x₁=0.8 fixed)", w1, setW1, -2, 2],
+          ["w₂  (x₂=0.6 fixed)", w2, setW2, -2, 2],
+          ["b   (bias)",           b,  setB,  -1, 1]].map(([lbl, val, set, mn, mx]) => (
+          <div key={lbl} style={{ marginBottom: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", ...mono, fontSize: 11, marginBottom: 3 }}>
+              <span style={{ color: P.dim }}>{lbl}</span>
+              <span style={{ color: P.gold }}>{val.toFixed(2)}</span>
+            </div>
+            <input type="range" min={mn} max={mx} step={0.01} value={val}
+              onChange={(e) => set(parseFloat(e.target.value))}
+              style={{ width: "100%", accentColor: P.gold }} />
+          </div>
+        ))}
+      </div>
+      <div style={{ background: P.bg, borderRadius: 10, padding: 14 }}>
+        <div style={{ ...mono, fontSize: 9, color: P.dim, marginBottom: 8, letterSpacing: "0.1em" }}>FORWARD PASS</div>
+        <div style={{ ...mono, fontSize: 11, color: P.text, marginBottom: 4 }}>
+          z = {w1.toFixed(2)}×0.8 + {w2.toFixed(2)}×0.6 + {b.toFixed(2)}
+        </div>
+        <div style={{ ...mono, fontSize: 18, fontWeight: 700, color: P.gold, margin: "6px 0" }}>
+          z = {z.toFixed(4)}
+        </div>
+        <div style={{ borderTop: `1px solid ${P.border}`, margin: "8px 0" }} />
+        <div style={{ ...mono, fontSize: 11, color: P.teal, marginBottom: 3 }}>ReLU   = {rOut.toFixed(4)}</div>
+        <div style={{ ...mono, fontSize: 11, color: P.rose, marginBottom: 3 }}>σ(z)   = {sOut.toFixed(4)}</div>
+        <div style={{ ...mono, fontSize: 11, color: P.violet }}>tanh   = {tOut.toFixed(4)}</div>
+        <div style={{ marginTop: 10, padding: 8, borderRadius: 6, fontSize: 10, ...mono,
+          background: z > 0 ? P.teal + "18" : P.rose + "18",
+          color: z > 0 ? P.teal : P.rose }}>
+          {z > 0 ? "✓ Active — ReLU passes signal" : "✗ Dead under ReLU (output = 0)"}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ActivationDemo() {
+  const [sel, setSel] = useState("ReLU");
+  const fns = {
+    ReLU:        { fn: (x) => Math.max(0, x),                          col: P.teal },
+    Sigmoid:     { fn: (x) => 1 / (1 + Math.exp(-x)),                  col: P.rose },
+    Tanh:        { fn: (x) => Math.tanh(x),                             col: P.gold },
+    "Leaky ReLU":{ fn: (x) => x > 0 ? x : 0.01 * x,                   col: P.sky  },
+    GELU:        { fn: (x) => 0.5*x*(1+Math.tanh(Math.sqrt(2/Math.PI)*(x+0.044715*x**3))), col: P.violet },
+  };
+  const W = 300, H = 130, steps = 90, range = [-4, 4];
+  const pts = Array.from({ length: steps }, (_, i) => {
+    const x = range[0] + (i / (steps - 1)) * (range[1] - range[0]);
+    return { x, y: fns[sel].fn(x) };
+  });
+  const ys = pts.map((p) => p.y);
+  const yMin = Math.min(...ys), yMax = Math.max(...ys);
+  const sx = (x) => ((x - range[0]) / (range[1] - range[0])) * W;
+  const sy = (y) => H - 8 - ((y - yMin) / (yMax - yMin + 0.001)) * (H - 16);
+  const d = pts.map((p, i) => (i === 0 ? "M" : "L") + sx(p.x).toFixed(1) + "," + sy(p.y).toFixed(1)).join(" ");
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
+        {Object.keys(fns).map((k) => (
+          <button key={k} onClick={() => setSel(k)} style={{
+            padding: "4px 11px", borderRadius: 6, cursor: "pointer", ...mono, fontSize: 10,
+            background: sel === k ? fns[k].col + "28" : "transparent",
+            color: sel === k ? fns[k].col : P.dim,
+            border: `1px solid ${sel === k ? fns[k].col : P.border}`,
+          }}>{k}</button>
+        ))}
+      </div>
+      <svg width={W} height={H} style={{ background: P.bg, borderRadius: 8, border: `1px solid ${P.border}`, display: "block" }}>
+        <line x1={0} y1={sy(0)} x2={W} y2={sy(0)} stroke={P.muted} strokeWidth={1} />
+        <line x1={sx(0)} y1={0} x2={sx(0)} y2={H} stroke={P.muted} strokeWidth={1} />
+        <path d={d} fill="none" stroke={fns[sel].col} strokeWidth={2.5} />
+      </svg>
+      <div style={{ ...mono, fontSize: 9, color: P.dim, marginTop: 6 }}>
+        x ∈ [{range[0]}, {range[1]}]  ·  active: <span style={{ color: fns[sel].col }}>{sel}</span>
+      </div>
+    </div>
+  );
+}
+
+function ConvDemo() {
+  const presets = [
+    { name: "Sobel-X",   k: [[1,0,-1],[2,0,-2],[1,0,-1]] },
+    { name: "Laplacian", k: [[0,1,0],[1,-4,1],[0,1,0]] },
+    { name: "Sharpen",   k: [[-1,-1,-1],[-1,9,-1],[-1,-1,-1]] },
+    { name: "Box Blur",  k: [[1,1,1],[1,1,1],[1,1,1]] },
+  ];
+  const [pi, setPi] = useState(0);
+  const image = [[4,8,4,3,2],[3,9,7,2,1],[2,6,8,4,3],[1,3,5,7,4],[2,1,3,5,6]];
+  const kernel = presets[pi].k;
+  const compute = () => {
+    const out = [];
+    for (let i = 0; i < 3; i++) {
+      out.push([]);
+      for (let j = 0; j < 3; j++) {
+        let s = 0;
+        for (let ki = 0; ki < 3; ki++)
+          for (let kj = 0; kj < 3; kj++)
+            s += image[i + ki][j + kj] * kernel[ki][kj];
+        out[i].push(s);
+      }
+    }
+    return out;
+  };
+  const output = compute();
+  const flat = output.flat();
+  const oMin = Math.min(...flat), oMax = Math.max(...flat);
+  const normVal = (v) => (v - oMin) / (oMax - oMin + 0.001);
+
+  const Grid = ({ data, color, normalize }) => (
+    <div style={{ display: "grid", gridTemplateColumns: `repeat(${data[0].length}, 1fr)`, gap: 2 }}>
+      {data.map((row, i) => row.map((v, j) => (
+        <div key={`${i}-${j}`} style={{
+          width: 28, height: 26, display: "flex", alignItems: "center", justifyContent: "center",
+          borderRadius: 4, ...mono, fontSize: 9, fontWeight: normalize ? 700 : 400,
+          background: normalize
+            ? `rgba(45,212,191,${(0.12 + normVal(v) * 0.88).toFixed(2)})`
+            : v > 0 ? color + "30" : v < 0 ? P.rose + "30" : P.muted + "44",
+          color: normalize ? "#0b0e16" : v !== 0 ? color : P.dim,
+          border: `1px solid ${normalize ? "transparent" : color + "22"}`,
+        }}>{typeof v === "number" ? v.toFixed(0) : v}</div>
+      )))}
+    </div>
+  );
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
+        {presets.map((p, i) => (
+          <button key={p.name} onClick={() => setPi(i)} style={{
+            padding: "4px 11px", borderRadius: 6, cursor: "pointer", ...mono, fontSize: 10,
+            background: pi === i ? P.sky + "28" : "transparent",
+            color: pi === i ? P.sky : P.dim,
+            border: `1px solid ${pi === i ? P.sky : P.border}`,
+          }}>{p.name}</button>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 24, alignItems: "flex-start", flexWrap: "wrap" }}>
+        {[{ label: "Input (5×5)",   data: image,   color: P.sky,  normalize: false },
+          { label: `Kernel (${presets[pi].name})`, data: kernel, color: P.gold, normalize: false },
+          { label: "Output (3×3)", data: output,  color: P.teal, normalize: true }].map(({ label, data, color, normalize }) => (
+          <div key={label}>
+            <div style={{ ...mono, fontSize: 9, color, marginBottom: 6 }}>{label}</div>
+            <Grid data={data} color={color} normalize={normalize} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RNNDemo() {
+  const [step, setStep] = useState(0);
+  const seq = ["x₁", "x₂", "x₃", "x₄"];
+  const cols = [P.teal, P.gold, P.violet, P.rose];
+  const total = seq.length;
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 12, alignItems: "flex-end", marginBottom: 16 }}>
+        {seq.map((x, i) => (
+          <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
+            <div style={{ ...mono, fontSize: 9, color: P.dim }}>t={i + 1}</div>
+            <div style={{
+              width: 46, height: 40, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center",
+              ...mono, fontSize: 13, fontWeight: 700,
+              border: `2px solid ${i <= step ? cols[i] : P.border}`,
+              background: i <= step ? cols[i] + "22" : "transparent",
+              color: i <= step ? cols[i] : P.muted,
+              transition: "all 0.3s",
+            }}>{x}</div>
+            <div style={{
+              width: 46, height: 30, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center",
+              ...mono, fontSize: 10,
+              border: `1px solid ${i <= step ? cols[i] : P.border}`,
+              background: i <= step ? cols[i] + "15" : "transparent",
+              color: i <= step ? cols[i] : P.muted,
+              transition: "all 0.3s",
+            }}>h{i + 1}</div>
+            {i < total - 1 && (
+              <div style={{ ...mono, fontSize: 8, color: i < step ? cols[i] : P.muted }}>→</div>
+            )}
+          </div>
+        ))}
+      </div>
+      <div style={{ ...mono, fontSize: 11, color: P.text, padding: "10px 12px", background: P.bg, borderRadius: 8, marginBottom: 10 }}>
+        {step < total
+          ? <>t={step + 1}: <span style={{ color: cols[step] }}>h{step + 1}</span> = tanh(Wₓ·<span style={{ color: cols[step] }}>{seq[step]}</span> + Wₕ·h{step} + b)</>
+          : "✓ Full sequence processed. h₄ = context vector for decoder."}
+      </div>
+      <div style={{ display: "flex", gap: 6 }}>
+        {[["← Back", () => setStep((s) => Math.max(0, s - 1)), step === 0, P.dim, P.border],
+          ["Next →", () => setStep((s) => Math.min(total, s + 1)), step >= total, P.violet, P.violet]].map(([lbl, fn, disabled, col, border]) => (
+          <button key={lbl} onClick={fn} disabled={disabled} style={{
+            flex: 1, padding: "7px", borderRadius: 6,
+            border: `1px solid ${disabled ? P.border : border}`,
+            background: disabled ? "transparent" : col + "22",
+            color: disabled ? P.muted : col,
+            ...mono, fontSize: 11, cursor: disabled ? "not-allowed" : "pointer",
+          }}>{lbl}</button>
+        ))}
+        <button onClick={() => setStep(0)} style={{
+          padding: "7px 12px", borderRadius: 6, border: `1px solid ${P.border}`,
+          background: "transparent", color: P.dim, ...mono, fontSize: 11, cursor: "pointer",
+        }}>↺</button>
+      </div>
+    </div>
+  );
+}
+
+function NormalDemo() {
+  const [mu, setMu]       = useState(0);
+  const [sigma, setSigma] = useState(1);
+  const W = 300, H = 130, steps = 100, range = [-5, 5];
+  const pdf = (x) => Math.exp(-0.5 * ((x - mu) / sigma) ** 2) / (sigma * Math.sqrt(2 * Math.PI));
+  const pts = Array.from({ length: steps }, (_, i) => {
+    const x = range[0] + (i / (steps - 1)) * (range[1] - range[0]);
+    return { x, y: pdf(x) };
+  });
+  const yMax = Math.max(...pts.map((p) => p.y));
+  const sx = (x) => ((x - range[0]) / (range[1] - range[0])) * W;
+  const sy = (y) => H - 8 - (y / yMax) * (H - 16);
+  const d    = pts.map((p, i) => (i === 0 ? "M" : "L") + sx(p.x).toFixed(1) + "," + sy(p.y).toFixed(1)).join(" ");
+  const fill = d + " L" + sx(range[1]) + "," + H + " L" + sx(range[0]) + "," + H + " Z";
+
+  return (
+    <div>
+      <svg width={W} height={H} style={{ background: P.bg, borderRadius: 8, border: `1px solid ${P.border}`, display: "block" }}>
+        <path d={fill} fill={P.rose + "20"} />
+        <path d={d} fill="none" stroke={P.rose} strokeWidth={2.5} />
+        <line x1={sx(mu)}         y1={0} x2={sx(mu)}         y2={H} stroke={P.gold} strokeWidth={1.5} strokeDasharray="5 3" />
+        <line x1={sx(mu - sigma)} y1={0} x2={sx(mu - sigma)} y2={H} stroke={P.teal} strokeWidth={1}   strokeDasharray="4 3" />
+        <line x1={sx(mu + sigma)} y1={0} x2={sx(mu + sigma)} y2={H} stroke={P.teal} strokeWidth={1}   strokeDasharray="4 3" />
+        <text x={sx(mu) + 3} y={16} fontFamily="monospace" fontSize={9} fill={P.gold}>μ</text>
+      </svg>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 10 }}>
+        {[["μ (mean)", mu, setMu, -3, 3], ["σ (std dev)", sigma, setSigma, 0.3, 3]].map(([lbl, val, set, mn, mx]) => (
+          <div key={lbl}>
+            <div style={{ display: "flex", justifyContent: "space-between", ...mono, fontSize: 10, marginBottom: 3 }}>
+              <span style={{ color: P.dim }}>{lbl}</span>
+              <span style={{ color: P.rose }}>{val.toFixed(2)}</span>
+            </div>
+            <input type="range" min={mn} max={mx} step={0.05} value={val}
+              onChange={(e) => set(parseFloat(e.target.value))}
+              style={{ width: "100%", accentColor: P.rose }} />
+          </div>
+        ))}
+      </div>
+      <div style={{ ...mono, fontSize: 9, color: P.dim, marginTop: 8 }}>
+        68% within [{(mu - sigma).toFixed(2)}, {(mu + sigma).toFixed(2)}]
+      </div>
+    </div>
+  );
+}
+
+function BayesDemo() {
+  const [pD,   setPD]   = useState(0.01);
+  const [sens, setSens] = useState(0.95);
+  const [fpr,  setFpr]  = useState(0.10);
+  const pPos  = sens * pD + fpr * (1 - pD);
+  const pDpos = (sens * pD) / pPos;
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <div>
+        {[["P(Disease) — Prevalence",     pD,   setPD,   0.001, 0.5,  P.rose],
+          ["P(+|Disease) — Sensitivity",  sens, setSens, 0.5,   1,    P.teal],
+          ["P(+|¬Disease) — False Pos.",  fpr,  setFpr,  0.01,  0.5,  P.orange]].map(([lbl, val, set, mn, mx, col]) => (
+          <div key={lbl} style={{ marginBottom: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", ...mono, fontSize: 10, marginBottom: 3 }}>
+              <span style={{ color: P.dim }}>{lbl}</span>
+              <span style={{ color: col }}>{(val * 100).toFixed(1)}%</span>
+            </div>
+            <input type="range" min={mn} max={mx} step={0.001} value={val}
+              onChange={(e) => set(parseFloat(e.target.value))}
+              style={{ width: "100%", accentColor: col }} />
+          </div>
+        ))}
+      </div>
+      <div style={{ background: P.bg, borderRadius: 10, padding: 14 }}>
+        <div style={{ ...mono, fontSize: 9, color: P.dim, marginBottom: 6 }}>P(Disease | Positive Test)</div>
+        <div style={{ fontFamily: "Georgia, serif", fontSize: 26, fontWeight: 700, color: pDpos < 0.5 ? P.rose : P.green }}>
+          {(pDpos * 100).toFixed(1)}%
+        </div>
+        <div style={{ ...mono, fontSize: 9, color: P.dim, marginTop: 3 }}>P(+) = {(pPos * 100).toFixed(2)}%</div>
+        <div style={{ marginTop: 10, height: 6, background: P.muted, borderRadius: 3 }}>
+          <div style={{ width: `${pDpos * 100}%`, height: "100%", background: pDpos < 0.5 ? P.rose : P.green, borderRadius: 3, transition: "width 0.3s" }} />
+        </div>
+        <div style={{ marginTop: 8, ...mono, fontSize: 9, color: P.text, lineHeight: 1.6, background: P.muted + "33", padding: 8, borderRadius: 6 }}>
+          {pDpos < 0.1
+            ? "⚠ Base rate fallacy: low prevalence makes most positives FALSE"
+            : pDpos < 0.5
+            ? "→ Moderate PPV — follow-up testing recommended"
+            : "✓ High PPV — positive test is meaningful"}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ChiSquareDemo() {
+  const obs = [25, 17, 22, 18, 26, 12];
+  const exp = [20, 20, 20, 20, 20, 20];
+  const chi2 = obs.reduce((s, o, i) => s + (o - exp[i]) ** 2 / exp[i], 0);
+  const maxV = Math.max(...obs, ...exp);
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 5, alignItems: "flex-end", height: 100, marginBottom: 8 }}>
+        {obs.map((o, i) => (
+          <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 2, height: "100%" }}>
+            <div style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end", flex: 1, width: "100%" }}>
+              <div style={{ background: P.orange + "cc", height: `${(o / maxV) * 80}px`, borderRadius: "3px 3px 0 0", display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: 2 }}>
+                <span style={{ ...mono, fontSize: 8, color: "#0b0e16", fontWeight: 700 }}>{o}</span>
+              </div>
+              <div style={{ background: P.teal + "66", height: `${(exp[i] / maxV) * 80}px`, display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: 2 }}>
+                <span style={{ ...mono, fontSize: 7, color: "#0b0e16" }}>{exp[i]}</span>
+              </div>
+            </div>
+            <div style={{ ...mono, fontSize: 8, color: P.dim }}>f{i + 1}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", ...mono, fontSize: 10, alignItems: "center" }}>
+        <span><span style={{ color: P.orange }}>■</span> Observed</span>
+        <span><span style={{ color: P.teal }}>■</span> Expected</span>
+        <span style={{ marginLeft: "auto", color: P.gold }}>χ² = {chi2.toFixed(3)}</span>
+        <span style={{ color: chi2 > 11.07 ? P.rose : P.green }}>{chi2 > 11.07 ? "Reject H₀" : "Fail to Reject"}</span>
+      </div>
+      <div style={{ ...mono, fontSize: 9, color: P.dim, marginTop: 5 }}>df=5, α=0.05, critical = 11.070</div>
+    </div>
+  );
+}
+
+function NormalizationDemo() {
+  const raw = [5, 200, 18, 45, 1200, 32, 78, 950, 12, 400];
+  const mn  = Math.min(...raw), mx = Math.max(...raw);
+  const mean = raw.reduce((a, b) => a + b, 0) / raw.length;
+  const std  = Math.sqrt(raw.reduce((s, x) => s + (x - mean) ** 2, 0) / raw.length);
+  const sorted = [...raw].sort((a, b) => a - b);
+  const Q1 = sorted[2], Q3 = sorted[7];
+  const l2n = Math.sqrt(raw.reduce((s, x) => s + x * x, 0));
+  const [sel, setSel] = useState("Min-Max");
+  const methods = {
+    "Min-Max": { fn: (x) => (x - mn) / (mx - mn),              col: P.teal },
+    "Z-Score": { fn: (x) => (x - mean) / std,                  col: P.rose },
+    "Robust":  { fn: (x) => (x - sorted[4]) / (Q3 - Q1),      col: P.gold },
+    "L2":      { fn: (x) => x / l2n,                           col: P.violet },
+  };
+  const transformed = raw.map(methods[sel].fn);
+  const tMn = Math.min(...transformed), tMx = Math.max(...transformed);
+  const normFn = (v) => (v - tMn) / (tMx - tMn + 0.001);
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
+        {Object.keys(methods).map((k) => (
+          <button key={k} onClick={() => setSel(k)} style={{
+            padding: "4px 11px", borderRadius: 6, cursor: "pointer", ...mono, fontSize: 10,
+            background: sel === k ? methods[k].col + "28" : "transparent",
+            color: sel === k ? methods[k].col : P.dim,
+            border: `1px solid ${sel === k ? methods[k].col : P.border}`,
+          }}>{k}</button>
+        ))}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5 }}>
+        {raw.map((v, i) => (
+          <div key={i} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <span style={{ ...mono, fontSize: 10, color: P.dim, minWidth: 38, textAlign: "right" }}>{v}</span>
+            <span style={{ color: P.muted, fontSize: 10 }}>→</span>
+            <div style={{ flex: 1, height: 14, background: P.muted + "44", borderRadius: 3, overflow: "hidden" }}>
+              <div style={{
+                width: `${Math.max(2, normFn(transformed[i]) * 100)}%`,
+                height: "100%", background: methods[sel].col, borderRadius: 3, transition: "width 0.4s",
+              }} />
+            </div>
+            <span style={{ ...mono, fontSize: 9, color: methods[sel].col, minWidth: 50 }}>
+              {transformed[i].toFixed(3)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const DEMO_MAP = {
+  weights:       WeightBiasDemo,
+  activation:    ActivationDemo,
+  cnn:           ConvDemo,
+  rnn:           RNNDemo,
+  central:       NormalDemo,
+  probability:   BayesDemo,
+  chisquare:     ChiSquareDemo,
+  normal:        NormalDemo,
+  normalization: NormalizationDemo,
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  ACTIVITY CARD
+// ═══════════════════════════════════════════════════════════════════════════════
+function ActivityCard({ act, idx, color }) {
+  const [showSol,  setShowSol]  = useState(false);
+  const [showHint, setShowHint] = useState(false);
+  const [copied,   setCopied]   = useState(false);
+
+  const copy = (text) => {
+    navigator.clipboard.writeText(text).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  return (
+    <div style={{ border: `1px solid ${color}28`, borderRadius: 12, overflow: "hidden", background: P.card, marginBottom: 14 }}>
+      {/* Header */}
+      <div style={{ padding: "10px 16px", background: color + "12", borderBottom: `1px solid ${color}22`, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
+        <div style={{ ...mono, fontSize: 11, color, fontWeight: 700 }}>
+          🎯 Activity {idx + 1}: {act.title}
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          {!showSol && (
+            <button onClick={() => setShowHint((h) => !h)} style={{
+              padding: "3px 9px", borderRadius: 5, cursor: "pointer", ...mono, fontSize: 10,
+              background: showHint ? P.gold + "22" : "transparent",
+              color: P.gold, border: `1px solid ${P.gold}44`,
+            }}>💡 {showHint ? "Hide Hint" : "Hint"}</button>
+          )}
+          <button onClick={() => { setShowSol((s) => !s); setShowHint(false); }} style={{
+            padding: "3px 9px", borderRadius: 5, cursor: "pointer", ...mono, fontSize: 10,
+            background: showSol ? P.rose + "18" : color + "0f",
+            color: showSol ? P.rose : color,
+            border: `1px solid ${showSol ? P.rose + "55" : color + "44"}`,
+          }}>{showSol ? "🔒 Hide Solution" : "🔓 Show Solution"}</button>
+        </div>
+      </div>
+
+      {/* Hint bar */}
+      {showHint && !showSol && (
+        <div style={{ padding: "8px 16px", background: P.gold + "0a", borderBottom: `1px solid ${P.gold}22` }}>
+          <div style={{ ...mono, fontSize: 9, color: P.gold, marginBottom: 3 }}>💡 HINT</div>
+          <div style={{ ...mono, fontSize: 11, color: P.text }}>{act.hint}</div>
+        </div>
+      )}
+
+      {/* Code block */}
+      <div style={{ position: "relative" }}>
+        <pre style={{
+          margin: 0, padding: "14px 16px", overflowX: "auto",
+          ...mono, fontSize: 11.5, lineHeight: 1.7,
+          background: showSol ? "#081508" : P.bg,
+          color: showSol ? P.green : P.text,
+          maxHeight: 340, borderBottom: `1px solid ${showSol ? P.green + "22" : P.border}`,
+        }}><code>{showSol ? act.sol : act.q}</code></pre>
+        <button onClick={() => copy(showSol ? act.sol : act.q)} style={{
+          position: "absolute", top: 8, right: 8, padding: "2px 8px", borderRadius: 4,
+          border: `1px solid ${P.border}`, background: P.panel,
+          color: copied ? P.green : P.dim, ...mono, fontSize: 9, cursor: "pointer",
+        }}>{copied ? "✓ Copied" : "Copy"}</button>
+      </div>
+
+      {showSol && (
+        <div style={{ padding: "8px 16px", background: P.green + "08", display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ color: P.green }}>✓</span>
+          <span style={{ ...mono, fontSize: 10, color: P.green }}>Run this in your Python environment to verify</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  TOPIC PANEL
+// ═══════════════════════════════════════════════════════════════════════════════
+function TopicPanel({ topic }) {
+  const [tab, setTab] = useState("concept");
+  const Demo = DEMO_MAP[topic.id];
+
+  return (
+    <div>
+      {/* Topic header */}
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 14, marginBottom: 20, padding: "16px 20px", background: topic.color + "0a", border: `1px solid ${topic.color}28`, borderRadius: 12 }}>
+        <div style={{ fontSize: 24, flexShrink: 0 }}>{topic.icon}</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ ...mono, fontSize: 13, color: topic.color, fontWeight: 700 }}>{topic.label}</div>
+          <div style={{ ...mono, fontSize: 10, color: P.dim, marginTop: 4, lineHeight: 1.5 }}>{topic.formula}</div>
+        </div>
+      </div>
+
+      {/* Tab buttons */}
+      <div style={{ display: "flex", gap: 4, marginBottom: 16, background: P.bg, borderRadius: 8, padding: 4, width: "fit-content" }}>
+        {[["concept", "📖 Concept"], ["demo", "⚡ Demo"], ["activities", "🎯 Activities"]].map(([t, lbl]) => (
+          <button key={t} onClick={() => setTab(t)} style={{
+            padding: "6px 14px", borderRadius: 6, border: "none", cursor: "pointer",
+            ...mono, fontSize: 10,
+            background: tab === t ? topic.color + "22" : "transparent",
+            color:      tab === t ? topic.color : P.dim,
+            transition: "all 0.2s",
+          }}>{lbl}</button>
+        ))}
+      </div>
+
+      {/* Tab: Concept */}
+      {tab === "concept" && (
+        <div style={{ ...card }}>
+          <pre style={{ ...mono, fontSize: 12, lineHeight: 1.9, color: P.text, whiteSpace: "pre-wrap", margin: 0 }}>
+            {topic.concept.join("\n")}
+          </pre>
+        </div>
+      )}
+
+      {/* Tab: Demo */}
+      {tab === "demo" && (
+        <div style={{ ...card }}>
+          <div style={{ ...mono, fontSize: 9, color: P.dim, marginBottom: 14, letterSpacing: "0.1em" }}>◈ INTERACTIVE DEMO</div>
+          {Demo ? <Demo /> : <div style={{ ...mono, fontSize: 11, color: P.dim }}>Demo coming soon.</div>}
+        </div>
+      )}
+
+      {/* Tab: Activities */}
+      {tab === "activities" && (
+        <div>
+          {topic.activities.map((act, i) => (
+            <ActivityCard key={i} act={act} idx={i} color={topic.color} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  ROOT COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════════
+function Classroom() {
+  const [section,  setSection]  = useState("dl");
+  const [activeDL, setActiveDL] = useState("weights");
+  const [activeST, setActiveST] = useState("central");
+
+  const dlTopics = TOPICS.filter((t) => t.section === "dl");
+  const stTopics = TOPICS.filter((t) => t.section === "stats");
+
+  const currentTopic =
+    section === "dl"
+      ? dlTopics.find((t) => t.id === activeDL)
+      : stTopics.find((t) => t.id === activeST);
+
+  const totalActs = TOPICS.reduce((s, t) => s + t.activities.length, 0);
+
+  return (
+    <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: P.bg, fontFamily: "monospace" }}>
+
+      {/* ── SIDEBAR ── */}
+      <div style={{ width: 210, flexShrink: 0, background: P.panel, borderRight: `1px solid ${P.border}`, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+
+        {/* Logo */}
+        <div style={{ padding: "16px 16px 12px", borderBottom: `1px solid ${P.border}` }}>
+          <div style={{ fontFamily: "Georgia, serif", fontSize: 17, fontWeight: 700, color: P.text, lineHeight: 1.2 }}>
+            ML / DL <span style={{ color: P.gold, fontWeight: 300, fontStyle: "italic" }}>Classroom</span>
+          </div>
+          <div style={{ ...mono, fontSize: 8, color: P.dim, marginTop: 4 }}>
+            {dlTopics.length} DL · {stTopics.length} Stats · {totalActs} Activities
+          </div>
+        </div>
+
+        {/* Section switcher */}
+        <div style={{ padding: "8px 10px", display: "flex", gap: 4, borderBottom: `1px solid ${P.border}` }}>
+          {[["dl", "⬡ Deep Learning", P.teal], ["stats", "∑ Statistics", P.gold]].map(([s, lbl, col]) => (
+            <button key={s} onClick={() => setSection(s)} style={{
+              flex: 1, padding: "6px 4px", borderRadius: 6,
+              border: `1px solid ${section === s ? col : P.border}`,
+              background: section === s ? col + "20" : "transparent",
+              color: section === s ? col : P.dim,
+              ...mono, fontSize: 8.5, cursor: "pointer", lineHeight: 1.4, transition: "all 0.2s",
+            }}>{lbl}</button>
+          ))}
+        </div>
+
+        {/* Nav list */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "8px" }}>
+          {(section === "dl" ? dlTopics : stTopics).map((t) => {
+            const isActive = section === "dl" ? activeDL === t.id : activeST === t.id;
+            return (
+              <button key={t.id} onClick={() => section === "dl" ? setActiveDL(t.id) : setActiveST(t.id)} style={{
+                display: "flex", alignItems: "center", gap: 9, padding: "8px 10px", borderRadius: 7,
+                border: "none", cursor: "pointer", textAlign: "left", width: "100%", marginBottom: 2,
+                background: isActive ? t.color + "1a" : "transparent", transition: "all 0.2s",
+              }}>
+                <span style={{ fontSize: 14, width: 18, color: isActive ? t.color : P.dim }}>{t.icon}</span>
+                <span style={{ ...mono, fontSize: 10, color: isActive ? t.color : P.dim, fontWeight: isActive ? 700 : 400 }}>
+                  {t.label}
+                </span>
+                {isActive && <span style={{ marginLeft: "auto", width: 3, height: 14, borderRadius: 2, background: t.color, flexShrink: 0 }} />}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Quick ref */}
+        <div style={{ borderTop: `1px solid ${P.border}`, padding: "10px 12px", ...mono, fontSize: 7.5, color: P.dim, lineHeight: 1.9 }}>
+          <div style={{ color: P.teal + "99", marginBottom: 2 }}>KEY FORMULAS</div>
+          z = Wx + b · a = σ(z)<br />
+          ∂L/∂w = δ·xᵀ (backprop)<br />
+          CLT: x̄ ~ N(μ, σ²/n)<br />
+          χ² = Σ(O-E)²/E<br />
+          P(A|B) = P(B|A)P(A)/P(B)
+        </div>
+      </div>
+
+      {/* ── MAIN CONTENT ── */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "24px 28px", minWidth: 0 }}>
+        {/* Page header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22, paddingBottom: 14, borderBottom: `1px solid ${P.border}` }}>
+          <div>
+            <div style={{ fontFamily: "Georgia, serif", fontSize: 20, fontWeight: 600, color: P.text }}>
+              {section === "dl" ? "Deep Learning Algorithms" : "Statistical Foundations"}
+            </div>
+            <div style={{ ...mono, fontSize: 9, color: P.dim, marginTop: 3 }}>
+              {section === "dl"
+                ? "Weights · Activations · CNN/VGGNet · RNN/LSTM"
+                : "Central Tendency · Probability · Chi-Square · Normal · Normalization"}
+            </div>
+          </div>
+          <div style={{ ...mono, fontSize: 9, color: P.dim, padding: "5px 10px", border: `1px solid ${P.border}`, borderRadius: 6, background: P.panel }}>
+            {new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+          </div>
+        </div>
+
+        {currentTopic && <TopicPanel key={currentTopic.id} topic={currentTopic} />}
+      </div>
+
+      {/* ── RIGHT PANEL ── */}
+      <div style={{ width: 175, flexShrink: 0, background: P.panel, borderLeft: `1px solid ${P.border}`, padding: "14px 10px", overflowY: "auto" }}>
+        <div style={{ ...mono, fontSize: 8, color: P.dim, marginBottom: 10, letterSpacing: "0.08em" }}>QUICK REFERENCE</div>
+        {[
+          { l: "Neuron z",   f: "Wx + b",          c: P.teal   },
+          { l: "ReLU",       f: "max(0, x)",        c: P.teal   },
+          { l: "Sigmoid",    f: "1/(1+e⁻ˣ)",        c: P.rose   },
+          { l: "Softmax",    f: "eˣⁱ / Σeˣʲ",      c: P.violet },
+          { l: "Conv",       f: "Σ W·X + b",        c: P.sky    },
+          { l: "LSTM Cell",  f: "f⊙C + i⊙c̃",       c: P.violet },
+          { l: "Backprop",   f: "∂L/∂w = δ·xᵀ",    c: P.orange },
+          { l: "Mean μ",     f: "Σxᵢ / n",          c: P.gold   },
+          { l: "Std σ",      f: "√Σ(x-μ)²/n",      c: P.gold   },
+          { l: "Z-score",    f: "(x-μ)/σ",          c: P.rose   },
+          { l: "Bayes",      f: "P(B|A)P(A)/P(B)",  c: P.green  },
+          { l: "Chi-sq",     f: "Σ(O-E)²/E",        c: P.orange },
+          { l: "Min-Max",    f: "(x-min)/(max-min)", c: P.teal   },
+          { l: "CLT SE",     f: "σ / √n",           c: P.rose   },
+        ].map(({ l, f, c }) => (
+          <div key={l} style={{ marginBottom: 6, padding: "6px 8px", borderRadius: 6, background: P.card, border: `1px solid ${P.border}` }}>
+            <div style={{ ...mono, fontSize: 7.5, color: c, marginBottom: 1 }}>{l}</div>
+            <div style={{ ...mono, fontSize: 9, color: P.text }}>{f}</div>
+          </div>
+        ))}
+        <div style={{ marginTop: 12, padding: "10px 8px", borderRadius: 8, background: P.bg, border: `1px solid ${P.border}`, ...mono, fontSize: 7.5, color: P.dim, lineHeight: 1.9 }}>
+          <span style={{ color: P.gold }}>RULES OF THUMB</span><br />
+          n ≥ 30 for CLT<br />
+          p &lt; 0.05 → reject H₀<br />
+          E ≥ 5 for χ² test<br />
+          df = (r-1)(c-1)<br />
+          |z| &gt; 3 = outlier<br />
+          Overfit → Dropout/L2<br />
+          Vanish → LSTM/ResNet
+        </div>
+      </div>
+    </div>
+  );
+}
+
+        /* --- END OF EMBEDDED JSX --- */
+
+        try {
+            const container = document.getElementById("root");
+            const root = ReactDOM.createRoot(container);
+            root.render(<Classroom />);
+            document.getElementById('loading').style.display = 'none';
+        } catch (err) {
+            console.error(err);
+            window.onerror(err.message, null, null, null, err);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,1656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ML Education - Interactive Learning</title>
+    <script crossorigin src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body { margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+        * { box-sizing: border-box; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+
+
+/**
+ * Machine Learning Models Educational Application
+ * Target Audience: High school beginners to intermediate learners
+ * 
+ * Models Covered:
+ * 1. Decision Tree - The foundation
+ * 2. Random Forest - Team of decision trees
+ * 3. Gradient Boosting - Learning from mistakes
+ * 4. XGBoost - Optimized gradient boosting
+ * 5. Support Vector Machines - Finding the best separator
+ * 
+ * Each model includes:
+ * - Simple explanations with real-world analogies
+ * - Interactive demos
+ * - Class activities
+ * - Key concept explanations
+ * - Python code examples (conceptual - not executed)
+ */
+
+// Utility: Generate consistent styles across components
+const getStyles = (isDark) => ({
+  container: {
+    fontFamily: 'system-ui, -apple-system, sans-serif',
+    maxWidth: '1100px',
+    margin: '0 auto',
+    padding: '20px',
+    backgroundColor: isDark ? '#0d1117' : '#ffffff',
+    color: isDark ? '#c9d1d9' : '#24292f',
+    minHeight: '100vh',
+    lineHeight: '1.6',
+  },
+  header: {
+    textAlign: 'center',
+    padding: '30px 0',
+    borderBottom: `4px solid ${isDark ? '#58a6ff' : '#0969da'}`,
+    marginBottom: '30px',
+  },
+  title: {
+    fontSize: '2.2em',
+    fontWeight: '700',
+    margin: '0 0 10px 0',
+    background: isDark 
+      ? 'linear-gradient(135deg, #58a6ff 0%, #bc8cff 100%)'
+      : 'linear-gradient(135deg, #0969da 0%, #8250df 100%)',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+    backgroundClip: 'text',
+  },
+  subtitle: {
+    fontSize: '1.1em',
+    color: isDark ? '#8b949e' : '#57606a',
+    margin: '0',
+  },
+  nav: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '10px',
+    justifyContent: 'center',
+    marginBottom: '30px',
+  },
+  navBtn: (active) => ({
+    padding: '10px 20px',
+    fontSize: '0.95em',
+    fontWeight: '600',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    backgroundColor: active
+      ? (isDark ? '#1f6feb' : '#0969da')
+      : (isDark ? '#21262d' : '#f6f8fa'),
+    color: active ? '#ffffff' : (isDark ? '#c9d1d9' : '#24292f'),
+    boxShadow: active ? '0 0 0 3px rgba(31, 111, 235, 0.3)' : 'none',
+  }),
+  themeBtn: {
+    position: 'fixed',
+    top: '15px',
+    right: '15px',
+    padding: '8px 16px',
+    fontSize: '0.9em',
+    fontWeight: '600',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    backgroundColor: isDark ? '#238636' : '#2ea043',
+    color: '#ffffff',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+  },
+  content: {
+    backgroundColor: isDark ? '#161b22' : '#f6f8fa',
+    padding: '25px',
+    borderRadius: '6px',
+    border: `1px solid ${isDark ? '#30363d' : '#d0d7de'}`,
+  },
+  section: {
+    marginBottom: '35px',
+  },
+  h2: {
+    fontSize: '1.8em',
+    fontWeight: '700',
+    margin: '0 0 15px 0',
+    color: isDark ? '#58a6ff' : '#0969da',
+  },
+  h3: {
+    fontSize: '1.3em',
+    fontWeight: '600',
+    margin: '25px 0 12px 0',
+    color: isDark ? '#79c0ff' : '#0969da',
+  },
+  infoBox: {
+    backgroundColor: isDark ? '#1a2e1a' : '#dafbe1',
+    padding: '15px',
+    borderRadius: '6px',
+    borderLeft: `4px solid ${isDark ? '#238636' : '#1a7f37'}`,
+    margin: '15px 0',
+  },
+  activityBox: {
+    backgroundColor: isDark ? '#2e2a1a' : '#fff8c5',
+    padding: '15px',
+    borderRadius: '6px',
+    borderLeft: `4px solid ${isDark ? '#bb8009' : '#bf8700'}`,
+    margin: '15px 0',
+  },
+  warningBox: {
+    backgroundColor: isDark ? '#2e1a1a' : '#ffebe9',
+    padding: '15px',
+    borderRadius: '6px',
+    borderLeft: `4px solid ${isDark ? '#da3633' : '#cf222e'}`,
+    margin: '15px 0',
+  },
+  codeBox: {
+    backgroundColor: isDark ? '#0d1117' : '#f6f8fa',
+    padding: '15px',
+    borderRadius: '6px',
+    fontFamily: 'Monaco, Consolas, monospace',
+    fontSize: '0.85em',
+    border: `1px solid ${isDark ? '#30363d' : '#d0d7de'}`,
+    overflowX: 'auto',
+    margin: '15px 0',
+  },
+  keywordBox: {
+    display: 'inline-block',
+    backgroundColor: isDark ? '#1f6feb' : '#ddf4ff',
+    color: isDark ? '#ffffff' : '#0969da',
+    padding: '2px 8px',
+    borderRadius: '4px',
+    fontSize: '0.9em',
+    fontWeight: '600',
+    margin: '0 4px',
+  },
+  interactiveBox: {
+    backgroundColor: isDark ? '#0d1117' : '#ffffff',
+    padding: '20px',
+    borderRadius: '6px',
+    border: `2px solid ${isDark ? '#30363d' : '#d0d7de'}`,
+    margin: '20px 0',
+  },
+  slider: {
+    width: '100%',
+    margin: '10px 0',
+  },
+  button: {
+    padding: '10px 20px',
+    fontSize: '0.95em',
+    fontWeight: '600',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    backgroundColor: isDark ? '#238636' : '#2ea043',
+    color: '#ffffff',
+    marginRight: '10px',
+    marginTop: '10px',
+  },
+});
+
+// Main Application Component
+function MLEducation() {
+  const [activeModel, setActiveModel] = useState('decision-tree');
+  const [isDark, setIsDark] = useState(false);
+
+  const styles = getStyles(isDark);
+
+  const models = [
+    { id: 'decision-tree', name: 'Decision Tree' },
+    { id: 'random-forest', name: 'Random Forest' },
+    { id: 'gradient-boosting', name: 'Gradient Boosting' },
+    { id: 'xgboost', name: 'XGBoost' },
+    { id: 'svm', name: 'SVM' },
+  ];
+
+  return (
+    <div style={styles.container}>
+      <button style={styles.themeBtn} onClick={() => setIsDark(!isDark)}>
+        {isDark ? '☀️ Light' : '🌙 Dark'}
+      </button>
+
+      <header style={styles.header}>
+        <h1 style={styles.title}>Machine Learning Models</h1>
+        <p style={styles.subtitle}>From Beginner to Intermediate - Interactive Learning</p>
+      </header>
+
+      <nav style={styles.nav}>
+        {models.map(m => (
+          <button
+            key={m.id}
+            style={styles.navBtn(activeModel === m.id)}
+            onClick={() => setActiveModel(m.id)}
+          >
+            {m.name}
+          </button>
+        ))}
+      </nav>
+
+      <main style={styles.content}>
+        {activeModel === 'decision-tree' && <DecisionTreeLesson isDark={isDark} />}
+        {activeModel === 'random-forest' && <RandomForestLesson isDark={isDark} />}
+        {activeModel === 'gradient-boosting' && <GradientBoostingLesson isDark={isDark} />}
+        {activeModel === 'xgboost' && <XGBoostLesson isDark={isDark} />}
+        {activeModel === 'svm' && <SVMLesson isDark={isDark} />}
+      </main>
+    </div>
+  );
+};
+
+// ==================== DECISION TREE LESSON ====================
+const DecisionTreeLesson = ({ isDark }) => {
+  const styles = getStyles(isDark);
+  const [maxDepth, setMaxDepth] = useState(3);
+  const [question, setQuestion] = useState(0);
+
+  // Simple quiz for understanding
+  const questions = [
+    { q: "What game does Decision Tree remind you of?", a: "20 Questions - asking yes/no to narrow down" },
+    { q: "What happens if a tree is too deep?", a: "It memorizes instead of learning (overfitting)" },
+  ];
+
+  return (
+    <div>
+      <h2 style={styles.h2}>🌳 Decision Tree - Your First ML Model</h2>
+
+      <div style={styles.infoBox}>
+        <strong>🎯 What You'll Learn:</strong> How machines make decisions by asking questions, just like you do!
+      </div>
+
+      <div style={styles.section}>
+        <h3 style={styles.h3}>Part 1: The Big Idea (5 minutes)</h3>
+        <p>
+          Imagine you're playing <strong>20 Questions</strong> to guess an animal your friend is thinking of:
+        </p>
+        <ul>
+          <li>"Does it live in water?" → If NO: "Does it have fur?"</li>
+          <li>"Does it have four legs?" → If YES: "Is it bigger than a dog?"</li>
+          <li>Each question splits the possibilities in half!</li>
+        </ul>
+        <p>
+          A <span style={styles.keywordBox}>Decision Tree</span> works exactly the same way. 
+          It learns to ask the best questions to classify things (like "Is this email spam?" or "Will it rain today?").
+        </p>
+      </div>
+
+      <div style={styles.section}>
+        <h3 style={styles.h3}>Part 2: Key Words Explained</h3>
+        <div style={{ padding: '10px 0' }}>
+          <p><strong><span style={styles.keywordBox}>Node</span>:</strong> A decision point where a question is asked</p>
+          <p><strong><span style={styles.keywordBox}>Split</span>:</strong> Dividing data based on the answer to a question</p>
+          <p><strong><span style={styles.keywordBox}>Leaf</span>:</strong> The final answer (no more questions)</p>
+          <p><strong><span style={styles.keywordBox}>Depth</span>:</strong> How many questions can be asked in a row</p>
+          <p><strong><span style={styles.keywordBox}>Overfitting</span>:</strong> When the tree memorizes instead of learning patterns (like studying only practice test answers instead of understanding concepts)</p>
+        </div>
+      </div>
+
+      <div style={styles.activityBox}>
+        <h3 style={styles.h3}>🎮 Class Activity: Build Your Own Tree</h3>
+        <p><strong>Time: 10 minutes</strong></p>
+        <p><strong>Materials:</strong> Paper and pencil</p>
+        <p><strong>Task:</strong> Draw a decision tree to classify your classmates into:</p>
+        <ul>
+          <li>Group A: "Likes pizza"</li>
+          <li>Group B: "Doesn't like pizza"</li>
+        </ul>
+        <p><strong>Questions you might ask:</strong></p>
+        <ul>
+          <li>"Do you like cheese?"</li>
+          <li>"Do you like tomatoes?"</li>
+          <li>"Have you tried pizza?"</li>
+        </ul>
+        <p><strong>Challenge:</strong> What's the minimum number of questions needed?</p>
+      </div>
+
+      <div style={styles.section}>
+        <h3 style={styles.h3}>Part 3: Interactive Demo</h3>
+        <DecisionTreeInteractive maxDepth={maxDepth} isDark={isDark} />
+        
+        <label style={{ display: 'block', margin: '15px 0' }}>
+          <strong>Tree Depth (Max Questions):</strong> {maxDepth}
+          <input
+            type="range"
+            min="1"
+            max="8"
+            value={maxDepth}
+            onChange={(e) => setMaxDepth(Number(e.target.value))}
+            style={styles.slider}
+          />
+          <small style={{ color: isDark ? '#8b949e' : '#57606a' }}>
+            {maxDepth <= 3 ? '✅ Good - Simple and general' : '⚠️ Careful - Might memorize!'}
+          </small>
+        </label>
+      </div>
+
+      <div style={styles.section}>
+        <h3 style={styles.h3}>Part 4: Python Code (How It's Done)</h3>
+        <div style={styles.codeBox}>
+          <pre>{`# Using scikit-learn library
+from sklearn.tree import DecisionTreeClassifier
+
+# Create the model
+tree = DecisionTreeClassifier(
+    max_depth=${maxDepth},  # Control how many questions
+    min_samples_split=2      # Min examples to ask question
+)
+
+# Train it (teach it patterns)
+tree.fit(X_train, y_train)
+
+# Make predictions
+predictions = tree.predict(X_test)
+
+# Example: Is this email spam?
+# Features: [num_exclamation, num_dollars, has_link]
+email = [[3, 5, 1]]  # 3 !, $5, has link
+spam_or_not = tree.predict(email)  # Returns: Spam!`}</pre>
+        </div>
+      </div>
+
+      <div style={styles.section}>
+        <h3 style={styles.h3}>Part 5: Check Your Understanding</h3>
+        <div style={styles.interactiveBox}>
+          <p><strong>Question {question + 1}:</strong> {questions[question].q}</p>
+          <button 
+            style={styles.button}
+            onClick={() => alert(questions[question].a)}
+          >
+            Show Answer
+          </button>
+          <button 
+            style={styles.button}
+            onClick={() => setQuestion((question + 1) % questions.length)}
+          >
+            Next Question
+          </button>
+        </div>
+      </div>
+
+      <div style={styles.warningBox}>
+        <strong>⚠️ Common Mistake:</strong> Making the tree too deep! 
+        It's like memorizing test answers instead of understanding the subject. 
+        The tree works great on practice problems but fails on the real test.
+      </div>
+
+      <div style={styles.infoBox}>
+        <strong>✅ Real World Uses:</strong>
+        <ul>
+          <li>Medical diagnosis: "If temp &gt; 100°F AND cough → Check for flu"</li>
+          <li>Loan approval: "If income &gt; $50k AND credit &gt; 700 → Approve"</li>
+          <li>Email filtering: "If has 'FREE' AND many !!! → Spam"</li>
+        </ul>
+      </div>
+    </div>
+  );
+};
+
+// Decision Tree Interactive Component
+const DecisionTreeInteractive = ({ maxDepth, isDark }) => {
+  const canvasRef = useRef(null);
+  const styles = getStyles(isDark);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+
+    // Clear
+    ctx.fillStyle = isDark ? '#0d1117' : '#ffffff';
+    ctx.fillRect(0, 0, w, h);
+
+    // Draw simple tree visualization
+    const drawNode = (x, y, level, label) => {
+      if (level > maxDepth) return;
+
+      // Node circle
+      ctx.beginPath();
+      ctx.arc(x, y, 25, 0, 2 * Math.PI);
+      ctx.fillStyle = level === maxDepth ? '#238636' : '#1f6feb';
+      ctx.fill();
+      ctx.strokeStyle = isDark ? '#c9d1d9' : '#24292f';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Label
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, x, y);
+
+      // Draw children
+      if (level < maxDepth) {
+        const spacing = w / Math.pow(2, level + 2);
+        
+        // Left child
+        ctx.beginPath();
+        ctx.moveTo(x, y + 25);
+        ctx.lineTo(x - spacing, y + 70 - 25);
+        ctx.strokeStyle = isDark ? '#58a6ff' : '#0969da';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        drawNode(x - spacing, y + 70, level + 1, 'No');
+
+        // Right child
+        ctx.beginPath();
+        ctx.moveTo(x, y + 25);
+        ctx.lineTo(x + spacing, y + 70 - 25);
+        ctx.stroke();
+        drawNode(x + spacing, y + 70, level + 1, 'Yes');
+      }
+    };
+
+    drawNode(w / 2, 40, 1, 'Q1');
+
+    // Add legend
+    ctx.fillStyle = isDark ? '#c9d1d9' : '#24292f';
+    ctx.font = '14px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Depth: ${maxDepth} levels of questions`, 10, h - 10);
+
+  }, [maxDepth, isDark]);
+
+  return (
+    <div style={styles.interactiveBox}>
+      <canvas ref={canvasRef} width={600} height={350} style={{ display: 'block', maxWidth: '100%', height: 'auto' }} />
+      <p style={{ textAlign: 'center', marginTop: '10px', fontSize: '0.9em' }}>
+        <strong>🔵 Decision nodes</strong> ask questions • <strong>🟢 Leaf nodes</strong> give answers
+      </p>
+    </div>
+  );
+};
+
+// ==================== RANDOM FOREST LESSON ====================
+const RandomForestLesson = ({ isDark }) => {
+  const styles = getStyles(isDark);
+  const [numTrees, setNumTrees] = useState(5);
+
+  return (
+    <div>
+      <h2 style={styles.h2}>🌲 Random Forest - Teamwork Makes the Dream Work</h2>
+
+      <div style={styles.infoBox}>
+        <strong>🎯 What You'll Learn:</strong> Why asking multiple experts is better than asking just one!
+      </div>
+
+      <div style={styles.section}>
+        <h3 style={styles.h3}>Part 1: The Big Idea (5 minutes)</h3>
+        <p>
+          Imagine you're trying to decide which movie to watch. Would you:
+        </p>
+        <ol>
+          <li><strong>Option A:</strong> Ask one friend</li>
+          <li><strong>Option B:</strong> Ask 10 friends and go with majority vote</li>
+        </ol>
+        <p>
+          Option B is usually better! Even if one friend has weird taste, the group opinion is more reliable. 
+          This is exactly how <span style={styles.keywordBox}>Random Forest</span> works - it creates many decision trees and combines their votes.
+        </p>
+      </div>
+
+      <div style={styles.section}>
+        <h3 style={styles.h3}>Part 2: Key Words Explained</h3>
+        <div style={{ padding: '10px 0' }}>
+          <p><strong><span style={styles.keywordBox}>Ensemble</span>:</strong> A team of models working together</p>
+          <p><strong><span style={styles.keywordBox}>Bagging</span>:</strong> Each tree sees different random examples (like each friend having different movie experiences)</p>
+          <p><strong><span style={styles.keywordBox}>Voting</span>:</strong> Each tree makes a prediction, majority wins</p>
+          <p><strong><span style={styles.keywordBox}>Diversity</span>:</strong> Trees are different from each other (key to success!)</p>
+          <p><strong><span style={styles.keywordBox}>Feature Randomness</span>:</strong> Each tree considers only some questions (keeps trees unique)</p>
+        </div>
+      </div>
+
+      <div style={styles.activityBox}>
+        <h3 style={styles.h3}>🎮 Class Activity: Wisdom of Crowds</h3>
+        <p><strong>Time: 10 minutes</strong></p>
+        <p><strong>Task:</strong> Guess the number of jellybeans in a jar</p>
+        <ol>
+          <li>Everyone writes down their individual guess</li>
+          <li>Calculate the average of all guesses</li>
+          <li>Reveal the actual number</li>
+        </ol>
+        <p><strong>Usually amazing result:</strong> The average is closer than most individual guesses! This is "wisdom of crowds" - the same principle behind Random Forest.</p>
+        <p><strong>Discussion:</strong> Why does averaging help? (Hint: individual mistakes cancel out)</p>
+      </div>
+
+      <div style={styles.section}>
+        <h3 style={styles.h3}>Part 3: Interactive Demo - See the Forest Vote</h3>
+        <RandomForestVoting numTrees={numTrees} isDark={isDark} />
+        
+        <label style={{ display: 'block', margin: '15px 0' }}>
+          <strong>Number of Trees in Forest:</strong> {numTrees}
+          <input
+            type="range"
+            min="1"
+            max="20"
+            value={numTrees}
+            onChange={(e) => setNumTrees(Number(e.target.value))}
+            style={styles.slider}
+          />
+          <small style={{ color: isDark ? '#8b949e' : '#57606a' }}>
+            More trees = More stable predictions (but slower)
+          </small>
+        </label>
+      </div>
+
+      <div style={styles.section}>
+        <h3 style={styles.h3}>Part 4: Python Code</h3>
+        <div style={styles.codeBox}>
+          <pre>{`from sklearn.ensemble import RandomForestClassifier
+
+# Create a forest
+forest = RandomForestClassifier(
+    n_estimators=${numTrees},  # Number of trees
+    max_depth=5,           # Depth of each tree
+    max_features='sqrt',   # Each tree uses √n features
+    random_state=42        # For reproducibility
+)
+
+# Train the forest
+forest.fit(X_train, y_train)
+
+# Make predictions (trees vote!)
+predictions = forest.predict(X_test)
+
+# Get probability (confidence of prediction)
+probabilities = forest.predict_proba(X_test)
+
+# See which features are most important
+importance = forest.feature_importances_
+print("Most important features:", importance)`}</pre>
+        </div>
+      </div>
+
+      <div style={styles.section}>
+        <h3 style={styles.h3}>Part 5: Random Forest vs Decision Tree</h3>
+        <table style={{ width: '100%', borderCollapse: 'collapse', margin: '15px 0' }}>
+          <thead>
+            <tr style={{ backgroundColor: isDark ? '#21262d' : '#f6f8fa' }}>
+              <th style={{ padding: '10px', border: `1px solid ${isDark ? '#30363d' : '#d0d7de'}`, textAlign: 'left' }}>Aspect</th>
+              <th style={{ padding: '10px', border: `1px solid ${isDark ? '#30363d' : '#d0d7de'}`, textAlign: 'left' }}>Decision Tree</th>
+              <th style={{ padding: '10px', border: `1px solid ${isDark ? '#30363d' : '#d0d7de'}`, textAlign: 'left' }}>Random Forest</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style={{ padding: '10px', border: `1px solid ${isDark ? '#30363d' : '#d0d7de'}` }}>Number of models</td>
+              <td style={{ padding: '10px', border: `1px solid ${isDark ? '#30363d' : '#d0d7de'}` }}>1 tree</td>
+              <td style={{ padding: '10px', border: `1px solid ${isDark ? '#30363d' : '#d0d7de'}` }}>Many trees (5-500)</td>
+            </tr>
+            <tr>
+              <td style={{ padding: '10px', border: `1px solid ${isDark ? '#30363d' : '#d0d7de'}` }}>Overfitting risk</td>
+              <td style={{ padding: '10px', border: `1px solid ${isDark ? '#30363d' : '#d0d7de'}` }}>High</td>
+              <td style={{ padding: '10px', border: `1px solid ${isDark ? '#30363d' : '#d0d7de'}` }}>Low (averaging helps)</td>
+            </tr>
+            <tr>
+              <td style={{ padding: '10px', border: `1px solid ${isDark ? '#30363d' : '#d0d7de'}` }}>Prediction stability</td>
+              <td style={{ padding: '10px', border: `1px solid ${isDark ? '#30363d' : '#d0d7de'}` }}>Can change a lot</td>
+              <td style={{ padding: '10px', border: `1px solid ${isDark ? '#30363d' : '#d0d7de'}` }}>Very stable</td>
+            </tr>
+            <tr>
+              <td style={{ padding: '10px', border: `1px solid ${isDark ? '#30363d' : '#d0d7de'}` }}>Speed</td>
+              <td style={{ padding: '10px', border: `1px solid ${isDark ? '#30363d' : '#d0d7de'}` }}>Fast</td>
+              <td style={{ padding: '10px', border: `1px solid ${isDark ? '#30363d' : '#d0d7de'}` }}>Slower (many trees)</td>
+            </tr>
+            <tr>
+              <td style={{ padding: '10px', border: `1px solid ${isDark ? '#30363d' : '#d0d7de'}` }}>Accuracy</td>
+              <td style={{ padding: '10px', border: `1px solid ${isDark ? '#30363d' : '#d0d7de'}` }}>Good</td>
+              <td style={{ padding: '10px', border: `1px solid ${isDark ? '#30363d' : '#d0d7de'}` }}>Better!</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style={styles.infoBox}>
+        <strong>✅ Real World Uses:</strong>
+        <ul>
+          <li>Predicting if a bank loan will be repaid</li>
+          <li>Detecting fraudulent credit card transactions</li>
+          <li>Recommending products you might like</li>
+          <li>Predicting if a patient has a disease</li>
+        </ul>
+      </div>
+
+      <div style={styles.warningBox}>
+        <strong>💡 Key Insight:</strong> Random Forest is almost always better than a single Decision Tree. 
+        It's one of the best "out of the box" ML models - works well without much tweaking!
+      </div>
+    </div>
+  );
+};
+
+// Random Forest Voting Component
+const RandomForestVoting = ({ numTrees, isDark }) => {
+  const [votes, setVotes] = useState([]);
+  const styles = getStyles(isDark);
+
+  useEffect(() => {
+    // Simulate tree predictions
+    const newVotes = [];
+    for (let i = 0; i < numTrees; i++) {
+      newVotes.push(Math.random() > 0.4 ? 'Class A' : 'Class B');
+    }
+    setVotes(newVotes);
+  }, [numTrees]);
+
+  const countA = votes.filter(v => v === 'Class A').length;
+  const countB = votes.filter(v => v === 'Class B').length;
+  const winner = countA > countB ? 'Class A' : 'Class B';
+
+  return (
+    <div style={styles.interactiveBox}>
+      <h4 style={{ marginTop: 0 }}>🗳️ Watch the Trees Vote</h4>
+      
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(60px, 1fr))', gap: '8px', margin: '20px 0' }}>
+        {votes.map((vote, i) => (
+          <div
+            key={i}
+            style={{
+              padding: '15px 5px',
+              textAlign: 'center',
+              borderRadius: '6px',
+              backgroundColor: vote === 'Class A' 
+                ? (isDark ? '#1a7f37' : '#2ea043')
+                : (isDark ? '#9e6a03' : '#bf8700'),
+              color: '#ffffff',
+              fontSize: '0.85em',
+              fontWeight: '600',
+            }}
+          >
+            Tree {i + 1}<br/>{vote}
+          </div>
+        ))}
+      </div>
+
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-around', 
+        alignItems: 'center',
+        padding: '20px',
+        backgroundColor: isDark ? '#21262d' : '#f6f8fa',
+        borderRadius: '6px',
+        marginTop: '20px',
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '2em', fontWeight: 'bold', color: isDark ? '#2ea043' : '#1a7f37' }}>
+            {countA}
+          </div>
+          <div>Class A votes</div>
+        </div>
+
+        <div style={{ fontSize: '2em', color: isDark ? '#58a6ff' : '#0969da' }}>
+          VS
+        </div>
+
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '2em', fontWeight: 'bold', color: isDark ? '#bb8009' : '#9a6700' }}>
+            {countB}
+          </div>
+          <div>Class B votes</div>
+        </div>
+
+        <div style={{ fontSize: '2em', color: isDark ? '#58a6ff' : '#0969da' }}>
+          →
+        </div>
+
+        <div style={{ 
+          padding: '15px 25px',
+          borderRadius: '6px',
+          backgroundColor: winner === 'Class A'
+            ? (isDark ? '#1a7f37' : '#2ea043')
+            : (isDark ? '#9e6a03' : '#bf8700'),
+          color: '#ffffff',
+          fontWeight: 'bold',
+          fontSize: '1.2em',
+        }}>
+          Winner: {winner}
+        </div>
+      </div>
+
+      <p style={{ marginTop: '15px', fontSize: '0.9em', textAlign: 'center', fontStyle: 'italic' }}>
+        Each tree votes independently. Majority wins! This is why Random Forest is so stable.
+      </p>
+    </div>
+  );
+};
+
+// ==================== GRADIENT BOOSTING LESSON ====================
+const GradientBoostingLesson = ({ isDark }) => {
+  const styles = getStyles(isDark);
+  const [learningRate, setLearningRate] = useState(0.1);
+  const [numTrees, setNumTrees] = useState(50);
+
+  return (
+    <div>
+      <h2 style={styles.h2}>📈 Gradient Boosting - Learning From Mistakes</h2>
+
+      <div style={styles.infoBox}>
+        <strong>🎯 What You'll Learn:</strong> How to get better by fixing your mistakes, step by step!
+      </div>
+
+      <div style={styles.section}>
+        <h3 style={styles.h3}>Part 1: The Big Idea (5 minutes)</h3>
+        <p>
+          Imagine you're learning to shoot basketball free throws:
+        </p>
+        <ol>
+          <li><strong>Shot 1:</strong> You shoot - ball falls short → "I need more power!"</li>
+          <li><strong>Shot 2:</strong> You add power - ball goes too far → "Less power than that"</li>
+          <li><strong>Shot 3:</strong> You adjust - getting closer! → Keep adjusting...</li>
+        </ol>
+        <p>
+          <span style={styles.keywordBox}>Gradient Boosting</span> works the same way! 
+          Instead of building trees independently (like Random Forest), each new tree tries to correct the mistakes of all previous trees.
+        </p>
+      </div>
+
+      <div style={styles.section}>
+        <h3 style={styles.h3}>Part 2: Key Words Explained</h3>
+        <div style={{ padding: '10px 0' }}>
+          <p><strong><span style={styles.keywordBox}>Boosting</span>:</strong> Building models sequentially, each fixing previous mistakes</p>
+          <p><strong><span style={styles.keywordBox}>Residuals</span>:</strong> The mistakes/errors from current predictions (what we got wrong)</p>
+          <p><strong><span style={styles.keywordBox}>Learning Rate</span>:</strong> How much each tree's correction counts (like "step size" when adjusting)</p>
+          <p><strong><span style={styles.keywordBox}>Sequential</span>:</strong> Trees are built one after another (not at same time like Random Forest)</p>
+          <p><strong><span style={styles.keywordBox}>Error Reduction</span>:</strong> How much better we get with each iteration</p>
+        </div>
+      </div>
+
+      <div style={styles.activityBox}>
+        <h3 style={styles.h3}>🎮 Class Activity: Error Correction Game</h3>
+        <p><strong>Time: 10 minutes</strong></p>
+        <p><strong>Setup:</strong> Teacher secretly picks a number 1-100</p>
+        <ol>
+          <li><strong>Round 1:</strong> Class guesses together (maybe 50)</li>
+          <li><strong>Feedback:</strong> "Too high" → Error = +50</li>
+          <li><strong>Round 2:</strong> Adjust based on error → Guess 25</li>
+          <li><strong>Feedback:</strong> "Too low" → Error = -25</li>
+          <li><strong>Round 3:</strong> Adjust again → Getting closer!</li>
+        </ol>
+        <p><strong>Key Point:</strong> Each guess uses information from previous errors. This is boosting!</p>
+      </div>
+
+      <div style={styles.section}>
+        <h3 style={styles.h3}>Part 3: Understanding Learning Rate</h3>
+        <p>
+          The <span style={styles.keywordBox}>learning rate</span> controls how much we adjust each time:
+        </p>
+        <ul>
+          <li><strong>High learning rate (0.5-1.0):</strong> Big adjustments → Fast but might overshoot</li>
+          <li><strong>Medium learning rate (0.1-0.3):</strong> Balanced → Usually best</li>
+          <li><strong>Low learning rate (0.01-0.05):</strong> Tiny adjustments → Slow but careful</li>
+        </ul>
+        <p>
+          Think of it like volume control: turning it way up (high learning rate) gets loud fast but you might overshoot. 
+          Turning gradually (low learning rate) takes longer but you get exactly the volume you want.
+        </p>
+      </div>
+
+      <div style={styles.section}>
+        <h3 style={styles.h3}>Part 4: Interactive Demo - Error Reduction</h3>
+        <GradientBoostingDemo 
+          learningRate={learningRate} 
+          numTrees={numTrees} 
+          isDark={isDark} 
+        />
+        
+        <label style={{ display: 'block', margin: '15px 0' }}>
+          <strong>Learning Rate:</strong> {learningRate.toFixed(2)}
+          <input
+            type="range"
+            min="0.01"
+            max="1"
+            step="0.01"
+            value={learningRate}
+            onChange={(e) => setLearningRate(Number(e.target.value))}
+            style={styles.slider}
+          />
+          <small style={{ color: isDark ? '#8b949e' : '#57606a' }}>
+            {learningRate > 0.5 ? '⚠️ Fast but risky' : learningRate > 0.1 ? '✅ Balanced' : '🐌 Slow and steady'}
+          </small>
+        </label>
+
+        <label style={{ display: 'block', margin: '15px 0' }}>
+          <strong>Number of Trees:</strong> {numTrees}
+          <input
+            type="range"
+            min="10"
+            max="200"
+            step="10"
+            value={numTrees}
+            onChange={(e) => setNumTrees(Number(e.target.value))}
+            style={styles.slider}
+          />
+        </label>
+      </div>
+
+      <div style={styles.section}>
+        <h3 style={styles.h3}>Part 5: Python Code</h3>
+        <div style={styles.codeBox}>
+          <pre>{`from sklearn.ensemble import GradientBoostingClassifier
+
+# Create the model
+gb = GradientBoostingClassifier(
+    n_estimators=${numTrees},      # Number of boosting rounds
+    learning_rate=${learningRate.toFixed(2)},  # Step size for corrections
+    max_depth=3,               # Shallow trees (weak learners)
+    subsample=0.8,             # Use 80% data per tree
+    random_state=42
+)
+
+# Train (each tree corrects previous mistakes)
+gb.fit(X_train, y_train)
+
+# Predict
+predictions = gb.predict(X_test)
+
+# Watch improvement over time
+staged_predictions = list(gb.staged_predict(X_test))
+# staged_predictions[0] = after tree 1
+# staged_predictions[49] = after tree 50`}</pre>
+        </div>
+      </div>
+
+      <div style={styles.warningBox}>
+        <strong>⚠️ Trade-off Alert:</strong> 
+        <ul>
+          <li><strong>More trees + low learning rate</strong> = Better accuracy BUT slow training</li>
+          <li><strong>Fewer trees + high learning rate</strong> = Fast BUT might overfit</li>
+        </ul>
+        <p>Rule of thumb: If you decrease learning rate by 2×, increase trees by 2×</p>
+      </div>
+
+      <div style={styles.infoBox}>
+        <strong>✅ Real World Uses:</strong>
+        <ul>
+          <li>Web search ranking (Google, Bing)</li>
+          <li>Ad click prediction</li>
+          <li>Stock price prediction</li>
+          <li>Won many Kaggle competitions (data science competitions)</li>
+        </ul>
+      </div>
+    </div>
+  );
+};
+
+// Gradient Boosting Demo Component
+const GradientBoostingDemo = ({ learningRate, numTrees, isDark }) => {
+  const canvasRef = useRef(null);
+  const styles = getStyles(isDark);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+
+    // Clear
+    ctx.fillStyle = isDark ? '#0d1117' : '#ffffff';
+    ctx.fillRect(0, 0, w, h);
+
+    // Generate error reduction curve
+    const points = [];
+    let error = 50; // Start at 50% error
+    
+    for (let i = 0; i <= numTrees; i++) {
+      points.push({ x: i, y: error });
+      // Exponential decay with learning rate
+      error = Math.max(5, error - learningRate * 5 * (1 - i / numTrees));
+    }
+
+    // Draw axes
+    ctx.strokeStyle = isDark ? '#30363d' : '#d0d7de';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(50, 20);
+    ctx.lineTo(50, h - 40);
+    ctx.lineTo(w - 20, h - 40);
+    ctx.stroke();
+
+    // Labels
+    ctx.fillStyle = isDark ? '#8b949e' : '#57606a';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Error (%)', 25, h / 2);
+    ctx.fillText('Number of Trees', w / 2, h - 10);
+
+    // Draw error curve
+    ctx.beginPath();
+    ctx.strokeStyle = isDark ? '#1f6feb' : '#0969da';
+    ctx.lineWidth = 3;
+    
+    points.forEach((p, i) => {
+      const x = 50 + (p.x / numTrees) * (w - 70);
+      const y = h - 40 - (p.y / 50) * (h - 60);
+      
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    // Mark final point
+    const lastPoint = points[points.length - 1];
+    const lastX = 50 + (lastPoint.x / numTrees) * (w - 70);
+    const lastY = h - 40 - (lastPoint.y / 50) * (h - 60);
+    
+    ctx.beginPath();
+    ctx.arc(lastX, lastY, 6, 0, 2 * Math.PI);
+    ctx.fillStyle = '#238636';
+    ctx.fill();
+
+    // Final error text
+    ctx.fillStyle = isDark ? '#c9d1d9' : '#24292f';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Final Error: ${lastPoint.y.toFixed(1)}%`, 60, 30);
+
+  }, [learningRate, numTrees, isDark]);
+
+  return (
+    <div style={styles.interactiveBox}>
+      <h4 style={{ marginTop: 0 }}>📉 Error Reduction Over Trees</h4>
+      <canvas ref={canvasRef} width={600} height={300} style={{ display: 'block', maxWidth: '100%' }} />
+      <p style={{ fontSize: '0.9em', textAlign: 'center', marginTop: '10px' }}>
+        Watch how error decreases as we add more trees. Each tree corrects previous mistakes!
+      </p>
+    </div>
+  );
+};
+
+// ==================== XGBOOST LESSON ====================
+const XGBoostLesson = ({ isDark }) => {
+  const styles = getStyles(isDark);
+  const [eta, setEta] = useState(0.3);
+
+  return (
+    <div>
+      <h2 style={styles.h2}>🚀 XGBoost - Gradient Boosting on Steroids</h2>
+
+      <div style={styles.infoBox}>
+        <strong>🎯 What You'll Learn:</strong> How XGBoost became the champion of machine learning competitions!
+      </div>
+
+      <div style={styles.section}>
+        <h3 style={styles.h3}>Part 1: The Big Idea (5 minutes)</h3>
+        <p>
+          Imagine you're upgrading from a regular bicycle to an electric bike:
+        </p>
+        <ul>
+          <li>Same basic concept (two wheels, pedals)</li>
+          <li>But with <strong>superpowers</strong>: motor, battery, speed control</li>
+          <li>Goes faster, farther, and handles hills better!</li>
+        </ul>
+        <p>
+          <span style={styles.keywordBox}>XGBoost</span> is Gradient Boosting with superpowers:
+        </p>
+        <ul>
+          <li>⚡ Much faster (uses all computer cores)</li>
+          <li>🎯 Better accuracy (advanced math tricks)</li>
+          <li>🛡️ Built-in protection against overfitting</li>
+          <li>💪 Handles missing data automatically</li>
+        </ul>
+      </div>
+
+      <div style={styles.section}>
+        <h3 style={styles.h3}>Part 2: Key Words Explained</h3>
+        <div style={{ padding: '10px 0' }}>
+          <p><strong><span style={styles.keywordBox}>XGBoost</span>:</strong> "eXtreme Gradient Boosting" - optimized version of Gradient Boosting</p>
+          <p><strong><span style={styles.keywordBox}>eta (η)</span>:</strong> XGBoost's name for learning rate (step size)</p>
+          <p><strong><span style={styles.keywordBox}>Regularization</span>:</strong> Built-in rules to prevent overfitting (like speed limits prevent accidents)</p>
+          <p><strong><span style={styles.keywordBox}>Parallel Processing</span>:</strong> Uses all CPU cores at once (like multiple checkout lanes at grocery store)</p>
+          <p><strong><span style={styles.keywordBox}>Tree Pruning</span>:</strong> Automatically removes unnecessary branches</p>
+        </div>
+      </div>
+
+      <div style={styles.activityBox}>
+        <h3 style={styles.h3}>🎮 Class Activity: Speed vs Accuracy</h3>
+        <p><strong>Time: 10 minutes</strong></p>
+        <p><strong>Challenge:</strong> Math problem race with two strategies</p>
+        <p><strong>Strategy A (High eta = 0.8):</strong></p>
+        <ul>
+          <li>Solve 5 problems as fast as possible</li>
+          <li>Check answers quickly</li>
+          <li>Result: Fast but might make mistakes</li>
+        </ul>
+        <p><strong>Strategy B (Low eta = 0.1):</strong></p>
+        <ul>
+          <li>Solve 20 problems carefully</li>
+          <li>Check each answer thoroughly</li>
+          <li>Result: Slower but more accurate</li>
+        </ul>
+        <p><strong>Discussion:</strong> When would you use each strategy? (Tests vs homework vs Kaggle competitions)</p>
+      </div>
+
+      <div style={styles.section}>
+        <h3 style={styles.h3}>Part 3: Understanding eta (Learning Rate)</h3>
+        <XGBoostEtaDemo eta={eta} isDark={isDark} />
+        
+        <label style={{ display: 'block', margin: '15px 0' }}>
+          <strong>eta (Learning Rate):</strong> {eta.toFixed(2)}
+          <input
+            type="range"
+            min="0.01"
+            max="1"
+            step="0.01"
+            value={eta}
+            onChange={(e) => setEta(Number(e.target.value))}
+            style={styles.slider}
+          />
+          <small style={{ color: isDark ? '#8b949e' : '#57606a' }}>
+            {eta > 0.5 ? '🏃 Fast learning - might miss details' : 
+             eta > 0.2 ? '✅ Balanced - typical choice' : 
+             '🐌 Slow learning - very thorough'}
+          </small>
+        </label>
+
+        <div style={styles.infoBox}>
+          <strong>💡 XGBoost Typical Settings:</strong>
+          <ul>
+            <li><strong>Fast prototyping:</strong> eta=0.3, n_estimators=100</li>
+            <li><strong>Competition winning:</strong> eta=0.01-0.05, n_estimators=1000+</li>
+            <li><strong>Production (balanced):</strong> eta=0.1, n_estimators=200-500</li>
+          </ul>
+        </div>
+      </div>
+
+      <div style={styles.section}>
+        <h3 style={styles.h3}>Part 4: Python Code</h3>
+        <div style={styles.codeBox}>
+          <pre>{`import xgboost as xgb
+
+# Create the model
+model = xgb.XGBClassifier(
+    n_estimators=100,      # Number of trees
+    eta=${eta.toFixed(2)},               # Learning rate
+    max_depth=6,           # Tree depth
+    subsample=0.8,         # Use 80% of data
+    colsample_bytree=0.8,  # Use 80% of features
+    gamma=0,               # Regularization
+    reg_alpha=0,           # L1 regularization
+    reg_lambda=1,          # L2 regularization
+    eval_metric='logloss', # What to optimize
+    use_label_encoder=False
+)
+
+# Train with validation monitoring
+model.fit(
+    X_train, y_train,
+    eval_set=[(X_val, y_val)],
+    early_stopping_rounds=10,  # Stop if no improvement
+    verbose=True
+)
+
+# Predict
+predictions = model.predict(X_test)
+
+# Feature importance
+import matplotlib.pyplot as plt
+xgb.plot_importance(model)
+plt.show()`}</pre>
+        </div>
+      </div>
+
+      <div style={styles.section}>
+        <h3 style={styles.h3}>Part 5: Why XGBoost Won So Many Competitions</h3>
+        <ol>
+          <li><strong>Speed:</strong> 10x faster than regular Gradient Boosting</li>
+          <li><strong>Accuracy:</strong> Built-in regularization prevents overfitting</li>
+          <li><strong>Missing data:</strong> Learns best direction for missing values</li>
+          <li><strong>Out of box:</strong> Works great with default settings</li>
+          <li><strong>Handles large data:</strong> Efficient memory usage</li>
+        </ol>
+      </div>
+
+      <div style={styles.warningBox}>
+        <strong>⚠️ Common Mistakes:</strong>
+        <ul>
+          <li><strong>Using wrong objective:</strong> Use 'binary:logistic' for yes/no, 'multi:softmax' for multiple classes</li>
+          <li><strong>Ignoring early_stopping:</strong> Wastes time training too long</li>
+          <li><strong>Not tuning eta:</strong> Default 0.3 might not be optimal</li>
+        </ul>
+      </div>
+
+      <div style={styles.infoBox}>
+        <strong>🏆 XGBoost Success Stories:</strong>
+        <ul>
+          <li>Won most Kaggle competitions 2015-2020</li>
+          <li>Used by Netflix for recommendations</li>
+          <li>Powers fraud detection at PayPal</li>
+          <li>Predicts click-through rates for ads</li>
+        </ul>
+      </div>
+    </div>
+  );
+};
+
+// XGBoost eta Demo Component
+const XGBoostEtaDemo = ({ eta, isDark }) => {
+  const canvasRef = useRef(null);
+  const styles = getStyles(isDark);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+
+    ctx.fillStyle = isDark ? '#0d1117' : '#ffffff';
+    ctx.fillRect(0, 0, w, h);
+
+    // Draw target and steps
+    const targetX = w - 60;
+    const targetY = h / 2;
+    const startX = 60;
+    const startY = h / 2;
+
+    // Target
+    ctx.beginPath();
+    ctx.arc(targetX, targetY, 20, 0, 2 * Math.PI);
+    ctx.fillStyle = '#238636';
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🎯', targetX, targetY);
+
+    // Starting point
+    ctx.beginPath();
+    ctx.arc(startX, startY, 10, 0, 2 * Math.PI);
+    ctx.fillStyle = isDark ? '#1f6feb' : '#0969da';
+    ctx.fill();
+
+    // Draw steps based on eta
+    const numSteps = Math.ceil(1 / eta);
+    const stepSize = (targetX - startX) / numSteps;
+
+    ctx.strokeStyle = isDark ? '#58a6ff' : '#0969da';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 5]);
+
+    let currentX = startX;
+    for (let i = 0; i < Math.min(numSteps, 20); i++) {
+      const nextX = Math.min(currentX + stepSize, targetX);
+      
+      // Draw arrow
+      ctx.beginPath();
+      ctx.moveTo(currentX, startY);
+      ctx.lineTo(nextX, startY);
+      ctx.stroke();
+
+      // Draw step marker
+      ctx.beginPath();
+      ctx.arc(nextX, startY, 5, 0, 2 * Math.PI);
+      ctx.fillStyle = isDark ? '#58a6ff' : '#0969da';
+      ctx.fill();
+
+      currentX = nextX;
+      if (currentX >= targetX) break;
+    }
+
+    ctx.setLineDash([]);
+
+    // Labels
+    ctx.fillStyle = isDark ? '#c9d1d9' : '#24292f';
+    ctx.font = '14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${numSteps > 20 ? '20+' : numSteps} steps with eta=${eta.toFixed(2)}`, w / 2, h - 20);
+    
+    ctx.fillText('Start', startX, startY - 30);
+    ctx.fillText('Target', targetX, targetY - 35);
+
+  }, [eta, isDark]);
+
+  return (
+    <div style={styles.interactiveBox}>
+      <h4 style={{ marginTop: 0 }}>🎯 Learning Steps to Target</h4>
+      <canvas ref={canvasRef} width={600} height={200} style={{ display: 'block', maxWidth: '100%' }} />
+      <p style={{ fontSize: '0.9em', textAlign: 'center', marginTop: '10px' }}>
+        Higher eta = fewer, bigger steps. Lower eta = more, smaller steps.
+      </p>
+    </div>
+  );
+};
+
+// ==================== SVM LESSON ====================
+const SVMLesson = ({ isDark }) => {
+  const styles = getStyles(isDark);
+  const [C, setC] = useState(1.0);
+  const [kernel, setKernel] = useState('rbf');
+  const [gamma, setGamma] = useState(0.1);
+
+  return (
+    <div>
+      <h2 style={styles.h2}>🎯 Support Vector Machines - Finding the Best Boundary</h2>
+
+      <div style={styles.infoBox}>
+        <strong>🎯 What You'll Learn:</strong> How to draw the perfect line between two groups!
+      </div>
+
+      <div style={styles.section}>
+        <h3 style={styles.h3}>Part 1: The Big Idea (5 minutes)</h3>
+        <p>
+          Imagine you're a referee at a soccer game, separating two teams:
+        </p>
+        <ul>
+          <li>You could draw the line anywhere between them</li>
+          <li>But the <strong>best line</strong> is in the middle, maximizing space on both sides</li>
+          <li>This gives the most "buffer zone" - safer and fairer!</li>
+        </ul>
+        <p>
+          <span style={styles.keywordBox}>SVM (Support Vector Machine)</span> does exactly this - 
+          it finds the boundary with the maximum "margin" (safety zone) between classes.
+        </p>
+      </div>
+
+      <div style={styles.section}>
+        <h3 style={styles.h3}>Part 2: Key Words Explained Simply</h3>
+        <div style={{ padding: '10px 0' }}>
+          <p><strong><span style={styles.keywordBox}>Hyperplane</span>:</strong> The boundary line (or surface) separating classes</p>
+          <p><strong><span style={styles.keywordBox}>Margin</span>:</strong> The "safety zone" on both sides of the boundary</p>
+          <p><strong><span style={styles.keywordBox}>Support Vectors</span>:</strong> The closest points that "support" the boundary (like the front-row players determining where the midfield line goes)</p>
+        </div>
+
+        <h4 style={{ marginTop: '25px' }}>🎛️ The Three Important Controls:</h4>
+        
+        <div style={{ marginLeft: '20px', marginTop: '15px' }}>
+          <p><strong>1. <span style={styles.keywordBox}>C (Regularization)</span></strong></p>
+          <p style={{ marginLeft: '20px' }}>
+            Think of C as "How strict should we be?"
+          </p>
+          <ul style={{ marginLeft: '40px' }}>
+            <li><strong>Small C (0.01-0.1):</strong> "Relax, allow some mistakes" → Wide margin, more errors OK</li>
+            <li><strong>Medium C (1):</strong> Balanced approach (default)</li>
+            <li><strong>Large C (10-100):</strong> "Be perfect!" → Narrow margin, try to classify everything correctly</li>
+          </ul>
+          <p style={{ marginLeft: '20px', fontStyle: 'italic' }}>
+            🎓 Real life analogy: Grading on a curve (low C) vs strict grading (high C)
+          </p>
+
+          <p style={{ marginTop: '20px' }}><strong>2. <span style={styles.keywordBox}>Kernel</span></strong></p>
+          <p style={{ marginLeft: '20px' }}>
+            Kernels help SVM see patterns in different ways. Like wearing different glasses:
+          </p>
+          <ul style={{ marginLeft: '40px' }}>
+            <li><strong>Linear:</strong> Regular glasses - draw a straight line</li>
+            <li><strong>RBF (Radial Basis Function):</strong> Magic glasses - can draw curves and circles! (Most popular)</li>
+            <li><strong>Polynomial:</strong> Curved glasses - wavy boundaries</li>
+            <li><strong>Sigmoid:</strong> S-shaped curves</li>
+          </ul>
+          <p style={{ marginLeft: '20px', fontStyle: 'italic' }}>
+            🎓 Real life analogy: Different lenses for different situations (straight road vs curvy mountain path)
+          </p>
+
+          <p style={{ marginTop: '20px' }}><strong>3. <span style={styles.keywordBox}>Gamma</span></strong></p>
+          <p style={{ marginLeft: '20px' }}>
+            Gamma controls "How far should influence reach?" (Only for RBF, polynomial, sigmoid)
+          </p>
+          <ul style={{ marginLeft: '40px' }}>
+            <li><strong>Small gamma (0.01):</strong> Far-reaching influence → Smooth, simple boundaries</li>
+            <li><strong>Medium gamma (0.1-1):</strong> Moderate influence (usually best)</li>
+            <li><strong>Large gamma (10+):</strong> Short-range influence → Very wiggly boundaries (careful - can memorize!)</li>
+          </ul>
+          <p style={{ marginLeft: '20px', fontStyle: 'italic' }}>
+            🎓 Real life analogy: WiFi range - low gamma = reaches far (smooth), high gamma = only nearby (detailed)
+          </p>
+        </div>
+      </div>
+
+      <div style={styles.activityBox}>
+        <h3 style={styles.h3}>🎮 Class Activity: Draw the Best Line</h3>
+        <p><strong>Time: 10 minutes</strong></p>
+        <p><strong>Materials:</strong> Whiteboard, colored markers, coins</p>
+        <ol>
+          <li>Place red coins on left side of board</li>
+          <li>Place blue coins on right side (with some overlap)</li>
+          <li><strong>Challenge 1:</strong> Draw a straight line with maximum margin</li>
+          <li><strong>Challenge 2:</strong> What if points are in a circle pattern? (This is where kernels help!)</li>
+        </ol>
+        <p><strong>Discussion:</strong> 
+          <ul>
+            <li>Which coins are the "support vectors"? (The closest ones)</li>
+            <li>What happens if we move only the far coins? (Nothing! Only support vectors matter)</li>
+          </ul>
+        </p>
+      </div>
+
+      <div style={styles.section}>
+        <h3 style={styles.h3}>Part 3: Interactive Demo - See SVM in Action</h3>
+        <SVMInteractive C={C} kernel={kernel} gamma={gamma} isDark={isDark} />
+
+        <div style={{ marginTop: '20px' }}>
+          <label style={{ display: 'block', margin: '15px 0' }}>
+            <strong>C (Strictness):</strong> {C.toFixed(2)}
+            <input
+              type="range"
+              min="0.01"
+              max="10"
+              step="0.01"
+              value={C}
+              onChange={(e) => setC(Number(e.target.value))}
+              style={styles.slider}
+            />
+            <small style={{ display: 'block', color: isDark ? '#8b949e' : '#57606a', marginTop: '5px' }}>
+              {C < 0.5 ? '😊 Relaxed - wide margin, some errors OK' :
+               C < 5 ? '⚖️ Balanced - typical choice' :
+               '😤 Strict - narrow margin, must be perfect'}
+            </small>
+          </label>
+
+          <label style={{ display: 'block', margin: '15px 0' }}>
+            <strong>Kernel Type:</strong>
+            <select
+              value={kernel}
+              onChange={(e) => setKernel(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '8px',
+                marginTop: '5px',
+                fontSize: '1em',
+                borderRadius: '6px',
+                border: `1px solid ${isDark ? '#30363d' : '#d0d7de'}`,
+                backgroundColor: isDark ? '#0d1117' : '#ffffff',
+                color: isDark ? '#c9d1d9' : '#24292f',
+              }}
+            >
+              <option value="linear">Linear (straight line)</option>
+              <option value="rbf">RBF (curves & circles) ⭐ Most popular</option>
+              <option value="poly">Polynomial (wavy)</option>
+              <option value="sigmoid">Sigmoid (S-shaped)</option>
+            </select>
+          </label>
+
+          {kernel !== 'linear' && (
+            <label style={{ display: 'block', margin: '15px 0' }}>
+              <strong>Gamma (Influence Range):</strong> {gamma.toFixed(2)}
+              <input
+                type="range"
+                min="0.01"
+                max="5"
+                step="0.01"
+                value={gamma}
+                onChange={(e) => setGamma(Number(e.target.value))}
+                style={styles.slider}
+              />
+              <small style={{ display: 'block', color: isDark ? '#8b949e' : '#57606a', marginTop: '5px' }}>
+                {gamma < 0.5 ? '📡 Wide influence - smooth boundary' :
+                 gamma < 2 ? '📱 Medium - balanced' :
+                 '📍 Narrow influence - detailed (careful!)'}
+              </small>
+            </label>
+          )}
+        </div>
+      </div>
+
+      <div style={styles.section}>
+        <h3 style={styles.h3}>Part 4: Python Code</h3>
+        <div style={styles.codeBox}>
+          <pre>{`from sklearn.svm import SVC
+from sklearn.preprocessing import StandardScaler
+
+# IMPORTANT: Always scale data for SVM!
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+# Create the model
+svm = SVC(
+    C=${C.toFixed(2)},              # Regularization (strictness)
+    kernel='${kernel}',      # Type of boundary
+    gamma=${gamma.toFixed(2)},           # Influence range (for rbf/poly/sigmoid)
+    probability=True,   # Enable probability predictions
+    random_state=42
+)
+
+# Train
+svm.fit(X_train_scaled, y_train)
+
+# Predict
+predictions = svm.predict(X_test_scaled)
+probabilities = svm.predict_proba(X_test_scaled)
+
+# See support vectors (the important points)
+support_vectors = svm.support_vectors_
+num_support = svm.n_support_  # How many per class`}</pre>
+        </div>
+      </div>
+
+      <div style={styles.section}>
+        <h3 style={styles.h3}>Part 5: Choosing the Right Settings</h3>
+        
+        <div style={{ marginTop: '15px' }}>
+          <p><strong>📝 Quick Guide:</strong></p>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
+            <thead>
+              <tr style={{ backgroundColor: isDark ? '#21262d' : '#f6f8fa' }}>
+                <th style={{ padding: '10px', border: `1px solid ${isDark ? '#30363d' : '#d0d7de'}`, textAlign: 'left' }}>Your Data</th>
+                <th style={{ padding: '10px', border: `1px solid ${isDark ? '#30363d' : '#d0d7de'}`, textAlign: 'left' }}>Best Settings</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style={{ padding: '10px', border: `1px solid ${isDark ? '#30363d' : '#d0d7de'}` }}>Points in a straight line pattern</td>
+                <td style={{ padding: '10px', border: `1px solid ${isDark ? '#30363d' : '#d0d7de'}` }}>kernel='linear', C=1</td>
+              </tr>
+              <tr>
+                <td style={{ padding: '10px', border: `1px solid ${isDark ? '#30363d' : '#d0d7de'}` }}>Circular or complex pattern</td>
+                <td style={{ padding: '10px', border: `1px solid ${isDark ? '#30363d' : '#d0d7de'}` }}>kernel='rbf', C=1, gamma=0.1</td>
+              </tr>
+              <tr>
+                <td style={{ padding: '10px', border: `1px solid ${isDark ? '#30363d' : '#d0d7de'}` }}>Noisy data (outliers)</td>
+                <td style={{ padding: '10px', border: `1px solid ${isDark ? '#30363d' : '#d0d7de'}` }}>Lower C (0.1-0.5)</td>
+              </tr>
+              <tr>
+                <td style={{ padding: '10px', border: `1px solid ${isDark ? '#30363d' : '#d0d7de'}` }}>Clean, clear separation</td>
+                <td style={{ padding: '10px', border: `1px solid ${isDark ? '#30363d' : '#d0d7de'}` }}>Higher C (10-100)</td>
+              </tr>
+              <tr>
+                <td style={{ padding: '10px', border: `1px solid ${isDark ? '#30363d' : '#d0d7de'}` }}>Not sure? Start here!</td>
+                <td style={{ padding: '10px', border: `1px solid ${isDark ? '#30363d' : '#d0d7de'}` }}>kernel='rbf', C=1, gamma='scale'</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style={styles.warningBox}>
+        <strong>⚠️ Critical: Always Scale Your Data!</strong>
+        <p>
+          SVM is very sensitive to feature scales. If one feature is 1-10 and another is 1000-5000, 
+          SVM will think the big numbers are more important. Always use StandardScaler first!
+        </p>
+      </div>
+
+      <div style={styles.infoBox}>
+        <strong>✅ Real World Uses:</strong>
+        <ul>
+          <li>Text classification (spam detection, sentiment analysis)</li>
+          <li>Image recognition (face detection)</li>
+          <li>Medical diagnosis (cancer detection from cell samples)</li>
+          <li>Handwriting recognition</li>
+        </ul>
+      </div>
+
+      <div style={styles.activityBox}>
+        <h3 style={styles.h3}>🧪 Experiment Challenge</h3>
+        <p><strong>Try these combinations and observe:</strong></p>
+        <ol>
+          <li>Linear kernel with high C → Very strict straight line</li>
+          <li>RBF kernel with low gamma → Smooth, simple boundary</li>
+          <li>RBF kernel with high gamma → Wiggly, complex boundary</li>
+          <li>Low C with any kernel → More forgiving, wider margin</li>
+        </ol>
+        <p><strong>Question:</strong> Which combination would you use for a real-world noisy dataset?</p>
+      </div>
+    </div>
+  );
+};
+
+// SVM Interactive Component
+const SVMInteractive = ({ C, kernel, gamma, isDark }) => {
+  const canvasRef = useRef(null);
+  const styles = getStyles(isDark);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+
+    ctx.fillStyle = isDark ? '#0d1117' : '#ffffff';
+    ctx.fillRect(0, 0, w, h);
+
+    // Generate sample data points
+    const classA = [];
+    const classB = [];
+    
+    for (let i = 0; i < 15; i++) {
+      classA.push({
+        x: 100 + Math.random() * 150,
+        y: 100 + Math.random() * 150
+      });
+      classB.push({
+        x: 350 + Math.random() * 150,
+        y: 100 + Math.random() * 150
+      });
+    }
+
+    // Draw decision boundary based on kernel
+    ctx.strokeStyle = isDark ? '#1f6feb' : '#0969da';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+
+    if (kernel === 'linear') {
+      // Straight line
+      const centerX = w / 2;
+      const angle = Math.PI / 6;
+      ctx.moveTo(centerX - 100, h / 4);
+      ctx.lineTo(centerX + 100, 3 * h / 4);
+    } else if (kernel === 'rbf') {
+      // Curved boundary based on gamma
+      const curvature = Math.min(gamma * 20, 100);
+      ctx.moveTo(w / 2 - curvature, h / 4);
+      ctx.quadraticCurveTo(w / 2, h / 2 - curvature, w / 2 + curvature, 3 * h / 4);
+    } else if (kernel === 'poly') {
+      // Wavy line
+      ctx.moveTo(w / 2, h / 4);
+      for (let y = h / 4; y <= 3 * h / 4; y += 10) {
+        const x = w / 2 + Math.sin(y / 30) * 40;
+        ctx.lineTo(x, y);
+      }
+    } else if (kernel === 'sigmoid') {
+      // S-curve
+      ctx.moveTo(w / 2 - 50, h / 4);
+      for (let t = 0; t <= 1; t += 0.05) {
+        const sigmoid = 1 / (1 + Math.exp(-10 * (t - 0.5)));
+        const x = w / 2 - 50 + sigmoid * 100;
+        const y = h / 4 + t * h / 2;
+        ctx.lineTo(x, y);
+      }
+    }
+    ctx.stroke();
+
+    // Draw margin lines (based on C)
+    const marginWidth = Math.max(10, 30 / C);
+    ctx.strokeStyle = isDark ? '#30363d' : '#d0d7de';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 5]);
+    
+    if (kernel === 'linear') {
+      ctx.beginPath();
+      const centerX = w / 2;
+      ctx.moveTo(centerX - 100 - marginWidth, h / 4);
+      ctx.lineTo(centerX + 100 - marginWidth, 3 * h / 4);
+      ctx.stroke();
+      
+      ctx.beginPath();
+      ctx.moveTo(centerX - 100 + marginWidth, h / 4);
+      ctx.lineTo(centerX + 100 + marginWidth, 3 * h / 4);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    // Draw points
+    [...classA, ...classB].forEach((point, i) => {
+      const isClassA = i < classA.length;
+      
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, 6, 0, 2 * Math.PI);
+      ctx.fillStyle = isClassA 
+        ? (isDark ? '#238636' : '#2ea043')
+        : (isDark ? '#da3633' : '#cf222e');
+      ctx.fill();
+      ctx.strokeStyle = isDark ? '#c9d1d9' : '#24292f';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    });
+
+    // Highlight support vectors (closest points)
+    const supportVectorIndices = [0, 1, classA.length, classA.length + 1];
+    supportVectorIndices.forEach(i => {
+      const points = [...classA, ...classB];
+      if (i < points.length) {
+        ctx.beginPath();
+        ctx.arc(points[i].x, points[i].y, 12, 0, 2 * Math.PI);
+        ctx.strokeStyle = isDark ? '#bb8009' : '#bf8700';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+      }
+    });
+
+    // Labels
+    ctx.fillStyle = isDark ? '#c9d1d9' : '#24292f';
+    ctx.font = '14px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`C=${C.toFixed(2)} (${C < 1 ? 'relaxed' : C > 5 ? 'strict' : 'balanced'})`, 10, 25);
+    ctx.fillText(`Kernel: ${kernel}`, 10, 45);
+    if (kernel !== 'linear') {
+      ctx.fillText(`gamma=${gamma.toFixed(2)}`, 10, 65);
+    }
+
+  }, [C, kernel, gamma, isDark]);
+
+  return (
+    <div style={styles.interactiveBox}>
+      <canvas ref={canvasRef} width={600} height={350} style={{ display: 'block', maxWidth: '100%' }} />
+      <div style={{ textAlign: 'center', marginTop: '15px', fontSize: '0.9em' }}>
+        <p>
+          <strong style={{ color: isDark ? '#238636' : '#2ea043' }}>● Class A</strong>
+          {' | '}
+          <strong style={{ color: isDark ? '#da3633' : '#cf222e' }}>● Class B</strong>
+          {' | '}
+          <strong style={{ color: isDark ? '#bb8009' : '#bf8700' }}>◯ Support Vectors</strong>
+          {' | '}
+          <strong style={{ color: isDark ? '#1f6feb' : '#0969da' }}>━ Decision Boundary</strong>
+        </p>
+        <p style={{ fontSize: '0.85em', fontStyle: 'italic', marginTop: '10px' }}>
+          Notice: Only support vectors (circled points) matter! Moving other points doesn't change the boundary.
+        </p>
+      </div>
+    </div>
+  );
+};
+
+// Export main component
+
+
+
+        console.log('Rendering MLEducation...');
+        ReactDOM.render(React.createElement(MLEducation), document.getElementById('root'));
+        console.log('Render complete!');
+    </script>
+</body>
+</html>

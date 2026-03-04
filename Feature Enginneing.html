@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feature Engineering Interactive Learning Tool - Standalone</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/recharts@2.5.0/dist/Recharts.js"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+                sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            background-color: #f5f5f5;
+        }
+        #root {
+            min-height: 100vh;
+        }
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-size: 24px;
+            color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"><div class="loading">Loading Feature Engineering Tool...</div></div>
+    
+    <script>
+        // Wait for all libraries to load
+        function initializeApp() {
+            if (!window.React || !window.ReactDOM || !window.Recharts) {
+                setTimeout(initializeApp, 100);
+                return;
+            }
+
+            const { useState } = React;
+            const { LineChart, Line, BarChart, Bar, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } = Recharts;
+
+            const FeatureEngineeringLearningTool = () => {
+              const [activeTab, setActiveTab] = useState('extraction');
+              const [selectedTransform, setSelectedTransform] = useState('log');
+              const [pcaComponents, setPcaComponents] = useState(2);
+              const [selectedFeatures, setSelectedFeatures] = useState([true, true, true, true, true]);
+
+              const textData = [
+                { id: 1, text: "I love this product! Amazing quality!", sentiment: 'positive', length: 41 },
+                { id: 2, text: "Terrible experience. Very disappointed.", sentiment: 'negative', length: 39 },
+                { id: 3, text: "It's okay, nothing special.", sentiment: 'neutral', length: 27 },
+                { id: 4, text: "Best purchase ever!!! Highly recommend!", sentiment: 'positive', length: 40 },
+                { id: 5, text: "Not worth the money. Poor quality.", sentiment: 'negative', length: 34 }
+              ];
+
+              const dateData = [
+                { date: '2024-01-15', sales: 1200, dayOfWeek: 'Monday', isWeekend: false },
+                { date: '2024-01-20', sales: 2500, dayOfWeek: 'Saturday', isWeekend: true },
+                { date: '2024-02-14', sales: 4500, dayOfWeek: 'Wednesday', isWeekend: false },
+                { date: '2024-03-17', sales: 1800, dayOfWeek: 'Sunday', isWeekend: true },
+                { date: '2024-12-25', sales: 5200, dayOfWeek: 'Wednesday', isWeekend: false }
+              ];
+
+              const generateSkewedData = () => {
+                const data = [];
+                for (let i = 0; i < 100; i++) {
+                  const value = Math.exp(Math.random() * 3);
+                  data.push({ id: i, original: value, log: Math.log(value + 1), sqrt: Math.sqrt(value) });
+                }
+                return data;
+              };
+
+              const skewedData = generateSkewedData();
+
+              const featureImportance = [
+                { feature: 'Income', importance: 0.42, selected: selectedFeatures[0] },
+                { feature: 'Age', importance: 0.28, selected: selectedFeatures[1] },
+                { feature: 'Education', importance: 0.18, selected: selectedFeatures[2] },
+                { feature: 'Location', importance: 0.08, selected: selectedFeatures[3] },
+                { feature: 'Gender', importance: 0.04, selected: selectedFeatures[4] }
+              ];
+
+              const pcaData = [
+                { id: 1, pc1: 2.5, pc2: 1.2, pc3: 0.5, label: 'A', variance: 0.72 },
+                { id: 2, pc1: -1.8, pc2: 2.3, pc3: -0.3, label: 'B', variance: 0.18 },
+                { id: 3, pc1: 3.2, pc2: -0.8, pc3: 1.1, label: 'C', variance: 0.10 },
+                { id: 4, pc1: -2.1, pc2: -1.5, pc3: -0.8, label: 'A', variance: 0.72 },
+                { id: 5, pc1: 1.5, pc2: 3.1, pc3: 0.2, label: 'B', variance: 0.18 },
+              ];
+
+              const varianceExplained = [
+                { component: 'PC1', variance: 72 },
+                { component: 'PC2', variance: 18 },
+                { component: 'PC3', variance: 10 }
+              ];
+
+              const polynomialData = [
+                { x: 1, y: 2, x2: 1, xy: 2, y2: 4 },
+                { x: 2, y: 4, x2: 4, xy: 8, y2: 16 },
+                { x: 3, y: 9, x2: 9, xy: 27, y2: 81 },
+                { x: 4, y: 16, x2: 16, xy: 64, y2: 256 },
+                { x: 5, y: 25, x2: 25, xy: 125, y2: 625 }
+              ];
+
+              const interactionData = [
+                { sqft: 1000, bedrooms: 2, sqftPerBedroom: 500, price: 200000 },
+                { sqft: 1500, bedrooms: 3, sqftPerBedroom: 500, price: 300000 },
+                { sqft: 2000, bedrooms: 4, sqftPerBedroom: 500, price: 400000 },
+                { sqft: 2500, bedrooms: 3, sqftPerBedroom: 833, price: 500000 },
+                { sqft: 3000, bedrooms: 5, sqftPerBedroom: 600, price: 600000 }
+              ];
+
+              const toggleFeature = (index) => {
+                const newSelected = [...selectedFeatures];
+                newSelected[index] = !newSelected[index];
+                setSelectedFeatures(newSelected);
+              };
+
+              return React.createElement('div', { style: { fontFamily: 'Arial, sans-serif', maxWidth: '1400px', margin: '0 auto', padding: '20px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', minHeight: '100vh' } },
+                React.createElement('div', { style: { background: 'white', borderRadius: '15px', padding: '30px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' } },
+                  
+                  React.createElement('div', { style: { textAlign: 'center', marginBottom: '40px' } },
+                    React.createElement('h1', { style: { fontSize: '42px', color: '#667eea', marginBottom: '10px', fontWeight: 'bold' } },
+                      '✨ Feature Engineering & Selection Lab'
+                    ),
+                    React.createElement('p', { style: { fontSize: '18px', color: '#666' } },
+                      'Master the art of creating and selecting powerful features for machine learning'
+                    )
+                  ),
+
+                  React.createElement('div', { style: { display: 'flex', gap: '10px', marginBottom: '30px', flexWrap: 'wrap', justifyContent: 'center' } },
+                    [
+                      { id: 'extraction', label: '🔍 Feature Extraction', icon: '📝' },
+                      { id: 'transformation', label: '🔄 Transformation', icon: '📊' },
+                      { id: 'creation', label: '✨ Feature Creation', icon: '🎨' },
+                      { id: 'selection', label: '🎯 Feature Selection', icon: '🔬' },
+                      { id: 'dimensionality', label: '📉 Dimensionality', icon: '🎪' },
+                      { id: 'scaling', label: '⚖️ Scaling Impact', icon: '📏' }
+                    ].map(tab =>
+                      React.createElement('button', {
+                        key: tab.id,
+                        onClick: () => setActiveTab(tab.id),
+                        style: {
+                          padding: '12px 24px',
+                          border: 'none',
+                          borderRadius: '10px',
+                          background: activeTab === tab.id ? 'linear-gradient(135deg, #667eea, #764ba2)' : '#f0f0f0',
+                          color: activeTab === tab.id ? 'white' : '#333',
+                          cursor: 'pointer',
+                          fontSize: '16px',
+                          fontWeight: 'bold',
+                          transition: 'all 0.3s',
+                          boxShadow: activeTab === tab.id ? '0 4px 15px rgba(102,126,234,0.4)' : 'none'
+                        }
+                      }, `${tab.icon} ${tab.label}`)
+                    )
+                  ),
+
+                  React.createElement('div', { style: { background: '#f8f9fa', padding: '30px', borderRadius: '10px', minHeight: '500px' } },
+                    activeTab === 'extraction' ? React.createElement('div', null,
+                      React.createElement('h2', { style: { color: '#667eea', marginBottom: '20px' } }, '🔍 Feature Extraction from Raw Data'),
+                      React.createElement('p', null, 'This interactive tool demonstrates feature extraction, transformation, creation, selection, dimensionality reduction, and scaling techniques used in machine learning.')
+                    ) :
+                    activeTab === 'transformation' ? React.createElement('div', null,
+                      React.createElement('h2', { style: { color: '#667eea', marginBottom: '20px' } }, '🔄 Feature Transformations'),
+                      React.createElement('p', null, 'Explore different transformation methods for handling skewed data.')
+                    ) :
+                    activeTab === 'creation' ? React.createElement('div', null,
+                      React.createElement('h2', { style: { color: '#667eea', marginBottom: '20px' } }, '✨ Creating New Features'),
+                      React.createElement('p', null, 'Learn how to create powerful features from existing ones.')
+                    ) :
+                    activeTab === 'selection' ? React.createElement('div', null,
+                      React.createElement('h2', { style: { color: '#667eea', marginBottom: '20px' } }, '🎯 Feature Selection'),
+                      React.createElement('p', null, 'Understand how to choose the most important features.')
+                    ) :
+                    activeTab === 'dimensionality' ? React.createElement('div', null,
+                      React.createElement('h2', { style: { color: '#667eea', marginBottom: '20px' } }, '📉 Dimensionality Reduction'),
+                      React.createElement('p', null, 'Reduce feature space while preserving information.')
+                    ) :
+                    React.createElement('div', null,
+                      React.createElement('h2', { style: { color: '#667eea', marginBottom: '20px' } }, '⚖️ Scaling Impact'),
+                      React.createElement('p', null, 'See how scaling affects different ML algorithms.')
+                    )
+                  ),
+
+                  React.createElement('div', { 
+                    style: { 
+                      marginTop: '30px', 
+                      padding: '20px', 
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      borderRadius: '10px',
+                      color: 'white',
+                      textAlign: 'center'
+                    }
+                  },
+                    React.createElement('h3', { style: { marginTop: 0 } }, '🎯 Feature Engineering Mastery Checklist'),
+                    React.createElement('p', null, 'Interactive tool created for CMPSC 348 - Feature Engineering Course')
+                  )
+                )
+              );
+            };
+
+            const root = ReactDOM.createRoot(document.getElementById('root'));
+            root.render(React.createElement(FeatureEngineeringLearningTool));
+        }
+
+        // Start initialization
+        initializeApp();
+    </script>
+</body>
+</html>

@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Deep Learning Architectures</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState } = React;
+
+    // Inline SVG icon components
+    const Icon = ({ children, className = "w-6 h-6", ...props }) => (
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>{children}</svg>
+    );
+    const Brain = (p) => <Icon {...p}><path d="M9.5 2A5.5 5.5 0 0 0 5 6c0 1-.2 2-.5 3"/><path d="M5 8.5c-.8.5-1.5 1.2-2 2-.9 1.3-1 3-.3 4.4"/><path d="M3.3 15.4c.3.8.8 1.5 1.4 2.1.9.8 2 1.3 3.3 1.5"/><path d="M14.5 2A5.5 5.5 0 0 1 19 6c0 1 .2 2 .5 3"/><path d="M19 8.5c.8.5 1.5 1.2 2 2 .9 1.3 1 3 .3 4.4"/><path d="M20.7 15.4c-.3.8-.8 1.5-1.4 2.1-.9.8-2 1.3-3.3 1.5"/><path d="M12 2v20"/><path d="M8 19h8"/><path d="M9 6h6"/><path d="M8 12h8"/></Icon>;
+    const Network = (p) => <Icon {...p}><circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><line x1="12" y1="7" x2="5" y2="17"/><line x1="12" y1="7" x2="19" y2="17"/></Icon>;
+    const GitBranch = (p) => <Icon {...p}><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></Icon>;
+    const Grid = (p) => <Icon {...p}><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></Icon>;
+    const Zap = (p) => <Icon {...p}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></Icon>;
+    const Eye = (p) => <Icon {...p}><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></Icon>;
+    const ChevronDown = (p) => <Icon {...p}><polyline points="6 9 12 15 18 9"/></Icon>;
+    const ChevronUp = (p) => <Icon {...p}><polyline points="18 15 12 9 6 15"/></Icon>;
+
+    function DeepLearningArchitectures() {
+      const [activeCategory, setActiveCategory] = useState('feedforward');
+      const [expandedArch, setExpandedArch] = useState(null);
+
+      const architectureCategories = [
+        { id: 'feedforward', name: 'Feedforward Networks', icon: <Network className="w-5 h-5" />, count: 8 },
+        { id: 'autoencoders', name: 'Autoencoders', icon: <GitBranch className="w-5 h-5" />, count: 4 },
+        { id: 'cnn-classic', name: 'Classic CNNs', icon: <Grid className="w-5 h-5" />, count: 5 },
+        { id: 'cnn-modern', name: 'Modern CNNs', icon: <Zap className="w-5 h-5" />, count: 8 },
+        { id: 'cnn-specialized', name: 'Specialized CNNs', icon: <Eye className="w-5 h-5" />, count: 4 }
+      ];
+
+      const architectures = {
+        feedforward: [
+          {
+            id: 'perceptron', name: 'Perceptron', year: '1957', inventor: 'Frank Rosenblatt', level: 'Beginner',
+            description: 'The simplest neural network - a single neuron that learns a linear decision boundary.',
+            keyIdea: 'Binary classification using a linear separator',
+            architecture: { structure: 'Single layer with one output neuron', inputs: 'n input features', outputs: '1 binary output (0 or 1)', weights: 'n weights + 1 bias', activation: 'Step function or Sign function' },
+            mathematics: { forward: 'y = sign(w₁x₁ + w₂x₂ + ... + wₙxₙ + b)', simplified: 'y = sign(w·x + b)', update: 'wᵢ = wᵢ + η(target - output)xᵢ', example: { input: '[2, 3]', weights: '[0.5, 0.7]', bias: '-1', calculation: '0.5×2 + 0.7×3 - 1 = 1 + 2.1 - 1 = 2.1', output: 'sign(2.1) = +1 (positive class)' } },
+            visualDirection: { diagram: 'Draw two input circles (x₁, x₂) on left, one output circle (y) on right. Connect inputs to output with arrows labeled w₁, w₂.', geometricView: 'Draw 2D plane with points. Show decision boundary as straight line: w₁x₁ + w₂x₂ + b = 0.' },
+            limitations: ['Can only learn linearly separable patterns', 'Cannot solve XOR problem', 'Single layer limits expressiveness'],
+            useCase: 'Simple binary classification tasks with linearly separable data'
+          },
+          {
+            id: 'mlp', name: 'Multilayer Perceptron (MLP)', year: '1986', inventor: 'Rumelhart, Hinton, Williams', level: 'Beginner',
+            description: 'Multiple layers of neurons with non-linear activations, trained using backpropagation.',
+            keyIdea: 'Hidden layers learn hierarchical representations of data',
+            architecture: { structure: 'Input → Hidden Layer(s) → Output', inputs: 'n features', hidden: '1 or more layers with h neurons each', outputs: 'm classes or values', connections: 'Fully connected (dense)', activation: 'Hidden: ReLU, Sigmoid, Tanh | Output: Softmax, Linear' },
+            mathematics: { forward: 'h = σ(W₁x + b₁), y = σ(W₂h + b₂)', vectorForm: 'Layer_out = activation(W × Layer_in + b)', example: { architecture: 'Input(2) → Hidden(3) → Output(1)', step1: 'h₁ = ReLU(0.5×2 + 0.3×3 + 0.1) = ReLU(2.0) = 2.0', step2: 'h₂ = ReLU(...) = 1.5, h₃ = ReLU(...) = 3.2', step3: 'y = Sigmoid(W₂·h + b₂)' } },
+            visualDirection: { diagram: 'Draw 3 columns: Input layer (2 neurons), Hidden layer (3 neurons), Output layer (1 neuron). Connect every neuron in one layer to every neuron in next layer.', dataFlow: 'Show numbers flowing: Input [2,3] → Hidden [2.0, 1.5, 3.2] → Output [0.87].' },
+            advantages: ['Universal approximation theorem', 'Can learn non-linear patterns', 'Simple architecture'],
+            useCase: 'Tabular data, simple classification, regression tasks'
+          },
+          {
+            id: 'rbfn', name: 'Radial Basis Function Network', year: '1988', inventor: 'Broomhead & Lowe', level: 'Intermediate',
+            description: 'Network using radial basis functions as activation functions, measuring distance from centers.',
+            keyIdea: 'Neurons respond to input based on distance from learned center points',
+            architecture: { structure: 'Input → RBF Hidden Layer → Linear Output', rbfLayer: 'Each neuron is a Gaussian centered at cᵢ', outputs: 'Linear combination of RBF activations', parameters: 'Centers (cᵢ), widths (σᵢ), output weights (wᵢ)' },
+            mathematics: { rbfFunction: 'φᵢ(x) = exp(-||x - cᵢ||² / 2σᵢ²)', output: 'y = Σ wᵢφᵢ(x)', example: { centers: 'c₁=[1,1], c₂=[3,3]', input: 'x=[2,2]', distance: '||x-c₁||² = (2-1)² + (2-1)² = 2', rbf: 'φ₁(x) = exp(-2/(2×1²)) = exp(-1) ≈ 0.37' } },
+            advantages: ['Fast training (closed-form solution for output layer)', 'Good interpolation', 'Local learning'],
+            useCase: 'Function approximation, interpolation, time-series prediction'
+          },
+          {
+            id: 'hopfield', name: 'Hopfield Network', year: '1982', inventor: 'John Hopfield', level: 'Intermediate',
+            description: 'Recurrent network that stores patterns as stable states and retrieves them through energy minimization.',
+            keyIdea: 'Content-addressable memory - retrieve full pattern from partial/noisy input',
+            architecture: { structure: 'Fully recurrent - every neuron connects to every other', neurons: 'Binary (±1) or continuous', connections: 'Symmetric: wᵢⱼ = wⱼᵢ, no self-connections', dynamics: 'Asynchronous or synchronous updates' },
+            mathematics: { energy: 'E = -½ΣΣ wᵢⱼsᵢsⱼ + Σ θᵢsᵢ', update: 'sᵢ = sign(Σⱼ wᵢⱼsⱼ - θᵢ)', learning: 'wᵢⱼ = (1/P)Σₚ xᵢᵖxⱼᵖ (Hebbian learning)', example: { pattern: 'Store [+1, -1, +1]', weights: 'w₁₂ = (1/1)×(+1×-1) = -1', retrieval: 'Input noisy [+1, +1, +1] → converge to [+1, -1, +1]' } },
+            limitations: ['Limited capacity (~0.15N patterns for N neurons)', 'Spurious states', 'Sequential updates'],
+            useCase: 'Pattern completion, associative memory, optimization problems'
+          },
+          {
+            id: 'boltzmann', name: 'Boltzmann Machine', year: '1985', inventor: 'Hinton & Sejnowski', level: 'Advanced',
+            description: 'Stochastic recurrent network that learns probability distributions using energy-based model.',
+            keyIdea: 'Model joint probability distribution of visible and hidden units',
+            architecture: { structure: 'Fully connected visible and hidden units', units: 'Binary stochastic neurons (0 or 1)', connections: 'Symmetric, including hidden-hidden connections', learning: 'Sampling-based (slow)' },
+            mathematics: { energy: 'E(v,h) = -vᵀWv - vᵀWʰh - hᵀWʰh - bᵀv - cᵀh', probability: 'P(v,h) = exp(-E(v,h)) / Z', update: 'P(sᵢ=1) = σ(Σⱼ wᵢⱼsⱼ + bᵢ)', learning: 'Δwᵢⱼ ∝ ⟨sᵢsⱼ⟩data - ⟨sᵢsⱼ⟩model' },
+            limitations: ['Extremely slow training (requires sampling)', 'Intractable partition function', 'Rarely used today'],
+            useCase: 'Historical importance, led to development of RBMs and DBNs'
+          },
+          {
+            id: 'rbm', name: 'Restricted Boltzmann Machine', year: '2006', inventor: 'Hinton (popularized)', level: 'Advanced',
+            description: 'Simplified Boltzmann machine with no connections within visible or hidden layers.',
+            keyIdea: 'Bipartite graph enables efficient training via contrastive divergence',
+            architecture: { structure: 'Visible layer ↔ Hidden layer (no intra-layer connections)', visible: 'v ∈ {0,1}ⁿ or continuous', hidden: 'h ∈ {0,1}ᵐ', connections: 'Only between layers, making inference tractable' },
+            mathematics: { energy: 'E(v,h) = -aᵀv - bᵀh - vᵀWh', conditional: 'P(hⱼ=1|v) = σ(bⱼ + Σᵢ vᵢwᵢⱼ)', contrastiveDivergence: 'Δwᵢⱼ ≈ η(⟨vᵢhⱼ⟩data - ⟨vᵢhⱼ⟩recon)', cdAlgorithm: '1) v → h, 2) h → v′ → h′, 3) Δw ∝ (vh)data - (v′h′)model' },
+            advantages: ['Efficient training (CD algorithm)', 'Unsupervised feature learning', 'Can be stacked (DBN)'],
+            useCase: 'Unsupervised pre-training, dimensionality reduction, collaborative filtering'
+          },
+          {
+            id: 'dbn', name: 'Deep Belief Network', year: '2006', inventor: 'Hinton et al.', level: 'Advanced',
+            description: 'Stack of RBMs trained layer-by-layer, enabling deep unsupervised learning.',
+            keyIdea: 'Greedy layer-wise pre-training followed by fine-tuning',
+            architecture: { structure: 'Stack of RBMs: RBM₁ → RBM₂ → ... → RBMₙ', training: 'Train RBM₁, then use its hidden as visible for RBM₂, repeat', fineTuning: 'Add supervised layer on top, backprop through entire network' },
+            mathematics: { layerWise: 'Train P(h⁽¹⁾|v), then P(h⁽²⁾|h⁽¹⁾), etc.', joint: 'P(v,h⁽¹⁾,...,h⁽ⁿ⁾) = P(v|h⁽¹⁾)∏ᵢ P(h⁽ⁱ⁾|h⁽ⁱ⁺¹⁾)' },
+            useCase: 'Feature learning, pre-training for deep networks (historical - less used now)'
+          },
+          {
+            id: 'energy', name: 'Energy-Based Models (EBM)', year: '2000s', inventor: 'Yann LeCun et al.', level: 'Advanced',
+            description: 'Framework where learning shapes an energy landscape, with low energy for valid configurations.',
+            keyIdea: 'Associate scalar energy to each configuration; learning minimizes energy for data',
+            architecture: { structure: 'Energy function E(x,y) maps inputs to scalar', training: 'Lower energy for correct outputs, raise for incorrect', inference: 'Find y that minimizes E(x,y) for given x' },
+            mathematics: { energy: 'E(x,y;θ) - parameterized function', probability: 'P(y|x) = exp(-E(x,y)) / Σy′ exp(-E(x,y′))', contrastive: 'Push down E(x,ytrue), push up E(x,ywrong)' },
+            useCase: 'Theoretical framework, modern generative models, contrastive learning'
+          }
+        ],
+        autoencoders: [
+          {
+            id: 'basic-ae', name: 'Basic Autoencoder', year: '1980s', inventor: 'Hinton & others', level: 'Beginner',
+            description: 'Neural network trained to reconstruct its input through a bottleneck layer.',
+            keyIdea: 'Learn compressed representation by forcing reconstruction',
+            architecture: { encoder: 'Input → Hidden₁ → ... → Latent (bottleneck)', decoder: 'Latent → Hidden₁ → ... → Reconstruction', bottleneck: 'Smallest layer forces compression', symmetric: 'Often mirror structure in encoder/decoder' },
+            mathematics: { encoder: 'z = fₑ(x) = σ(Wₑx + bₑ)', decoder: 'x̂ = fₐ(z) = σ(Wₐz + bₐ)', loss: 'L = ||x - x̂||² (MSE) or binary cross-entropy', example: { input: 'Image 784 dims', encoder: '784 → 512 → 256 → 64 (latent)', decoder: '64 → 256 → 512 → 784', loss: 'Minimize difference between input and output' } },
+            advantages: ['Unsupervised dimensionality reduction', 'Feature learning', 'Anomaly detection'],
+            useCase: 'Data compression, denoising, anomaly detection, pre-training'
+          },
+          {
+            id: 'denoising-ae', name: 'Denoising Autoencoder (DAE)', year: '2008', inventor: 'Vincent et al.', level: 'Intermediate',
+            description: 'Autoencoder trained to reconstruct clean data from corrupted input.',
+            keyIdea: 'Add noise to input but train to predict clean output',
+            architecture: { structure: 'Same as basic AE', training: 'x → corrupt(x) → encode → decode → reconstruct x (clean)', corruption: 'Gaussian noise, masking, salt-and-pepper noise' },
+            mathematics: { corruption: 'x̃ = x + ϵ, where ϵ ~ N(0,σ²) or random masking', objective: 'Minimize ||x - f(x̃)||² (reconstruct clean from noisy)', regularization: 'Forces learning robust features invariant to noise' },
+            advantages: ['More robust features', 'Better generalization', 'Implicit regularization'],
+            useCase: 'Image denoising, robust feature learning, pre-training'
+          },
+          {
+            id: 'sparse-ae', name: 'Sparse Autoencoder', year: '2000s', inventor: 'Ng et al.', level: 'Intermediate',
+            description: 'Autoencoder with sparsity constraint on hidden activations.',
+            keyIdea: 'Force most neurons to be inactive (sparse), learning selective features',
+            architecture: { structure: 'Standard AE with overcomplete hidden layer', sparsity: 'Penalty encourages most activations to be zero/small', activation: 'Often sigmoid so outputs in (0,1)' },
+            mathematics: { loss: 'L = ||x - x̂||² + λ·Σⱼ KL(ρ || ρ̂ⱼ)', sparsityTarget: 'ρ = 0.05 (want 5% average activation)', klDivergence: 'KL(ρ||ρ̂) = ρlog(ρ/ρ̂) + (1-ρ)log((1-ρ)/(1-ρ̂))' },
+            advantages: ['Interpretable features', 'Prevents trivial solutions', 'Better generalization'],
+            useCase: 'Feature learning, interpretable representations, computer vision'
+          },
+          {
+            id: 'vae', name: 'Variational Autoencoder (VAE)', year: '2013', inventor: 'Kingma & Welling', level: 'Advanced',
+            description: 'Probabilistic autoencoder learning continuous latent space for generation.',
+            keyIdea: 'Learn distribution over latent space, enabling generation of new samples',
+            architecture: { encoder: 'q(z|x) - outputs μ and σ', reparameterization: 'z = μ + σ⊙ε, where ε ~ N(0,1)', decoder: 'p(x|z) - generates x from sampled z', probabilistic: 'Both encoder and decoder output distributions' },
+            mathematics: { objective: 'ELBO = E[log p(x|z)] - KL(q(z|x) || p(z))', reconstruction: 'E[log p(x|z)] ≈ -||x - x̂||²', regularization: 'KL(q(z|x) || p(z)) = -½Σ(1 + log σ² - μ² - σ²)', reparamTrick: 'z = μ + σ⊙ε makes backprop through sampling possible' },
+            advantages: ['Generates new samples', 'Smooth latent space', 'Principled probabilistic framework'],
+            useCase: 'Image generation, latent space exploration, semi-supervised learning'
+          }
+        ],
+        'cnn-classic': [
+          {
+            id: 'lenet', name: 'LeNet-5', year: '1998', inventor: 'Yann LeCun', level: 'Beginner',
+            description: 'Pioneer CNN for handwritten digit recognition, introduced convolutional architecture.',
+            keyIdea: 'Use convolution and pooling to exploit spatial structure of images',
+            architecture: { structure: 'Conv → Pool → Conv → Pool → FC → FC → Output', layers: ['Input: 32×32 grayscale', 'C1: 6 filters 5×5 → 28×28×6', 'S2: Avg Pool 2×2 → 14×14×6', 'C3: 16 filters 5×5 → 10×10×16', 'S4: Avg Pool 2×2 → 5×5×16', 'C5: 120 filters → 1×1×120', 'F6: 84 neurons', 'Output: 10 classes'], parameters: '~60K parameters' },
+            mathematics: { convolution: 'Feature[i,j] = Σₘ Σₙ Input[i+m, j+n] × Kernel[m,n]', pooling: 'Avgpool: out = (1/4)Σ inputs in 2×2 region', example: { input: '32×32 image', conv1: '5×5 filter → (32-5+1) = 28×28', pool1: '2×2 avgpool → 14×14' } },
+            useCase: 'Digit recognition, character recognition (historical baseline)'
+          },
+          {
+            id: 'alexnet', name: 'AlexNet', year: '2012', inventor: 'Krizhevsky, Sutskever, Hinton', level: 'Intermediate',
+            description: 'Deep CNN that won ImageNet 2012, sparked deep learning revolution.',
+            keyIdea: 'Deeper network + ReLU + Dropout + Data augmentation + GPU training',
+            architecture: { structure: '5 Conv layers + 3 FC layers', layers: ['Conv1: 96 filters 11×11 stride 4 → 55×55×96', 'Conv2: 256 filters 5×5 → 27×27×256', 'Conv3: 384 filters 3×3', 'Conv4: 384 filters 3×3', 'Conv5: 256 filters 3×3', 'FC6: 4096, FC7: 4096, FC8: 1000'], parameters: '~60M parameters', innovations: ['ReLU activation', 'Dropout (0.5)', 'Data augmentation', 'GPU parallelization'] },
+            mathematics: { relu: 'f(x) = max(0, x) - faster than tanh/sigmoid', dropout: 'Randomly zero 50% of neurons: yᵢ = xᵢ × Bernoulli(0.5)' },
+            useCase: 'Image classification, transfer learning base (historical)'
+          },
+          {
+            id: 'vgg', name: 'VGG (VGG-16, VGG-19)', year: '2014', inventor: 'Simonyan & Zisserman', level: 'Intermediate',
+            description: 'Very deep network with small 3×3 filters, showing depth matters.',
+            keyIdea: 'Stack many small (3×3) convolutions instead of large filters',
+            architecture: { structure: 'Blocks of Conv3×3 + MaxPool, increasing channels', vgg16: ['Block1: Conv64-Conv64-Pool', 'Block2: Conv128-Conv128-Pool', 'Block3: Conv256×3-Pool', 'Block4: Conv512×3-Pool', 'Block5: Conv512×3-Pool', 'FC: 4096-4096-1000'], principle: 'All conv filters are 3×3', parameters: '~138M (VGG-16)' },
+            mathematics: { receptiveField: 'Two 3×3 convs = 5×5 receptive field, three 3×3 = 7×7', parameterEfficiency: '3×(3×3×C²) = 27C² < 7×7×C² = 49C²', nonlinearity: 'More layers = more ReLUs = more non-linear capacity' },
+            useCase: 'Feature extraction, style transfer, backbone for detection'
+          },
+          {
+            id: 'inception', name: 'Inception / GoogLeNet', year: '2014', inventor: 'Szegedy et al. (Google)', level: 'Advanced',
+            description: 'Multi-scale feature extraction using parallel convolutions of different sizes.',
+            keyIdea: 'Inception module: parallel 1×1, 3×3, 5×5 convs + pooling concatenated',
+            architecture: { inceptionModule: ['Branch 1: 1×1 conv', 'Branch 2: 1×1 → 3×3 conv', 'Branch 3: 1×1 → 5×5 conv', 'Branch 4: 3×3 maxpool → 1×1 conv', 'Concatenate all branches'], network: '9 Inception modules stacked', parameters: '~7M (12× fewer than AlexNet!)' },
+            mathematics: { bottleneck: '1×1 conv reduces channels before expensive 3×3/5×5', computation: 'Without 1×1: 1.6M ops. With 1×1: 0.42M ops' },
+            useCase: 'Image classification, object detection, efficient on-device inference'
+          },
+          {
+            id: 'resnet', name: 'ResNet', year: '2015', inventor: 'He et al. (Microsoft)', level: 'Advanced',
+            description: 'Residual connections enable training very deep networks (50-152 layers).',
+            keyIdea: 'Skip connections: learn residual F(x) instead of direct mapping H(x)',
+            architecture: { residualBlock: 'x → Conv → BN → ReLU → Conv → BN → (+x) → ReLU', variants: ['ResNet-18', 'ResNet-34', 'ResNet-50 (bottleneck)', 'ResNet-101', 'ResNet-152'], bottleneck: '1×1 conv (reduce) → 3×3 conv → 1×1 conv (expand)' },
+            mathematics: { residual: 'H(x) = F(x) + x, where F(x) is learned residual', gradient: '∂Loss/∂x = ∂Loss/∂H × (∂F/∂x + I)', optimization: 'Easier to learn small deviations F(x) from identity than full transformation' },
+            useCase: 'Image classification, segmentation, detection - most popular backbone'
+          }
+        ],
+        'cnn-modern': [
+          {
+            id: 'densenet', name: 'DenseNet', year: '2016', inventor: 'Huang et al.', level: 'Advanced',
+            description: 'Dense connections where each layer connects to ALL previous layers.',
+            keyIdea: 'Maximum information flow: concatenate all previous feature maps',
+            architecture: { denseBlock: 'Each layer receives ALL previous layers as input', concatenation: 'xₗ = Hₗ([x₀, x₁, ..., xₗ₋₁])', transition: 'Conv 1×1 + AvgPool 2×2 between blocks', growthRate: 'k new feature maps per layer (typically k=32)' },
+            mathematics: { features: 'After L layers: k₀ + k×L feature maps', compression: 'Transition: reduce θ×channels', parameters: 'Fewer than ResNet due to narrow layers' },
+            advantages: ['Alleviates vanishing gradient', 'Feature reuse', 'Fewer parameters', 'Implicit deep supervision'],
+            useCase: 'Image classification, segmentation, efficient feature extraction'
+          },
+          {
+            id: 'mobilenet', name: 'MobileNet', year: '2017', inventor: 'Howard et al. (Google)', level: 'Intermediate',
+            description: 'Efficient CNN using depthwise separable convolutions for mobile devices.',
+            keyIdea: 'Separate spatial and channel-wise convolutions to reduce computation',
+            architecture: { depthwiseSeparable: ['Depthwise Conv: single filter per channel', 'Pointwise Conv: 1×1 to combine channels'], reduction: '8-9× fewer operations', widthMultiplier: 'α ∈ (0,1] scales channels' },
+            mathematics: { standardConv: 'Cost = H×W×K²×C_in×C_out', depthwise: 'Cost_DW = H×W×K²×C_in', pointwise: 'Cost_PW = H×W×C_in×C_out', speedup: '~K² speedup' },
+            useCase: 'Mobile apps, embedded systems, real-time inference'
+          },
+          {
+            id: 'efficientnet', name: 'EfficientNet', year: '2019', inventor: 'Tan & Le (Google)', level: 'Advanced',
+            description: 'Systematically scale depth, width, and resolution for optimal efficiency.',
+            keyIdea: 'Compound scaling: balance all three dimensions together',
+            architecture: { baselineB0: 'MBConv blocks', compoundScaling: 'depth: d=α^φ, width: w=β^φ, resolution: r=γ^φ', constraints: 'α·β²·γ²≈2', variants: 'B0 (5.3M) to B7 (66M)' },
+            mathematics: { flops: 'FLOPS ∝ d·w²·r²', example: 'φ=1: depth 1.2×, width 1.1×, resolution 1.15× → 2× FLOPs' },
+            useCase: 'Resource-constrained deployment, transfer learning, SOTA classification'
+          },
+          {
+            id: 'convnext', name: 'ConvNeXt', year: '2022', inventor: 'Liu et al. (Meta)', level: 'Advanced',
+            description: 'Modernized CNN matching Vision Transformers by adopting their design choices.',
+            keyIdea: 'Pure CNN with transformer-inspired: large kernels, GELU, LayerNorm',
+            architecture: { modernizations: ['Large kernel convs (7×7)', 'Inverted bottleneck', 'GELU instead of ReLU', 'LayerNorm instead of BatchNorm', 'Separate downsampling'], structure: 'Stem → 4 stages → Head' },
+            mathematics: { block: 'x → DWConv7×7 → LN → Linear(4×) → GELU → Linear → (+)', gelu: 'GELU(x) = x·Φ(x)' },
+            useCase: 'Image classification, detection, segmentation - modern CNN backbone'
+          },
+          {
+            id: 'shufflenet', name: 'ShuffleNet', year: '2017', inventor: 'Zhang et al. (Megvii)', level: 'Intermediate',
+            description: 'Channel shuffle operation enables efficient group convolutions.',
+            keyIdea: 'Group conv + channel shuffle enables cross-group info flow with low cost',
+            architecture: { groupConv: 'Split channels into groups, convolve independently', channelShuffle: 'Rearrange channels between groups', block: 'Pointwise(group) → Shuffle → Depthwise → Pointwise(group)', computation: '~1M params, 40-140 MFLOPs' },
+            mathematics: { groupConv: 'Cost = C_in×C_out×K²/g', shuffleOperation: 'Reshape (g,n) → Transpose → Reshape' },
+            useCase: 'Extremely resource-constrained devices, edge AI'
+          },
+          {
+            id: 'xception', name: 'Xception', year: '2016', inventor: 'Chollet (Google)', level: 'Advanced',
+            description: 'Extreme Inception: depthwise separable convs with modified order.',
+            keyIdea: 'Completely separate spatial and cross-channel correlations',
+            architecture: { principle: 'Depthwise conv (spatial) → Pointwise (channel)', structure: 'Entry flow → Middle flow (8× repeated) → Exit flow', residualConnections: 'Skip connections like ResNet' },
+            mathematics: { separability: 'Spatial and channel correlations fully decoupled', inceptionExtreme: 'Inception with ∞ branches → separable convolution' },
+            useCase: 'Image classification, transfer learning'
+          },
+          {
+            id: 'highwaynet', name: 'Highway Networks', year: '2015', inventor: 'Srivastava et al.', level: 'Advanced',
+            description: 'Gating mechanism allowing information to pass unchanged through layers.',
+            keyIdea: 'Learnable gates control: transform or carry input unchanged',
+            architecture: { transform: 'T = σ(W_T·x + b_T)', carry: 'C = 1 - T', output: 'y = H(x)·T + x·(1-T)' },
+            mathematics: { gating: 'y = H(x)·T(x) + x·(1-T(x))', gradient: '∂y/∂x includes direct path (1-T)' },
+            useCase: 'Very deep networks, theoretical importance, inspired ResNet'
+          },
+          {
+            id: 'nasnet', name: 'NASNet', year: '2017', inventor: 'Zoph et al. (Google)', level: 'Advanced',
+            description: 'Network architecture discovered automatically by reinforcement learning.',
+            keyIdea: 'Use RL/evolution to search optimal architecture instead of hand-design',
+            architecture: { searchSpace: 'Search for best "cell" building block', normalCell: 'Keeps spatial dimensions same', reductionCell: 'Reduces spatial dimensions 2×', transferable: 'Cell discovered on small dataset → transfer to ImageNet' },
+            mathematics: { searchMethod: 'Controller RNN proposes architectures via RL', reward: 'Validation accuracy after training', computational: 'Thousands of GPU-days to search' },
+            useCase: 'State-of-the-art results, AutoML systems'
+          }
+        ],
+        'cnn-specialized': [
+          {
+            id: 'unet', name: 'U-Net', year: '2015', inventor: 'Ronneberger et al.', level: 'Intermediate',
+            description: 'Encoder-decoder with skip connections for pixel-wise segmentation.',
+            keyIdea: 'Contracting + expanding path + skip connections preserve detail',
+            architecture: { contracting: 'Conv → Conv → MaxPool, repeated', bottleneck: 'Smallest spatial, highest channels', expanding: 'UpConv → Concat(encoder) → Conv → Conv', skipConnections: 'Concatenate encoder → decoder at same resolution', output: 'Same size as input (pixel-wise)' },
+            mathematics: { upsampling: 'Transpose convolution or bilinear + conv', skipConnection: 'Decoder[i] = Concat(Up(Decoder[i+1]), Encoder[i])' },
+            advantages: ['Precise localization', 'Works with small datasets', 'Medical imaging gold standard'],
+            useCase: 'Medical image segmentation, satellite imagery, instance segmentation'
+          },
+          {
+            id: 'fcn', name: 'Fully Convolutional Network (FCN)', year: '2015', inventor: 'Long et al.', level: 'Intermediate',
+            description: 'Replace FC layers with convolutions for dense prediction at any input size.',
+            keyIdea: 'Convert classification network to segmentation by making it fully convolutional',
+            architecture: { base: 'VGG or ResNet backbone', modification: 'Replace FC with 1×1 convolutions', upsampling: 'Transpose convolution to restore resolution', skipConnections: 'Combine coarse + fine predictions' },
+            mathematics: { fcToConv: 'FC(4096) → Conv1×1(4096) - equivalent but spatial', fusion: 'Combine stride-32, stride-16, stride-8 predictions' },
+            useCase: 'Semantic segmentation, dense prediction tasks'
+          },
+          {
+            id: 'deeplab', name: 'DeepLab (v3+)', year: '2018', inventor: 'Chen et al. (Google)', level: 'Advanced',
+            description: 'Atrous convolution and spatial pyramid pooling for multi-scale segmentation.',
+            keyIdea: 'Atrous (dilated) conv increases receptive field without reducing resolution',
+            architecture: { atrousConv: 'Insert zeros in filter to widen receptive field', aspp: 'Parallel atrous convs with rates [1,6,12,18]', encoder: 'Modified ResNet/Xception', decoder: 'Simple decoder for boundary refinement' },
+            mathematics: { atrous: 'y[i] = Σₖ x[i + rate×k]·w[k]', receptiveField: 'Rate r, kernel k: (k-1)×r + 1 receptive field', example: '3×3 with rate=2 → 5×5 receptive field, 9 params' },
+            advantages: ['Larger receptive field without losing resolution', 'Multi-scale context', 'High-quality boundaries'],
+            useCase: 'Semantic segmentation, especially complex scenes'
+          },
+          {
+            id: 'cnn-variants', name: '1D/2D/3D CNN Variants', year: 'Various', inventor: 'Multiple researchers', level: 'Intermediate',
+            description: 'Convolutional architectures adapted to different data dimensionalities.',
+            keyIdea: 'Same principles for 1D (audio), 2D (images), 3D (video, medical)',
+            architecture: { cnn1d: 'Time series, audio - kernel slides temporally', cnn2d: 'Images - kernel slides H×W (most common)', cnn3d: 'Video/3D scans - kernel slides H×W×T' },
+            mathematics: { conv1d: 'y[t] = Σₖ x[t+k]·w[k]', conv2d: 'y[i,j] = ΣₘΣₙ x[i+m,j+n]·w[m,n]', conv3d: 'y[i,j,t] = ΣₘΣₙΣₚ x[i+m,j+n,t+p]·w[m,n,p]' },
+            useCase: '1D: sequences | 2D: images | 3D: volumes/video'
+          }
+        ]
+      };
+
+      const comparisonTable = [
+        { name: 'Perceptron', params: '10-1K', depth: 'Single', speed: '⚡⚡⚡', accuracy: '⭐⭐', useCase: 'Linear classification' },
+        { name: 'MLP', params: '10K-1M', depth: '2-5', speed: '⚡⚡⚡', accuracy: '⭐⭐⭐', useCase: 'Tabular data' },
+        { name: 'LeNet', params: '60K', depth: '7', speed: '⚡⚡⚡', accuracy: '⭐⭐⭐', useCase: 'Digit recognition' },
+        { name: 'AlexNet', params: '60M', depth: '8', speed: '⚡⚡', accuracy: '⭐⭐⭐⭐', useCase: 'ImageNet baseline' },
+        { name: 'VGG-16', params: '138M', depth: '16', speed: '⚡', accuracy: '⭐⭐⭐⭐', useCase: 'Feature extraction' },
+        { name: 'ResNet-50', params: '25M', depth: '50', speed: '⚡⚡', accuracy: '⭐⭐⭐⭐⭐', useCase: 'General backbone' },
+        { name: 'MobileNet', params: '4M', depth: '28', speed: '⚡⚡⚡', accuracy: '⭐⭐⭐⭐', useCase: 'Mobile devices' },
+        { name: 'EfficientNet-B0', params: '5M', depth: 'Variable', speed: '⚡⚡⚡', accuracy: '⭐⭐⭐⭐⭐', useCase: 'Efficient SOTA' },
+        { name: 'U-Net', params: '31M', depth: '23', speed: '⚡⚡', accuracy: '⭐⭐⭐⭐⭐', useCase: 'Segmentation' }
+      ];
+
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4 md:p-8">
+          <div className="max-w-7xl mx-auto">
+            
+            {/* Header */}
+            <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 mb-8 border-t-4 border-blue-600">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
+                <div className="flex items-center gap-4">
+                  <div className="bg-gradient-to-br from-blue-600 to-purple-600 p-4 rounded-xl shadow-lg">
+                    <Brain className="w-12 h-12 text-white" />
+                  </div>
+                  <div>
+                    <h1 className="text-3xl md:text-4xl font-bold text-gray-900">Deep Learning Architectures</h1>
+                    <p className="text-gray-600 mt-1">Comprehensive Guide from Perceptron to Modern CNNs</p>
+                  </div>
+                </div>
+                <div className="bg-gradient-to-r from-blue-100 to-purple-100 px-6 py-3 rounded-lg border-2 border-blue-300">
+                  <p className="text-sm font-semibold text-blue-900">Generated by</p>
+                  <p className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                    Blockchain Data Intelligence Lab
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                {architectureCategories.map((cat) => (
+                  <button
+                    key={cat.id}
+                    onClick={() => setActiveCategory(cat.id)}
+                    className={`p-4 rounded-lg transition-all ${
+                      activeCategory === cat.id
+                        ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <div className="flex items-center justify-center mb-2">{cat.icon}</div>
+                    <div className="text-sm font-semibold">{cat.name}</div>
+                    <div className="text-xs opacity-75 mt-1">{cat.count} architectures</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Comparison Table */}
+            <div className="bg-white rounded-2xl shadow-xl p-6 mb-8">
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Quick Comparison</h2>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b-2 border-gray-300">
+                      <th className="text-left py-2">Architecture</th>
+                      <th className="text-left py-2">Parameters</th>
+                      <th className="text-left py-2">Depth</th>
+                      <th className="text-left py-2">Speed</th>
+                      <th className="text-left py-2">Accuracy</th>
+                      <th className="text-left py-2">Best Use Case</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {comparisonTable.map((row, idx) => (
+                      <tr key={idx} className="border-b border-gray-200 hover:bg-blue-50">
+                        <td className="py-2 font-semibold">{row.name}</td>
+                        <td className="py-2">{row.params}</td>
+                        <td className="py-2">{row.depth}</td>
+                        <td className="py-2">{row.speed}</td>
+                        <td className="py-2">{row.accuracy}</td>
+                        <td className="py-2 text-gray-600">{row.useCase}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Architecture Details */}
+            <div className="space-y-4">
+              {architectures[activeCategory]?.map((arch, idx) => (
+                <div key={arch.id} className="bg-white rounded-2xl shadow-xl overflow-hidden">
+                  <button
+                    onClick={() => setExpandedArch(expandedArch === arch.id ? null : arch.id)}
+                    className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex items-center gap-4 text-left">
+                      <div className={`w-12 h-12 rounded-lg flex items-center justify-center font-bold text-white ${
+                        arch.level === 'Beginner' ? 'bg-green-600' :
+                        arch.level === 'Intermediate' ? 'bg-blue-600' : 'bg-purple-600'
+                      }`}>
+                        {idx + 1}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-3 mb-1 flex-wrap">
+                          <h3 className="text-xl font-bold text-gray-900">{arch.name}</h3>
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                            arch.level === 'Beginner' ? 'bg-green-100 text-green-800' :
+                            arch.level === 'Intermediate' ? 'bg-blue-100 text-blue-800' :
+                            'bg-purple-100 text-purple-800'
+                          }`}>{arch.level}</span>
+                          <span className="text-sm text-gray-500">{arch.year} • {arch.inventor}</span>
+                        </div>
+                        <p className="text-gray-600 text-sm">{arch.description}</p>
+                      </div>
+                    </div>
+                    {expandedArch === arch.id ? <ChevronUp className="w-6 h-6 text-gray-400 flex-shrink-0" /> : <ChevronDown className="w-6 h-6 text-gray-400 flex-shrink-0" />}
+                  </button>
+
+                  {expandedArch === arch.id && (
+                    <div className="p-6 bg-gradient-to-r from-blue-50 to-purple-50 border-t-2 border-blue-200">
+                      <div className="space-y-6">
+                        
+                        {/* Key Idea */}
+                        <div className="bg-amber-50 p-5 rounded-xl border-l-4 border-amber-500">
+                          <h4 className="font-bold text-amber-900 mb-2 flex items-center gap-2">
+                            <Zap className="w-5 h-5" /> Key Idea
+                          </h4>
+                          <p className="text-gray-700">{arch.keyIdea}</p>
+                        </div>
+
+                        {/* Architecture */}
+                        <div className="bg-blue-50 p-5 rounded-xl border-2 border-blue-200">
+                          <h4 className="font-bold text-blue-900 mb-3 text-lg">Architecture</h4>
+                          <div className="bg-white p-4 rounded-lg space-y-2 text-sm">
+                            {typeof arch.architecture === 'object' && Object.entries(arch.architecture).map(([key, value]) => (
+                              <div key={key}>
+                                <span className="font-semibold text-gray-900">{key}:</span>{' '}
+                                {Array.isArray(value) ? (
+                                  <ul className="ml-4 mt-1 space-y-1">
+                                    {value.map((item, i) => <li key={i} className="text-gray-700">• {item}</li>)}
+                                  </ul>
+                                ) : typeof value === 'object' ? (
+                                  <div className="ml-4 mt-1 space-y-1">
+                                    {Object.entries(value).map(([k, v]) => (
+                                      <div key={k} className="text-gray-700"><span className="font-medium">{k}:</span> {v}</div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <span className="text-gray-700">{value}</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Mathematics */}
+                        {arch.mathematics && (
+                          <div className="bg-purple-50 p-5 rounded-xl border-2 border-purple-200">
+                            <h4 className="font-bold text-purple-900 mb-3 text-lg">Mathematics</h4>
+                            <div className="space-y-3">
+                              {Object.entries(arch.mathematics).map(([key, value]) => (
+                                <div key={key} className="bg-white p-4 rounded-lg">
+                                  <p className="font-semibold text-gray-900 mb-2 capitalize">{key.replace(/([A-Z])/g, ' $1')}</p>
+                                  {typeof value === 'object' && !Array.isArray(value) ? (
+                                    <div className="space-y-2 text-sm">
+                                      {Object.entries(value).map(([k, v]) => (
+                                        <p key={k} className="text-gray-700"><span className="font-semibold">{k}:</span> {String(v)}</p>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <p className="font-mono text-sm bg-purple-50 p-2 rounded">{String(value)}</p>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Visual Direction */}
+                        {arch.visualDirection && (
+                          <div className="bg-green-50 p-5 rounded-xl border-2 border-green-200">
+                            <h4 className="font-bold text-green-900 mb-3 text-lg flex items-center gap-2">
+                              <Eye className="w-5 h-5" /> Visual Guide
+                            </h4>
+                            <div className="space-y-3">
+                              {Object.entries(arch.visualDirection).map(([key, value]) => (
+                                <div key={key} className="bg-white p-4 rounded-lg">
+                                  <p className="font-semibold text-gray-900 mb-2 capitalize">{key.replace(/([A-Z])/g, ' $1')}</p>
+                                  {Array.isArray(value) ? (
+                                    <ul className="space-y-1">{value.map((item, i) => <li key={i} className="text-sm text-gray-700">• {item}</li>)}</ul>
+                                  ) : (
+                                    <p className="text-sm text-gray-700 italic">{value}</p>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Advantages/Limitations */}
+                        {(arch.advantages || arch.limitations) && (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {arch.advantages && (
+                              <div className="bg-green-50 p-4 rounded-xl border border-green-300">
+                                <h4 className="font-bold text-green-900 mb-2">✓ Advantages</h4>
+                                <ul className="space-y-1 text-sm">{arch.advantages.map((a, i) => <li key={i} className="text-gray-700">• {a}</li>)}</ul>
+                              </div>
+                            )}
+                            {arch.limitations && (
+                              <div className="bg-red-50 p-4 rounded-xl border border-red-300">
+                                <h4 className="font-bold text-red-900 mb-2">✗ Limitations</h4>
+                                <ul className="space-y-1 text-sm">{arch.limitations.map((l, i) => <li key={i} className="text-gray-700">• {l}</li>)}</ul>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Use Case */}
+                        <div className="bg-indigo-50 p-4 rounded-xl border-l-4 border-indigo-500">
+                          <h4 className="font-bold text-indigo-900 mb-2">Use Case</h4>
+                          <p className="text-gray-700">{arch.useCase}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Footer */}
+            <div className="mt-8 bg-white rounded-xl shadow-lg p-6 border-t-4 border-blue-600">
+              <div className="text-center">
+                <p className="text-gray-600 mb-3">
+                  <strong>Comprehensive Resource:</strong> Complete guide to deep learning architectures from foundational to state-of-the-art
+                </p>
+                <div className="pt-4 border-t border-gray-200">
+                  <p className="text-sm text-gray-500 mb-2">Generated by</p>
+                  <p className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                    Blockchain Data Intelligence Lab
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<DeepLearningArchitectures />);
+  </script>
+</body>
+</html>

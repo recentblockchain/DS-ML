@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generative AI Audio Systems</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState } = React;
+
+    // Lucide React Icons (inline implementations)
+    const Music = ({ className }) => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+      </svg>
+    );
+
+    const Waves = ({ className }) => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    );
+
+    const Cpu = ({ className }) => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <rect x="4" y="4" width="16" height="16" rx="2" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+        <rect x="9" y="9" width="6" height="6" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+        <line x1="9" y1="1" x2="9" y2="4" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+        <line x1="15" y1="1" x2="15" y2="4" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+        <line x1="9" y1="20" x2="9" y2="23" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+        <line x1="15" y1="20" x2="15" y2="23" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+        <line x1="20" y1="9" x2="23" y2="9" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+        <line x1="20" y1="14" x2="23" y2="14" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+        <line x1="1" y1="9" x2="4" y2="9" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+        <line x1="1" y1="14" x2="4" y2="14" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+      </svg>
+    );
+
+    const Code = ({ className }) => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <polyline points="16 18 22 12 16 6" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+        <polyline points="8 6 2 12 8 18" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+      </svg>
+    );
+
+    const Zap = ({ className }) => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+      </svg>
+    );
+
+    const Settings = ({ className }) => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="3" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 1v6m0 6v6m5.196-14.196l-4.242 4.242M7.757 16.243l-4.242 4.242M23 12h-6m-6 0H1m14.196 5.196l-4.242-4.242M7.757 7.757l-4.242-4.242" />
+      </svg>
+    );
+
+    function GenerativeAIAudio() {
+      const [activeTab, setActiveTab] = useState('overview');
+      const [selectedModel, setSelectedModel] = useState('suno');
+      const [expandedSection, setExpandedSection] = useState(null);
+
+      const models = {
+        suno: {
+          name: 'Suno AI',
+          type: 'Text-to-Music Generation',
+          year: '2023-2024',
+          description: 'State-of-the-art text-to-music model with vocal synthesis',
+          architecture: 'Latent Diffusion Model + Neural Vocoder',
+          parameters: '1-10B estimated',
+          trainingData: 'Licensed music corpus',
+          keyFeatures: [
+            'Full song generation (30-240 seconds)',
+            'High-quality vocal synthesis with lyrics',
+            'Multi-genre capability',
+            'Consistent song structure (verse, chorus)'
+          ],
+          technicalDetails: [
+            'Text Encoder: Processes prompts using transformer architecture',
+            'Latent Diffusion: Operates in compressed audio space for efficiency',
+            'Denoising U-Net: Iteratively refines audio from noise',
+            'Neural Vocoder: Converts mel-spectrograms to waveform',
+            'Temporal Attention: Maintains coherence across long sequences'
+          ]
+        },
+        aiva: {
+          name: 'AIVA',
+          type: 'AI Music Composer',
+          year: '2016-Present',
+          description: 'Deep learning system for orchestral composition',
+          architecture: 'LSTM + Reinforcement Learning + Rule Engine',
+          parameters: '~500M',
+          trainingData: '30,000+ classical scores',
+          keyFeatures: [
+            'Orchestral arrangement generation',
+            'Emotional content control',
+            'Music theory compliance',
+            'MIDI and audio output'
+          ],
+          technicalDetails: [
+            'LSTM Networks: Sequence modeling for melody generation',
+            'Attention Mechanisms: Learn harmonic relationships',
+            'Rule Engine: Enforces music theory (harmony, counterpoint)',
+            'Multi-track Generation: Separate instrument voices',
+            'RL Fine-tuning: Optimizes for user preferences'
+          ]
+        },
+        musicgen: {
+          name: 'MusicGen (Meta)',
+          type: 'Controllable Music Generation',
+          year: '2023',
+          description: 'Single-stage transformer for text and melody conditioned music',
+          architecture: 'Transformer + EnCodec Compression',
+          parameters: '300M - 3.3B variants',
+          trainingData: '20,000 hours licensed music',
+          keyFeatures: [
+            'Text-to-music generation',
+            'Melody conditioning',
+            'Style transfer',
+            'Open source and reproducible'
+          ],
+          technicalDetails: [
+            'EnCodec: Neural audio codec with 50x compression',
+            'Transformer Decoder: Autoregressive token prediction',
+            'Multi-stream Modeling: Parallel codebook prediction',
+            'T5 Text Encoder: Semantic understanding of prompts',
+            'Delayed Pattern: Efficient parallel generation'
+          ]
+        },
+        audioldm: {
+          name: 'AudioLDM',
+          type: 'Text-to-Audio Generation',
+          year: '2023',
+          description: 'Latent diffusion for general audio and music',
+          architecture: 'Contrastive Audio-Text Pretraining + Diffusion',
+          parameters: '~1B',
+          trainingData: 'AudioCaps + Music datasets',
+          keyFeatures: [
+            'General audio synthesis',
+            'Music generation',
+            'Sound effect creation',
+            'Text-based control'
+          ],
+          technicalDetails: [
+            'CLAP Encoding: Contrastive language-audio pretraining',
+            'VAE Compression: Reduces audio to latent space',
+            'U-Net Diffusion: Denoising in latent space',
+            'Cross-attention: Conditions on text embeddings',
+            'Flexible Duration: Variable length outputs'
+          ]
+        }
+      };
+
+      const architectures = [
+        {
+          name: 'Diffusion Models',
+          description: 'Iterative denoising process for high-quality generation',
+          formula: 'q(x_t|x_{t-1}) = N(x_t; √(1-β_t)x_{t-1}, β_t I)',
+          explanation: 'Forward process adds Gaussian noise over T timesteps. Reverse process learns to denoise.',
+          components: [
+            'Forward Diffusion: Gradually corrupts data with noise',
+            'Reverse Process: Neural network learns denoising',
+            'Loss Function: Predict noise at random timestep',
+            'Sampling: Iterative denoising from pure noise'
+          ],
+          pros: 'High quality, stable training, diverse outputs',
+          cons: 'Slow sampling (50-1000 steps), computationally expensive'
+        },
+        {
+          name: 'Transformers',
+          description: 'Self-attention for modeling long-range dependencies',
+          formula: 'Attention(Q,K,V) = softmax(QK^T/√d_k)V',
+          explanation: 'Computes relationships between all sequence positions in parallel.',
+          components: [
+            'Self-Attention: Relates positions in sequence',
+            'Multi-Head Attention: Multiple attention patterns',
+            'Positional Encoding: Injects sequence order',
+            'Autoregressive: Predicts next token given previous'
+          ],
+          pros: 'Parallel training, long context, flexible',
+          cons: 'Quadratic complexity O(n²), slow autoregressive sampling'
+        },
+        {
+          name: 'Variational Autoencoders (VAE)',
+          description: 'Learn compressed latent representations',
+          formula: 'ELBO = E[log p(x|z)] - KL(q(z|x)||p(z))',
+          explanation: 'Encoder maps to latent distribution, decoder reconstructs, KL term regularizes.',
+          components: [
+            'Encoder: Maps input to latent parameters μ, σ',
+            'Reparameterization: z = μ + σε, ε~N(0,I)',
+            'Decoder: Reconstructs from latent code',
+            'Loss: Reconstruction + KL divergence'
+          ],
+          pros: 'Fast sampling, compression, smooth latent space',
+          cons: 'Blurry outputs, posterior collapse issues'
+        },
+        {
+          name: 'GANs',
+          description: 'Adversarial training between generator and discriminator',
+          formula: 'min_G max_D E[log D(x)] + E[log(1-D(G(z)))]',
+          explanation: 'Generator creates samples, discriminator judges realism, both improve.',
+          components: [
+            'Generator: Maps noise to synthetic samples',
+            'Discriminator: Classifies real vs fake',
+            'Minimax Game: Adversarial training',
+            'Perceptual Loss: Feature matching for quality'
+          ],
+          pros: 'Sharp outputs, fast sampling, high quality',
+          cons: 'Training instability, mode collapse, hard to evaluate'
+        }
+      ];
+
+      const representations = [
+        {
+          name: 'Raw Waveform',
+          rate: '16-48 kHz',
+          dim: '16k-48k samples/sec',
+          description: 'Direct audio signal in time domain',
+          pros: 'Lossless, complete information',
+          cons: 'High dimensional, computationally expensive',
+          models: 'WaveNet, WaveGAN'
+        },
+        {
+          name: 'Mel-Spectrogram',
+          rate: 'Derived',
+          dim: '80-128 mel bands',
+          description: 'Time-frequency representation on perceptual scale',
+          pros: 'Compact, perceptually relevant',
+          cons: 'Lossy, phase information discarded',
+          models: 'Most TTS and music models'
+        },
+        {
+          name: 'Neural Codec',
+          rate: '6-24 kbps',
+          dim: '50-75 Hz frames',
+          description: 'Learned discrete tokens via VQ-VAE',
+          pros: 'High compression, discrete for transformers',
+          cons: 'Requires codec training',
+          models: 'EnCodec, SoundStream, MusicGen'
+        },
+        {
+          name: 'Latent Codes',
+          rate: 'Learned',
+          dim: '64-512 dims',
+          description: 'Continuous embeddings from VAE/diffusion',
+          pros: 'Extreme compression, smooth interpolation',
+          cons: 'Lossy, needs decoder',
+          models: 'Latent diffusion models'
+        }
+      ];
+
+      const trainingTechniques = [
+        {
+          name: 'Adversarial Training',
+          description: 'Use discriminator to improve perceptual quality',
+          implementation: 'Multi-scale discriminators, feature matching, spectral norm',
+          benefit: 'Sharper outputs, better for vocals'
+        },
+        {
+          name: 'Perceptual Loss',
+          description: 'Match features from pre-trained networks',
+          implementation: 'STFT loss, mel-spectrogram L1, deep feature matching',
+          benefit: 'Better quality than MSE alone'
+        },
+        {
+          name: 'Curriculum Learning',
+          description: 'Start with easy tasks, increase difficulty',
+          implementation: 'Short to long sequences, simple to complex timbres',
+          benefit: 'Faster convergence, better final performance'
+        },
+        {
+          name: 'Data Augmentation',
+          description: 'Increase diversity via transformations',
+          implementation: 'Pitch shift, time stretch, mixup, SpecAugment',
+          benefit: 'Better generalization, reduced overfitting'
+        }
+      ];
+
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-6">
+          <div className="max-w-6xl mx-auto">
+            <div className="bg-white rounded-2xl shadow-2xl p-8 mb-6">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-4 rounded-xl">
+                  <Waves className="w-12 h-12 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-4xl font-bold text-gray-900">Generative AI Audio Systems</h1>
+                  <p className="text-gray-600 mt-2">Technical Deep Dive into Modern Audio Generation</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-4 gap-4">
+                <div className="bg-indigo-50 p-4 rounded-lg text-center">
+                  <Music className="w-8 h-8 text-indigo-600 mx-auto mb-2" />
+                  <div className="text-2xl font-bold text-indigo-900">4</div>
+                  <div className="text-sm text-gray-600">Models</div>
+                </div>
+                <div className="bg-purple-50 p-4 rounded-lg text-center">
+                  <Cpu className="w-8 h-8 text-purple-600 mx-auto mb-2" />
+                  <div className="text-2xl font-bold text-purple-900">4</div>
+                  <div className="text-sm text-gray-600">Architectures</div>
+                </div>
+                <div className="bg-pink-50 p-4 rounded-lg text-center">
+                  <Code className="w-8 h-8 text-pink-600 mx-auto mb-2" />
+                  <div className="text-2xl font-bold text-pink-900">4</div>
+                  <div className="text-sm text-gray-600">Representations</div>
+                </div>
+                <div className="bg-blue-50 p-4 rounded-lg text-center">
+                  <Settings className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                  <div className="text-2xl font-bold text-blue-900">4</div>
+                  <div className="text-sm text-gray-600">Techniques</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-lg p-2 mb-6 flex gap-2">
+              {['overview', 'models', 'architectures', 'representations', 'training'].map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all ${
+                    activeTab === tab
+                      ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </button>
+              ))}
+            </div>
+
+            {activeTab === 'overview' && (
+              <div className="bg-white rounded-2xl shadow-xl p-8">
+                <h2 className="text-3xl font-bold text-gray-900 mb-6">Overview</h2>
+                
+                <div className="bg-gradient-to-r from-indigo-100 to-purple-100 p-6 rounded-xl mb-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-3">What is Generative AI Audio?</h3>
+                  <p className="text-gray-700 leading-relaxed">
+                    Generative AI audio systems use deep learning to synthesize music, speech, and sound effects from high-level descriptions. 
+                    Modern approaches leverage diffusion models, transformers, and neural codecs to generate high-fidelity audio that matches or 
+                    exceeds human-created content in quality and creativity.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-6 mb-6">
+                  <div className="border-2 border-indigo-200 p-6 rounded-xl">
+                    <h4 className="text-lg font-bold text-indigo-900 mb-3">Core Technologies</h4>
+                    <ul className="space-y-2 text-gray-700">
+                      <li className="flex items-start gap-2">
+                        <Zap className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
+                        <span><strong>Diffusion Models:</strong> Iterative denoising for high-quality generation</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <Zap className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
+                        <span><strong>Transformers:</strong> Attention mechanisms for sequence modeling</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <Zap className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
+                        <span><strong>Neural Codecs:</strong> Efficient audio compression for ML</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <Zap className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
+                        <span><strong>VAEs:</strong> Latent space learning and compression</span>
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div className="border-2 border-purple-200 p-6 rounded-xl">
+                    <h4 className="text-lg font-bold text-purple-900 mb-3">Applications</h4>
+                    <ul className="space-y-2 text-gray-700">
+                      <li className="flex items-start gap-2">
+                        <Music className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
+                        <span><strong>Music Production:</strong> Complete song generation with vocals</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <Music className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
+                        <span><strong>Film Scoring:</strong> Emotional background music</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <Music className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
+                        <span><strong>Game Audio:</strong> Adaptive soundtracks</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <Music className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
+                        <span><strong>Sound Design:</strong> Custom effects creation</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 p-6 rounded-xl">
+                  <h4 className="text-lg font-bold text-gray-900 mb-4">Technical Challenges</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="font-semibold text-gray-800 mb-2">Temporal Coherence</p>
+                      <p className="text-sm text-gray-600">Maintaining musical structure over minutes while preserving details</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-800 mb-2">Computational Cost</p>
+                      <p className="text-sm text-gray-600">High-resolution audio requires significant compute resources</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-800 mb-2">Controllability</p>
+                      <p className="text-sm text-gray-600">Fine-grained control over genre, mood, and instrumentation</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-800 mb-2">Evaluation</p>
+                      <p className="text-sm text-gray-600">Subjective quality is difficult to quantify objectively</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'models' && (
+              <div className="space-y-6">
+                <div className="bg-white rounded-xl shadow-lg p-6">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-4">Select a Model</h2>
+                  <div className="grid grid-cols-2 gap-3">
+                    {Object.keys(models).map((key) => (
+                      <button
+                        key={key}
+                        onClick={() => setSelectedModel(key)}
+                        className={`p-4 rounded-lg border-2 transition-all text-left ${
+                          selectedModel === key
+                            ? 'border-indigo-500 bg-indigo-50'
+                            : 'border-gray-200 hover:border-indigo-300'
+                        }`}
+                      >
+                        <h3 className="font-bold text-gray-900">{models[key].name}</h3>
+                        <p className="text-sm text-gray-600 mt-1">{models[key].type}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl shadow-xl p-8">
+                  <div className="mb-6">
+                    <h2 className="text-3xl font-bold text-gray-900">{models[selectedModel].name}</h2>
+                    <p className="text-gray-600 mt-2">{models[selectedModel].description}</p>
+                    <div className="flex gap-2 mt-3">
+                      <span className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-semibold">
+                        {models[selectedModel].year}
+                      </span>
+                      <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-semibold">
+                        {models[selectedModel].type}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 p-6 rounded-xl mb-6">
+                    <h3 className="font-bold text-gray-900 mb-4">Specifications</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <div className="text-sm text-gray-500 mb-1">Architecture</div>
+                        <div className="font-semibold text-gray-800">{models[selectedModel].architecture}</div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-gray-500 mb-1">Parameters</div>
+                        <div className="font-semibold text-gray-800">{models[selectedModel].parameters}</div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-gray-500 mb-1">Training Data</div>
+                        <div className="font-semibold text-gray-800">{models[selectedModel].trainingData}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="bg-indigo-50 p-5 rounded-xl border border-indigo-200">
+                      <h4 className="font-bold text-indigo-900 mb-3">Key Features</h4>
+                      <ul className="space-y-2">
+                        {models[selectedModel].keyFeatures.map((feature, idx) => (
+                          <li key={idx} className="text-gray-700 text-sm flex items-start gap-2">
+                            <span className="text-indigo-600">•</span>
+                            <span>{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className="bg-purple-50 p-5 rounded-xl border border-purple-200">
+                      <h4 className="font-bold text-purple-900 mb-3">Technical Implementation</h4>
+                      <ul className="space-y-2">
+                        {models[selectedModel].technicalDetails.slice(0, 4).map((detail, idx) => (
+                          <li key={idx} className="text-gray-700 text-sm flex items-start gap-2">
+                            <span className="text-purple-600">→</span>
+                            <span>{detail}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'architectures' && (
+              <div className="space-y-6">
+                {architectures.map((arch, idx) => (
+                  <div key={idx} className="bg-white rounded-2xl shadow-xl overflow-hidden">
+                    <button
+                      onClick={() => setExpandedSection(expandedSection === idx ? null : idx)}
+                      className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-all"
+                    >
+                      <div className="text-left flex-1">
+                        <h3 className="text-2xl font-bold text-gray-900">{arch.name}</h3>
+                        <p className="text-gray-600 mt-1">{arch.description}</p>
+                      </div>
+                      <div className="text-3xl text-gray-400 ml-4">
+                        {expandedSection === idx ? '−' : '+'}
+                      </div>
+                    </button>
+
+                    {expandedSection === idx && (
+                      <div className="p-6 bg-gradient-to-r from-indigo-50 to-purple-50 border-t-2 border-indigo-200">
+                        <div className="bg-white p-4 rounded-lg mb-4 font-mono text-sm overflow-x-auto">
+                          {arch.formula}
+                        </div>
+                        <p className="text-gray-700 mb-4">{arch.explanation}</p>
+
+                        <h4 className="font-bold text-gray-900 mb-3">Components</h4>
+                        <div className="grid grid-cols-2 gap-3 mb-4">
+                          {arch.components.map((comp, i) => (
+                            <div key={i} className="bg-white p-3 rounded-lg text-sm text-gray-700">
+                              {comp}
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                            <div className="font-semibold text-green-900 mb-2">Advantages</div>
+                            <div className="text-sm text-gray-700">{arch.pros}</div>
+                          </div>
+                          <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                            <div className="font-semibold text-orange-900 mb-2">Challenges</div>
+                            <div className="text-sm text-gray-700">{arch.cons}</div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {activeTab === 'representations' && (
+              <div className="bg-white rounded-2xl shadow-xl p-8">
+                <h2 className="text-3xl font-bold text-gray-900 mb-6">Audio Representations</h2>
+                <p className="text-gray-600 mb-6">Different formats for encoding audio in machine learning models</p>
+
+                <div className="space-y-4">
+                  {representations.map((rep, idx) => (
+                    <div key={idx} className="border-2 border-gray-200 rounded-xl p-6 hover:border-indigo-300 transition-all">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1">
+                          <h3 className="text-xl font-bold text-gray-900">{rep.name}</h3>
+                          <p className="text-gray-600 text-sm mt-1">{rep.description}</p>
+                        </div>
+                        <div className="text-right ml-4">
+                          <div className="text-sm font-semibold text-indigo-600">{rep.rate}</div>
+                          <div className="text-xs text-gray-500">{rep.dim}</div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="bg-green-50 p-3 rounded-lg">
+                          <div className="text-xs font-semibold text-green-700 mb-1">Advantages</div>
+                          <div className="text-sm text-gray-700">{rep.pros}</div>
+                        </div>
+                        <div className="bg-orange-50 p-3 rounded-lg">
+                          <div className="text-xs font-semibold text-orange-700 mb-1">Limitations</div>
+                          <div className="text-sm text-gray-700">{rep.cons}</div>
+                        </div>
+                        <div className="bg-indigo-50 p-3 rounded-lg">
+                          <div className="text-xs font-semibold text-indigo-700 mb-1">Used In</div>
+                          <div className="text-sm text-gray-700">{rep.models}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'training' && (
+              <div className="bg-white rounded-2xl shadow-xl p-8">
+                <h2 className="text-3xl font-bold text-gray-900 mb-6">Training Techniques</h2>
+                <p className="text-gray-600 mb-6">Advanced methods for training generative audio models</p>
+
+                <div className="grid grid-cols-2 gap-6">
+                  {trainingTechniques.map((tech, idx) => (
+                    <div key={idx} className="bg-gradient-to-br from-gray-50 to-indigo-50 p-6 rounded-xl border-2 border-gray-200">
+                      <h3 className="text-xl font-bold text-gray-900 mb-3">{tech.name}</h3>
+                      <p className="text-gray-700 mb-4">{tech.description}</p>
+                      
+                      <div className="space-y-3">
+                        <div className="bg-white p-3 rounded-lg">
+                          <div className="text-sm font-semibold text-indigo-700 mb-1">Implementation</div>
+                          <div className="text-gray-600 text-sm">{tech.implementation}</div>
+                        </div>
+                        <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                          <div className="text-sm font-semibold text-green-700 mb-1">Benefit</div>
+                          <div className="text-gray-700 text-sm">{tech.benefit}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-8 bg-gradient-to-r from-yellow-50 to-orange-50 p-6 rounded-xl border-2 border-yellow-300">
+                  <h4 className="font-bold text-gray-900 mb-4">Optimization Strategies</h4>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <p className="font-semibold text-gray-800 mb-2">Mixed Precision</p>
+                      <p className="text-gray-600">FP16 for speed, FP32 for stability. 2-3x faster training.</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-800 mb-2">Gradient Accumulation</p>
+                      <p className="text-gray-600">Larger effective batch sizes on limited memory.</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-800 mb-2">Distributed Training</p>
+                      <p className="text-gray-600">Data/model parallelism across multiple GPUs.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-6 bg-white rounded-xl shadow-lg p-6 text-center">
+              <p className="text-gray-700 font-semibold">Technical Reference for Generative AI Audio Systems</p>
+              <p className="text-gray-500 text-sm mt-2">Architectural patterns and implementation details</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<GenerativeAIAudio />);
+  </script>
+</body>
+</html>

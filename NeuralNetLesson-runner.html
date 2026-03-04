@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural Net Lesson Runner</title>
+    <!-- React and ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <!-- Babel for JSX transpilation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #222;
+            color: #fff;
+            font-family: 'Arial', sans-serif;
+        }
+        #root {
+            min-height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+        <script type="text/babel">
+    // ...existing code from NeuralNetLesson.jsx...
+    // Use React hooks from global React object
+    const useState = React.useState;
+    const useEffect = React.useEffect;
+    const useRef = React.useRef;
+    const useCallback = React.useCallback;
+
+    const T = {
+      bg:      "#030b15",
+      grid:    "#081c30",
+      surface: "#071424",
+      card:    "#0a1e35",
+      cardHov: "#0e2843",
+      border:  "#163556",
+      cyan:    "#00d4f0",
+      cyanDim: "#0099b3",
+      cyanFaint:"#00d4f022",
+      green:   "#2ecc71",
+      greenDim:"#1a7a44",
+      orange:  "#ff7b35",
+      yellow:  "#ffd60a",
+      purple:  "#b87aff",
+      red:     "#ff4444",
+      text:    "#c8e6ff",
+      textSoft:"#6a9fc0",
+      textDim: "#304a60",
+      mono:    "'Courier New', monospace",
+      serif:   "'Georgia', serif",
+      inputC:  "#00d4f0",
+      hiddenC: "#ffd60a",
+      outputC: "#2ecc71",
+      lossC:   "#ff7b35",
+      gradC:   "#ff4444",
+    };
+    // ...existing code...
+    // (Insert all code from NeuralNetLesson.jsx here, up to and including the export default function NeuralNetLesson)
+    // At the end, render the component:
+    ReactDOM.createRoot(document.getElementById('root')).render(<NeuralNetLesson />);
+        </script>
+</body>
+</html>

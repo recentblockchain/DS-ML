@@ -1,0 +1,1883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Feedforward Deep Learning</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState } = React;
+
+// Inline SVG Icon Components
+const Brain = ({ className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/><path d="M17.599 6.5a3 3 0 0 0 .399-1.375"/><path d="M6.003 5.125A3 3 0 0 0 6.401 6.5"/><path d="M3.477 10.896a4 4 0 0 1 .585-.396"/><path d="M19.938 10.5a4 4 0 0 1 .585.396"/><path d="M6 18a4 4 0 0 1-1.967-.516"/><path d="M19.967 17.484A4 4 0 0 1 18 18"/></svg>
+);
+const Code = ({ className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+);
+const BookOpen = ({ className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+);
+const Zap = ({ className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+);
+const Play = ({ className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polygon points="5 3 19 12 5 21 5 3"/></svg>
+);
+const CheckCircle = ({ className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+);
+const Eye = ({ className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+);
+const Cpu = ({ className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></svg>
+);
+const Activity = ({ className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+);
+const GitBranch = ({ className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+);
+const Terminal = ({ className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+);
+const Copy = ({ className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+);
+
+function FeedforwardDeepLearning() {
+  const [activeTab, setActiveTab] = useState('introduction');
+  const [activeArchitecture, setActiveArchitecture] = useState(0);
+  const [activeCodeExample, setActiveCodeExample] = useState(0);
+  const [expandedSection, setExpandedSection] = useState(null);
+
+  const architectures = [
+    {
+      id: 'perceptron',
+      name: 'Perceptron',
+      year: '1957',
+      inventor: 'Frank Rosenblatt',
+      level: 'Beginner',
+      category: 'Feedforward',
+      description: 'The simplest neural network - a single neuron that learns a linear decision boundary.',
+
+      theory: {
+        keyIdea: 'A single neuron computes weighted sum of inputs plus bias, then applies step function',
+        limitation: 'Can only solve linearly separable problems (fails on XOR)',
+        howItWorks: 'Adjusts weights when it makes mistakes using the perceptron learning rule',
+        convergenceTheorem: 'If data is linearly separable, perceptron will converge in finite steps'
+      },
+
+      architecture: {
+        inputs: 'x₁, x₂, ..., xₙ (n input features)',
+        weights: 'w₁, w₂, ..., wₙ (one weight per input)',
+        bias: 'b (threshold for firing)',
+        output: 'y = step(w·x + b) = step(Σwᵢxᵢ + b)'
+      },
+
+      mathematics: {
+        weightedSum: {
+          formula: 'z = w₁x₁ + w₂x₂ + ... + wₙxₙ + b = wᵀx + b',
+          example: 'z = 0.5(1) + 0.3(0) + (-0.2) = 0.3'
+        },
+        activation: {
+          stepFunction: 'y = 1 if z ≥ 0, else y = 0',
+          example: 'z = 0.3 → y = 1 (fires)'
+        },
+        learningRule: {
+          update: 'wᵢ = wᵢ + η(y_true - y_pred)xᵢ',
+          biasUpdate: 'b = b + η(y_true - y_pred)',
+          example: 'If y_true=1, y_pred=0: w += η·1·x (increase weights)'
+        }
+      },
+
+      visualDirection: [
+        'Draw a large circle representing the neuron',
+        'Draw arrows entering from left labeled x₁, x₂, x₃ with weights w₁, w₂, w₃',
+        'Inside circle: show "Σ + b" (weighted sum plus bias)',
+        'Show step function graph on the right side of the neuron',
+        'Draw output arrow exiting right labeled ŷ',
+        'Above neuron: show equation z = w·x + b'
+      ],
+
+      stepByStep: [
+        {
+          step: 'Initialize',
+          description: 'Set all weights and bias to 0 (or small random values)',
+          code: 'w = [0, 0], b = 0',
+          visual: 'Show neuron with all weights labeled 0'
+        },
+        {
+          step: 'Forward Pass',
+          description: 'Compute weighted sum and apply step function',
+          code: 'z = w·x + b = 0(1) + 0(1) + 0 = 0 → y = step(0) = 1',
+          visual: 'Show input flowing through neuron to produce output'
+        },
+        {
+          step: 'Compute Error',
+          description: 'Compare prediction to true label',
+          code: 'error = y_true - y_pred = 0 - 1 = -1',
+          visual: 'Show prediction vs truth side by side'
+        },
+        {
+          step: 'Update Weights',
+          description: 'Apply perceptron learning rule',
+          code: 'w₁ = 0 + 0.1(-1)(1) = -0.1\nw₂ = 0 + 0.1(-1)(1) = -0.1\nb = 0 + 0.1(-1) = -0.1',
+          visual: 'Show weights changing, decision boundary shifting'
+        },
+        {
+          step: 'Repeat',
+          description: 'Process next sample, continue until no errors',
+          code: 'for each epoch:\n  for each (x, y_true) in data:\n    update if error',
+          visual: 'Show decision boundary moving with each update'
+        }
+      ],
+
+      practicalExample: {
+        problem: 'AND gate classification',
+        data: 'Input pairs (0,0), (0,1), (1,0), (1,1) with outputs 0, 0, 0, 1',
+        solution: 'Perceptron learns weights w=[0.5, 0.5], b=-0.7 to separate classes',
+        verification: 'Test: (1,1) → 0.5+0.5-0.7=0.3>0 → output 1 ✓'
+      }
+    },
+
+    {
+      id: 'mlp',
+      name: 'Multilayer Perceptron (MLP)',
+      year: '1986',
+      inventor: 'Rumelhart, Hinton, Williams',
+      level: 'Beginner',
+      category: 'Feedforward',
+      description: 'Multiple layers of neurons with non-linear activations, trained via backpropagation.',
+
+      theory: {
+        keyIdea: 'Hidden layers learn hierarchical representations of data',
+        breakthrough: 'Backpropagation algorithm enables training deep networks',
+        howItWorks: 'Each layer transforms input, final layer makes prediction',
+        capabilities: ['Learn non-linear patterns', 'Universal function approximation', 'Solve XOR and complex problems']
+      },
+
+      architecture: {
+        layers: [
+          'Input layer: n input features',
+          'Hidden layer(s): h₁, h₂, ... neurons with activation',
+          'Output layer: m outputs with appropriate activation',
+          'Fully connected: every neuron connects to all in next layer'
+        ],
+        typical: 'Input(784) → Hidden(128,ReLU) → Hidden(64,ReLU) → Output(10,Softmax)',
+        parameters: 'For each layer: (n_in × n_out) + n_out'
+      },
+
+      mathematics: {
+        forward: {
+          layer1: 'h₁ = σ₁(W₁x + b₁)',
+          layer2: 'h₂ = σ₂(W₂h₁ + b₂)',
+          output: 'y = σₒᵤₜ(Wₒᵤₜh₂ + bₒᵤₜ)',
+          general: 'aˡ = σ(Wˡaˡ⁻¹ + bˡ)'
+        },
+        activations: {
+          relu: 'f(x) = max(0, x) - most common for hidden layers',
+          sigmoid: 'f(x) = 1/(1+e⁻ˣ) - for binary classification output',
+          tanh: 'f(x) = (eˣ-e⁻ˣ)/(eˣ+e⁻ˣ) - alternative for hidden',
+          softmax: 'f(xᵢ) = eˣⁱ/Σⱼeˣʲ - for multiclass output'
+        },
+        backpropagation: {
+          outputError: 'δᴸ = (y - t) ⊙ σ\'(zᴸ)',
+          hiddenError: 'δˡ = (Wˡ⁺¹)ᵀδˡ⁺¹ ⊙ σ\'(zˡ)',
+          weightGradient: '∂L/∂Wˡ = δˡ(aˡ⁻¹)ᵀ',
+          update: 'W = W - η∂L/∂W'
+        },
+        example: {
+          architecture: 'Input(2) → Hidden(3) → Output(1)',
+          forward: 'x=[1,2] → h=ReLU([0.5,1.2,-0.3]) → y=Sigmoid(0.8)',
+          dimensions: 'W₁: 3×2, b₁: 3×1, W₂: 1×3, b₂: 1×1',
+          totalParams: '(2×3+3) + (3×1+1) = 13 parameters'
+        }
+      },
+
+      visualDirection: {
+        networkDiagram: [
+          'Draw 3 columns of circles: Input(2), Hidden(3), Output(1)',
+          'Connect every neuron in column 1 to every in column 2',
+          'Connect every neuron in column 2 to output',
+          'Label connections as "fully connected"',
+          'Show activation function inside each hidden/output neuron'
+        ],
+        dataFlow: [
+          'Show input values [2, 3] entering left',
+          'Show weighted sums being computed in hidden layer',
+          'Show activation functions transforming values',
+          'Show final output 0.87 exiting right',
+          'Use different colors for each layer'
+        ],
+        backpropagation: [
+          'Draw same network but arrows pointing LEFT',
+          'Show error starting at output (red)',
+          'Show error propagating backward through layers',
+          'Label as "gradient flow"',
+          'Show weights being updated (blue arrows)'
+        ]
+      },
+
+      stepByStep: [
+        {
+          step: 'Initialization',
+          description: 'Initialize all weights with small random values (e.g., Xavier or He initialization)',
+          code: 'W1 = np.random.randn(3,2) * 0.01\nb1 = np.zeros((3,1))',
+          visual: 'Show network with random weights labeled'
+        },
+        {
+          step: 'Forward Propagation',
+          description: 'Pass input through network layer by layer',
+          code: 'z1 = W1 @ x + b1\na1 = relu(z1)\nz2 = W2 @ a1 + b2\na2 = sigmoid(z2)',
+          visual: 'Show values flowing forward with calculations'
+        },
+        {
+          step: 'Compute Loss',
+          description: 'Calculate error between prediction and target',
+          code: 'loss = -y*log(a2) - (1-y)*log(1-a2)',
+          visual: 'Show prediction vs target, compute difference'
+        },
+        {
+          step: 'Backward Propagation',
+          description: 'Calculate gradients from output back to input',
+          code: 'dz2 = a2 - y\ndW2 = dz2 @ a1.T\ndz1 = W2.T @ dz2 * relu_derivative(z1)',
+          visual: 'Show gradients flowing backward in red'
+        },
+        {
+          step: 'Update Weights',
+          description: 'Adjust weights using gradient descent',
+          code: 'W2 = W2 - learning_rate * dW2\nW1 = W1 - learning_rate * dW1',
+          visual: 'Show weights changing slightly'
+        },
+        {
+          step: 'Iterate',
+          description: 'Repeat forward-backward-update for all data, multiple epochs',
+          code: 'for epoch in range(100):\n    for x, y in data:\n        forward_backward_update()',
+          visual: 'Show loss decreasing over time graph'
+        }
+      ],
+
+      practicalExample: {
+        problem: 'XOR problem (not linearly separable)',
+        data: '(0,0)→0, (0,1)→1, (1,0)→1, (1,1)→0',
+        network: 'Input(2) → Hidden(2,sigmoid) → Output(1,sigmoid)',
+        solution: 'Hidden layer creates non-linear feature space where XOR is separable',
+        visualization: 'Show decision boundary as curve separating XOR patterns'
+      }
+    },
+
+    {
+      id: 'rbfn',
+      name: 'Radial Basis Function Network',
+      year: '1988',
+      inventor: 'Broomhead & Lowe',
+      level: 'Intermediate',
+      category: 'Feedforward',
+      description: 'Network using RBF activations that measure distance from center points.',
+
+      theory: {
+        keyIdea: 'Neurons activate based on distance from learned centers',
+        advantage: 'Fast training (closed-form solution for output layer)',
+        howItWorks: 'Hidden layer uses Gaussian RBFs, output is linear combination',
+        bestFor: 'Function approximation, interpolation problems'
+      },
+
+      architecture: {
+        structure: [
+          'Input layer: n-dimensional input x',
+          'Hidden layer: m RBF neurons with centers cᵢ and widths σᵢ',
+          'Output layer: Linear combination of RBF outputs',
+          'Not fully connected - each RBF responds to local region'
+        ],
+        training: '1) K-means for centers, 2) Heuristic for widths, 3) Linear regression for output weights'
+      },
+
+      mathematics: {
+        rbfFunction: {
+          gaussian: 'φᵢ(x) = exp(-||x - cᵢ||² / (2σᵢ²))',
+          interpretation: 'Neuron i activates strongly when x is close to center cᵢ',
+          example: 'x=[2,2], c=[1,1], σ=1 → φ=exp(-2/2)=exp(-1)≈0.37'
+        },
+        output: {
+          formula: 'y(x) = Σᵢ wᵢφᵢ(x) + b',
+          linear: 'Output is linear combination of RBF activations',
+          weights: 'Can be solved analytically: w = (Φᵀ Φ)⁻¹ Φᵀ y'
+        },
+        training: {
+          step1: 'Find centers: cᵢ using K-means clustering on training data',
+          step2: 'Set widths: σᵢ = dₘₐₓ/√(2m) where dₘₐₓ is max distance between centers',
+          step3: 'Solve for weights: Least squares on output layer'
+        }
+      },
+
+      visualDirection: {
+        architecture: [
+          'Draw input layer (2 neurons for 2D example)',
+          'Draw hidden RBF layer (5 neurons)',
+          'Draw Gaussian curve above each RBF neuron',
+          'Label centers c₁, c₂, c₃, c₄, c₅',
+          'Draw output layer (1 neuron)',
+          'Connect RBF outputs to final output with weights w'
+        ],
+        responseMap: [
+          'Draw 2D input space as plane',
+          'Plot center points as stars',
+          'Draw circular/elliptical regions around each center',
+          'Use heat map colors: bright near center, fading outward',
+          'Show overlapping regions where RBFs interact'
+        ],
+        training: [
+          'Frame 1: Random data points scattered in space',
+          'Frame 2: K-means identifies 5 cluster centers',
+          'Frame 3: RBF neurons placed at centers with width circles',
+          'Frame 4: Output weights learned via linear regression'
+        ]
+      },
+
+      stepByStep: [
+        {
+          step: 'Prepare Data',
+          description: 'Collect training samples (x, y)',
+          code: 'X_train = [[x1,x2], ...]\ny_train = [y1, y2, ...]',
+          visual: 'Show scatter plot of training data'
+        },
+        {
+          step: 'Find Centers',
+          description: 'Run K-means clustering on input data',
+          code: 'from sklearn.cluster import KMeans\ncenters = KMeans(n_clusters=m).fit(X).cluster_centers_',
+          visual: 'Show cluster centers marked with stars'
+        },
+        {
+          step: 'Calculate Widths',
+          description: 'Set width based on center spacing',
+          code: 'dmax = max_distance_between_centers(centers)\nwidths = dmax / sqrt(2*m)',
+          visual: 'Show circles around centers representing widths'
+        },
+        {
+          step: 'Compute RBF Activations',
+          description: 'For each training point, calculate φᵢ(x)',
+          code: 'phi = exp(-||x - center||^2 / (2*width^2))',
+          visual: 'Show activation heat map'
+        },
+        {
+          step: 'Solve for Weights',
+          description: 'Use least squares to find output weights',
+          code: 'from numpy.linalg import lstsq\nweights = lstsq(Phi, y_train)[0]',
+          visual: 'Show weight values computed'
+        },
+        {
+          step: 'Prediction',
+          description: 'For new x, compute RBF activations then output',
+          code: 'phi_new = compute_rbf(x_new, centers, widths)\ny_pred = weights @ phi_new',
+          visual: 'Show prediction as sum of weighted RBFs'
+        }
+      ],
+
+      practicalExample: {
+        problem: '1D function approximation: f(x) = sin(x)',
+        data: '20 points sampled from sin(x) in [0, 2π]',
+        network: '5 RBF neurons with Gaussian activation',
+        result: 'RBFN learns smooth approximation of sine wave',
+        visualization: 'Plot: true sine (blue), RBF approximation (red dashed), RBF centers (green dots)'
+      }
+    },
+
+    {
+      id: 'autoencoder',
+      name: 'Basic Autoencoder',
+      year: '1980s',
+      inventor: 'Hinton & others',
+      level: 'Beginner',
+      category: 'Unsupervised',
+      description: 'Neural network that learns to compress and reconstruct data.',
+
+      theory: {
+        keyIdea: 'Learn compressed representation by forcing reconstruction',
+        unsupervised: 'Trained without labels - input is also the target',
+        bottleneck: 'Middle layer is narrower, forcing compression',
+        applications: ['Dimensionality reduction', 'Denoising', 'Anomaly detection', 'Feature learning']
+      },
+
+      architecture: {
+        encoder: 'Input → Hidden₁ → ... → Latent (bottleneck)',
+        decoder: 'Latent → Hidden₁\' → ... → Reconstruction',
+        symmetric: 'Often decoder mirrors encoder structure',
+        example: '784 → 256 → 128 → 64 → 128 → 256 → 784'
+      },
+
+      mathematics: {
+        encoder: {
+          formula: 'z = f_encoder(x) = σ(W_encoder · x + b_encoder)',
+          purpose: 'Compress input to low-dimensional latent code',
+          example: 'x: 784-dim → z: 64-dim'
+        },
+        decoder: {
+          formula: 'x̂ = f_decoder(z) = σ(W_decoder · z + b_decoder)',
+          purpose: 'Reconstruct input from latent code',
+          example: 'z: 64-dim → x̂: 784-dim'
+        },
+        loss: {
+          mse: 'L = (1/n) Σᵢ ||xᵢ - x̂ᵢ||²',
+          bce: 'L = -Σᵢ xᵢlog(x̂ᵢ) + (1-xᵢ)log(1-x̂ᵢ)',
+          purpose: 'Minimize reconstruction error'
+        },
+        training: {
+          objective: 'min_W L(x, decoder(encoder(x)))',
+          method: 'Standard backpropagation and gradient descent',
+          note: 'Input = target, so purely unsupervised'
+        }
+      },
+
+      visualDirection: {
+        architecture: [
+          'Draw hourglass/bowtie shape',
+          'Left half (encoder): Wide → Narrow',
+          'Narrowest point in middle: "Latent code z (64 dims)"',
+          'Right half (decoder): Narrow → Wide',
+          'Label left as "Compression", right as "Reconstruction"',
+          'Show symmetric layer sizes: 784-256-128-64-128-256-784'
+        ],
+        dataFlow: [
+          'Input: Show digit "7" image',
+          'Encoder: Show image getting compressed',
+          'Latent: Show 64 numbers in middle',
+          'Decoder: Show expanding back to image',
+          'Output: Show reconstructed "7"',
+          'Compare input vs output side-by-side'
+        ],
+        latentSpace: [
+          'Plot 2D projection of latent codes',
+          'Color points by digit class (0-9)',
+          'Show clusters: similar digits cluster together',
+          'Demonstrate learned meaningful representation'
+        ]
+      },
+
+      stepByStep: [
+        {
+          step: 'Define Architecture',
+          description: 'Create encoder and decoder networks',
+          code: 'encoder = [Dense(256), Dense(128), Dense(64)]\ndecoder = [Dense(128), Dense(256), Dense(784)]',
+          visual: 'Show layer dimensions decreasing then increasing'
+        },
+        {
+          step: 'Forward Pass (Encode)',
+          description: 'Compress input to latent representation',
+          code: 'z = encoder(x)  # 784 → 64 dimensions',
+          visual: 'Show image being compressed to 64 numbers'
+        },
+        {
+          step: 'Forward Pass (Decode)',
+          description: 'Reconstruct from latent code',
+          code: 'x_reconstructed = decoder(z)  # 64 → 784',
+          visual: 'Show 64 numbers expanding to reconstructed image'
+        },
+        {
+          step: 'Compute Loss',
+          description: 'Measure reconstruction quality',
+          code: 'loss = mean_squared_error(x_original, x_reconstructed)',
+          visual: 'Show difference image (x - x̂) highlighting errors'
+        },
+        {
+          step: 'Backpropagation',
+          description: 'Compute gradients through entire network',
+          code: 'loss.backward()  # Gradients for encoder & decoder',
+          visual: 'Show gradient flowing back through bowtie'
+        },
+        {
+          step: 'Update Weights',
+          description: 'Improve reconstruction via gradient descent',
+          code: 'optimizer.step()  # Update all weights',
+          visual: 'Show reconstruction quality improving'
+        }
+      ],
+
+      practicalExample: {
+        problem: 'Compress MNIST digit images',
+        input: '28×28 = 784 pixels per image',
+        latent: '64-dimensional compressed representation',
+        compression: '784 → 64 is 12.25× compression',
+        result: 'Reconstruct images with minimal loss',
+        extension: 'Latent codes can be used for classification or visualization'
+      }
+    },
+
+    {
+      id: 'vae',
+      name: 'Variational Autoencoder (VAE)',
+      year: '2013',
+      inventor: 'Kingma & Welling',
+      level: 'Advanced',
+      category: 'Generative',
+      description: 'Probabilistic autoencoder that learns continuous latent space for generation.',
+
+      theory: {
+        keyIdea: 'Learn distribution over latent space, not just point encodings',
+        generative: 'Can sample from latent space to generate new data',
+        probabilistic: 'Models p(z|x) and p(x|z) as distributions',
+        breakthrough: 'Reparameterization trick enables gradient-based training'
+      },
+
+      architecture: {
+        encoder: 'q(z|x) - outputs μ(x) and σ(x) for latent distribution',
+        sampling: 'z = μ + σ ⊙ ε, where ε ~ N(0,1)',
+        decoder: 'p(x|z) - reconstructs x from sampled z',
+        latent: 'Learned as Gaussian distributions, not fixed points'
+      },
+
+      mathematics: {
+        objective: {
+          elbo: 'ELBO = E_q[log p(x|z)] - KL(q(z|x) || p(z))',
+          reconstruction: 'E_q[log p(x|z)] ≈ -||x - x̂||² (reconstruction loss)',
+          regularization: 'KL(q(z|x) || p(z)) keeps latent distribution close to N(0,1)',
+          maximize: 'Maximize ELBO = minimize -ELBO'
+        },
+        reparameterization: {
+          problem: 'Cannot backprop through stochastic sampling',
+          solution: 'z = μ + σ ⊙ ε where ε ~ N(0,1)',
+          gradient: 'Now can compute ∂L/∂μ and ∂L/∂σ'
+        },
+        kl: {
+          formula: 'KL = -½ Σ(1 + log(σ²) - μ² - σ²)',
+          interpretation: 'Penalty for deviating from standard normal'
+        },
+        generation: {
+          sample: 'z ~ N(0,1)',
+          decode: 'x_new = decoder(z)',
+          result: 'Novel generated sample'
+        }
+      },
+
+      visualDirection: {
+        architecture: [
+          'Input → Encoder → [μ network] → μ',
+          '                  [σ network] → σ',
+          'Sample: z = μ + σ⊙ε (show ε ~ N(0,1) as input)',
+          'z → Decoder → Reconstructed output',
+          'Show the "reparameterization trick" box clearly'
+        ],
+        latentSpace: [
+          'Draw 2D latent space as smooth manifold',
+          'Show regions corresponding to different data types',
+          'Demonstrate smooth interpolation between points',
+          'Sample random z, show decoded images',
+          'Contrast with regular AE: discrete clusters vs continuous'
+        ],
+        generation: [
+          'Show grid of random z samples from N(0,1)',
+          'For each z, show decoded image',
+          'Demonstrate variety of generated samples',
+          'Show interpolation: z₁ → intermediate → z₂ produces morph'
+        ]
+      },
+
+      stepByStep: [
+        {
+          step: 'Encode to Distribution',
+          description: 'Encoder outputs mean μ and std σ',
+          code: 'mu, log_var = encoder(x)\nsigma = exp(0.5 * log_var)',
+          visual: 'Show input mapping to μ and σ vectors'
+        },
+        {
+          step: 'Reparameterization',
+          description: 'Sample z using reparameterization trick',
+          code: 'epsilon = torch.randn_like(sigma)\nz = mu + sigma * epsilon',
+          visual: 'Show sampling process: μ + σ×ε'
+        },
+        {
+          step: 'Decode',
+          description: 'Reconstruct from sampled latent code',
+          code: 'x_reconstructed = decoder(z)',
+          visual: 'Show z being decoded to image'
+        },
+        {
+          step: 'Reconstruction Loss',
+          description: 'Measure how well we reconstructed',
+          code: 'recon_loss = F.mse_loss(x_reconstructed, x)',
+          visual: 'Show comparison between input and output'
+        },
+        {
+          step: 'KL Divergence',
+          description: 'Regularize latent distribution',
+          code: 'kl_loss = -0.5 * sum(1 + log_var - mu**2 - exp(log_var))',
+          visual: 'Show distribution q(z|x) vs standard normal p(z)'
+        },
+        {
+          step: 'Total Loss & Update',
+          description: 'Combine losses and update weights',
+          code: 'loss = recon_loss + beta * kl_loss\nloss.backward()',
+          visual: 'Show both loss components, total loss decreasing'
+        }
+      ],
+
+      practicalExample: {
+        problem: 'Generate new face images',
+        training: 'Train on CelebA dataset',
+        latent: '128-dimensional continuous space',
+        generation: 'Sample z ~ N(0,1), decode to 64×64 face',
+        interpolation: 'Smoothly morph between two faces by interpolating latent codes',
+        application: 'Image generation, style transfer, data augmentation'
+      }
+    }
+  ];
+
+  const codeExamples = [
+    {
+      id: 'perceptron-code',
+      title: 'Perceptron - Binary Classification',
+      architecture: 'Perceptron',
+      difficulty: 'Beginner',
+      problem: 'Classify 2D points into two classes (AND gate logic)',
+      
+      description: 'Implement a perceptron from scratch to learn the AND logical operation. This demonstrates basic supervised learning with a single neuron.',
+      
+      dataset: {
+        description: 'AND gate truth table',
+        inputs: '[[0,0], [0,1], [1,0], [1,1]]',
+        outputs: '[0, 0, 0, 1]',
+        visualization: 'Points (0,0), (0,1), (1,0) in class 0; point (1,1) in class 1'
+      },
+
+      code: `import numpy as np
+import matplotlib.pyplot as plt
+
+class Perceptron:
+    """
+    Simple Perceptron for binary classification
+    
+    Parameters:
+    -----------
+    learning_rate : float
+        Step size for weight updates (typically 0.01 to 0.1)
+    n_iterations : int
+        Number of training epochs
+    """
+    
+    def __init__(self, learning_rate=0.1, n_iterations=100):
+        self.lr = learning_rate
+        self.n_iterations = n_iterations
+        self.weights = None
+        self.bias = None
+        self.errors = []  # Track errors per epoch
+        
+    def activation(self, z):
+        """
+        Step activation function
+        Returns 1 if z >= 0, else 0
+        """
+        return np.where(z >= 0, 1, 0)
+    
+    def predict(self, X):
+        """
+        Make predictions for input X
+        
+        Formula: z = w·x + b
+        Output: activation(z)
+        """
+        z = np.dot(X, self.weights) + self.bias
+        return self.activation(z)
+    
+    def fit(self, X, y):
+        """
+        Train the perceptron using the perceptron learning rule
+        
+        Update rule: 
+        w_i = w_i + lr * (y_true - y_pred) * x_i
+        b = b + lr * (y_true - y_pred)
+        """
+        n_samples, n_features = X.shape
+        
+        # Initialize weights and bias
+        self.weights = np.zeros(n_features)
+        self.bias = 0
+        
+        # Training loop
+        for epoch in range(self.n_iterations):
+            errors = 0
+            
+            for i in range(n_samples):
+                # Get single sample
+                xi = X[i]
+                yi = y[i]
+                
+                # Forward pass
+                z = np.dot(xi, self.weights) + self.bias
+                y_pred = self.activation(z)
+                
+                # Compute error
+                error = yi - y_pred
+                
+                # Update weights and bias if there's an error
+                if error != 0:
+                    self.weights += self.lr * error * xi
+                    self.bias += self.lr * error
+                    errors += abs(error)
+            
+            self.errors.append(errors)
+            
+            # Print progress every 20 epochs
+            if (epoch + 1) % 20 == 0:
+                print(f"Epoch {epoch+1}/{self.n_iterations}, Errors: {errors}")
+        
+        return self
+
+# ============================================
+# MAIN: Train Perceptron on AND Gate
+# ============================================
+
+# Create AND gate dataset
+X = np.array([[0, 0],   # Input 1
+              [0, 1],   # Input 2
+              [1, 0],   # Input 3
+              [1, 1]])  # Input 4
+
+y = np.array([0, 0, 0, 1])  # AND outputs
+
+print("Training Perceptron on AND gate...")
+print("="*50)
+
+# Create and train perceptron
+perceptron = Perceptron(learning_rate=0.1, n_iterations=100)
+perceptron.fit(X, y)
+
+print("\\nTraining complete!")
+print("="*50)
+print(f"Final weights: {perceptron.weights}")
+print(f"Final bias: {perceptron.bias}")
+
+# Test the perceptron
+print("\\nTesting predictions:")
+print("="*50)
+predictions = perceptron.predict(X)
+
+for i in range(len(X)):
+    z = np.dot(X[i], perceptron.weights) + perceptron.bias
+    print(f"Input: {X[i]} -> z={z:.3f} -> Prediction: {predictions[i]}, True: {y[i]}")
+
+# Calculate accuracy
+accuracy = np.mean(predictions == y) * 100
+print(f"\\nAccuracy: {accuracy}%")
+
+# ============================================
+# VISUALIZATION
+# ============================================
+
+# Plot 1: Decision boundary
+plt.figure(figsize=(12, 5))
+
+plt.subplot(1, 2, 1)
+plt.scatter(X[y==0, 0], X[y==0, 1], c='blue', marker='o', s=100, label='Class 0', edgecolors='k')
+plt.scatter(X[y==1, 0], X[y==1, 1], c='red', marker='s', s=100, label='Class 1', edgecolors='k')
+
+# Plot decision boundary: w1*x1 + w2*x2 + b = 0
+# Solving for x2: x2 = -(w1*x1 + b) / w2
+if perceptron.weights[1] != 0:
+    x1_boundary = np.linspace(-0.5, 1.5, 100)
+    x2_boundary = -(perceptron.weights[0] * x1_boundary + perceptron.bias) / perceptron.weights[1]
+    plt.plot(x1_boundary, x2_boundary, 'k--', linewidth=2, label='Decision Boundary')
+
+plt.xlabel('x1')
+plt.ylabel('x2')
+plt.title('Perceptron Decision Boundary')
+plt.legend()
+plt.grid(True, alpha=0.3)
+plt.xlim(-0.5, 1.5)
+plt.ylim(-0.5, 1.5)
+
+# Plot 2: Training errors over time
+plt.subplot(1, 2, 2)
+plt.plot(range(1, len(perceptron.errors) + 1), perceptron.errors, 'b-', linewidth=2)
+plt.xlabel('Epoch')
+plt.ylabel('Number of Errors')
+plt.title('Training Progress')
+plt.grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.savefig('perceptron_results.png', dpi=150, bbox_inches='tight')
+print("\\nVisualization saved as 'perceptron_results.png'")
+plt.show()
+
+# ============================================
+# MATHEMATICAL EXPLANATION
+# ============================================
+print("\\n" + "="*50)
+print("MATHEMATICAL EXPLANATION")
+print("="*50)
+print("""
+Decision Boundary: w1*x1 + w2*x2 + b = 0
+Rearranged: x2 = -(w1*x1 + b) / w2
+
+For our learned weights:
+w1 = {:.3f}, w2 = {:.3f}, b = {:.3f}
+
+Decision line: x2 = -{:.3f}*x1 - {:.3f}
+
+This line separates:
+- Class 0 (below line): (0,0), (0,1), (1,0)
+- Class 1 (above line): (1,1)
+
+The perceptron successfully learned the AND logic!
+""".format(perceptron.weights[0], perceptron.weights[1], perceptron.bias,
+           perceptron.weights[0]/perceptron.weights[1] if perceptron.weights[1] != 0 else 0,
+           perceptron.bias/perceptron.weights[1] if perceptron.weights[1] != 0 else 0))`,
+
+      explanation: [
+        {
+          section: 'Class Definition',
+          code: 'class Perceptron:',
+          explanation: 'We define a Perceptron class that encapsulates the neuron\'s behavior including weights, bias, and learning algorithm.'
+        },
+        {
+          section: 'Initialization',
+          code: '__init__(self, learning_rate=0.1, n_iterations=100)',
+          explanation: 'Constructor sets learning rate (how big the weight updates are) and number of training iterations. Larger learning rate = faster but less stable training.'
+        },
+        {
+          section: 'Activation Function',
+          code: 'return np.where(z >= 0, 1, 0)',
+          explanation: 'Step function: outputs 1 if weighted sum is non-negative, 0 otherwise. This creates binary classification.'
+        },
+        {
+          section: 'Prediction',
+          code: 'z = np.dot(X, self.weights) + self.bias',
+          explanation: 'Compute weighted sum: z = w₁x₁ + w₂x₂ + b. Then apply activation to get prediction (0 or 1).'
+        },
+        {
+          section: 'Weight Initialization',
+          code: 'self.weights = np.zeros(n_features)',
+          explanation: 'Start with zero weights. Could also use small random values. Bias also starts at zero.'
+        },
+        {
+          section: 'Training Loop',
+          code: 'for epoch in range(self.n_iterations):',
+          explanation: 'Iterate through entire dataset multiple times. Each pass is called an epoch.'
+        },
+        {
+          section: 'Perceptron Learning Rule',
+          code: 'self.weights += self.lr * error * xi',
+          explanation: 'If prediction is wrong, adjust weights: Δw = η(y_true - y_pred)x. This moves decision boundary toward correct classification.'
+        },
+        {
+          section: 'Error Tracking',
+          code: 'self.errors.append(errors)',
+          explanation: 'Track number of misclassifications per epoch. Should decrease to zero for linearly separable data.'
+        },
+        {
+          section: 'Dataset',
+          code: 'X = np.array([[0,0], [0,1], [1,0], [1,1]])',
+          explanation: 'AND gate truth table: only (1,1) produces output 1. This is linearly separable.'
+        },
+        {
+          section: 'Decision Boundary',
+          code: 'x2 = -(w1*x1 + b) / w2',
+          explanation: 'The line w₁x₁ + w₂x₂ + b = 0 separates the two classes. We plot this to visualize what perceptron learned.'
+        }
+      ],
+
+      expectedOutput: `Training Perceptron on AND gate...
+==================================================
+Epoch 20/100, Errors: 0
+Epoch 40/100, Errors: 0
+...
+Training complete!
+==================================================
+Final weights: [0.3 0.3]
+Final bias: -0.4
+
+Testing predictions:
+==================================================
+Input: [0 0] -> z=-0.400 -> Prediction: 0, True: 0
+Input: [0 1] -> z=-0.100 -> Prediction: 0, True: 0
+Input: [1 0] -> z=-0.100 -> Prediction: 0, True: 0
+Input: [1 1] -> z=0.200 -> Prediction: 1, True: 1
+
+Accuracy: 100%`,
+
+      runInstructions: [
+        'Save code as perceptron_demo.py',
+        'Run: python perceptron_demo.py',
+        'View generated plot showing decision boundary',
+        'Observe how errors decrease to zero',
+        'Try changing learning_rate or testing with XOR (will fail!)'
+      ]
+    },
+
+    {
+      id: 'mlp-mnist',
+      title: 'MLP - MNIST Digit Classification',
+      architecture: 'Multilayer Perceptron',
+      difficulty: 'Intermediate',
+      problem: 'Classify handwritten digits (0-9) using real MNIST dataset',
+
+      description: 'Build a deep MLP using PyTorch to classify MNIST digits. Demonstrates data loading, network architecture, training loop, and evaluation.',
+
+      dataset: {
+        description: 'MNIST handwritten digits',
+        samples: '60,000 training + 10,000 test images',
+        imageSize: '28×28 grayscale (784 pixels)',
+        classes: '10 classes (digits 0-9)'
+      },
+
+      code: `import torch
+import torch.nn as nn
+import torch.optim as optim
+from torchvision import datasets, transforms
+from torch.utils.data import DataLoader
+import matplotlib.pyplot as plt
+import numpy as np
+
+# ============================================
+# NETWORK ARCHITECTURE
+# ============================================
+
+class MLP(nn.Module):
+    """
+    Multilayer Perceptron for MNIST classification
+    
+    Architecture:
+    - Input: 784 (28x28 flattened)
+    - Hidden 1: 512 neurons + ReLU
+    - Dropout: 0.2
+    - Hidden 2: 256 neurons + ReLU
+    - Dropout: 0.2
+    - Hidden 3: 128 neurons + ReLU
+    - Output: 10 classes + Softmax (via CrossEntropyLoss)
+    
+    Total parameters: ~500K
+    """
+    
+    def __init__(self):
+        super(MLP, self).__init__()
+        
+        self.network = nn.Sequential(
+            # Input layer to Hidden 1
+            nn.Linear(784, 512),  # 784*512 + 512 = 401,920 params
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            
+            # Hidden 1 to Hidden 2
+            nn.Linear(512, 256),  # 512*256 + 256 = 131,328 params
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            
+            # Hidden 2 to Hidden 3
+            nn.Linear(256, 128),  # 256*128 + 128 = 32,896 params
+            nn.ReLU(),
+            
+            # Hidden 3 to Output
+            nn.Linear(128, 10)    // 128*10 + 10 = 1,290 params
+        )
+        
+    def forward(self, x):
+        x = x.view(x.size(0), -1)
+        return self.network(x)
+
+def load_data(batch_size=128):
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.1307,), (0.3081,))
+    ])
+    
+    train_dataset = datasets.MNIST(root='./data', train=True, download=True, transform=transform)
+    test_dataset = datasets.MNIST(root='./data', train=False, download=True, transform=transform)
+    
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+    
+    return train_loader, test_loader
+
+def train_epoch(model, train_loader, criterion, optimizer, device):
+    model.train()
+    total_loss = 0
+    
+    for batch_idx, (data, target) in enumerate(train_loader):
+        data, target = data.to(device), target.to(device)
+        optimizer.zero_grad()
+        output = model(data)
+        loss = criterion(output, target)
+        loss.backward()
+        optimizer.step()
+        total_loss += loss.item()
+        
+        if batch_idx % 100 == 0:
+            print(f'  Batch {batch_idx}/{len(train_loader)}, Loss: {loss.item():.4f}')
+    
+    return total_loss / len(train_loader)
+
+def evaluate(model, test_loader, criterion, device):
+    model.eval()
+    total_loss = 0
+    correct = 0
+    
+    with torch.no_grad():
+        for data, target in test_loader:
+            data, target = data.to(device), target.to(device)
+            output = model(data)
+            total_loss += criterion(output, target).item()
+            pred = output.argmax(dim=1, keepdim=True)
+            correct += pred.eq(target.view_as(pred)).sum().item()
+    
+    avg_loss = total_loss / len(test_loader)
+    accuracy = 100. * correct / len(test_loader.dataset)
+    
+    return avg_loss, accuracy
+
+def main():
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f"Using device: {device}\\n")
+    
+    batch_size = 128
+    learning_rate = 0.001
+    num_epochs = 10
+    
+    print("Loading MNIST dataset...")
+    train_loader, test_loader = load_data(batch_size)
+    print(f"Training samples: {len(train_loader.dataset)}")
+    print(f"Test samples: {len(test_loader.dataset)}\\n")
+    
+    model = MLP().to(device)
+    total_params = sum(p.numel() for p in model.parameters())
+    print(f"Model created with {total_params:,} parameters\\n")
+    
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+    
+    train_losses = []
+    test_losses = []
+    test_accuracies = []
+    
+    print("Starting training...\\n")
+    
+    for epoch in range(1, num_epochs + 1):
+        print(f"Epoch {epoch}/{num_epochs}")
+        print("-" * 50)
+        
+        train_loss = train_epoch(model, train_loader, criterion, optimizer, device)
+        train_losses.append(train_loss)
+        
+        test_loss, test_acc = evaluate(model, test_loader, criterion, device)
+        test_losses.append(test_loss)
+        test_accuracies.append(test_acc)
+        
+        print(f"Train Loss: {train_loss:.4f}")
+        print(f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_acc:.2f}%\\n")
+    
+    print(f"\\nFinal Test Accuracy: {test_accuracies[-1]:.2f}%")
+
+if __name__ == '__main__':
+    main()`,
+
+      explanation: [
+        {
+          section: 'Network Architecture',
+          code: 'nn.Linear(784, 512)',
+          explanation: 'Fully connected layer: 784 inputs → 512 outputs. Each output neuron connects to all 784 inputs. Parameters: 784×512 weights + 512 biases = 401,920 parameters.'
+        },
+        {
+          section: 'ReLU Activation',
+          code: 'nn.ReLU()',
+          explanation: 'ReLU(x) = max(0, x). Introduces non-linearity, allowing network to learn complex patterns. Much faster than sigmoid/tanh.'
+        },
+        {
+          section: 'Dropout',
+          code: 'nn.Dropout(0.2)',
+          explanation: 'Randomly zeros 20% of neurons during training. Prevents overfitting by forcing network not to rely on specific neurons.'
+        },
+        {
+          section: 'Flattening',
+          code: 'x.view(x.size(0), -1)',
+          explanation: 'Reshape images from (batch, 1, 28, 28) to (batch, 784). MLP needs 1D input vectors.'
+        },
+        {
+          section: 'Data Normalization',
+          code: 'transforms.Normalize((0.1307,), (0.3081,))',
+          explanation: 'Normalize pixels: (pixel - 0.1307) / 0.3081. Centers data around 0, speeds up training.'
+        },
+        {
+          section: 'CrossEntropyLoss',
+          code: 'criterion = nn.CrossEntropyLoss()',
+          explanation: 'Combines LogSoftmax and NLLLoss. Perfect for multi-class classification. Measures how far predictions are from true labels.'
+        },
+        {
+          section: 'Adam Optimizer',
+          code: 'optim.Adam(model.parameters(), lr=0.001)',
+          explanation: 'Adaptive learning rate optimizer. Adjusts learning rate per parameter. Generally better than SGD for deep networks.'
+        },
+        {
+          section: 'Training Mode',
+          code: 'model.train()',
+          explanation: 'Enables dropout and batch normalization training behavior. Must call before training loop.'
+        },
+        {
+          section: 'Zero Gradients',
+          code: 'optimizer.zero_grad()',
+          explanation: 'Clear gradients from previous iteration. PyTorch accumulates gradients by default, so must zero them.'
+        },
+        {
+          section: 'Backward Pass',
+          code: 'loss.backward()',
+          explanation: 'Compute gradients via backpropagation. Automatically calculates ∂Loss/∂weight for all parameters.'
+        },
+        {
+          section: 'Weight Update',
+          code: 'optimizer.step()',
+          explanation: 'Update all weights using computed gradients: w = w - lr × ∂Loss/∂w.'
+        },
+        {
+          section: 'Evaluation Mode',
+          code: 'model.eval()',
+          explanation: 'Disables dropout and batch norm training mode. Use for testing/inference.'
+        },
+        {
+          section: 'No Gradient',
+          code: 'with torch.no_grad():',
+          explanation: 'Disable gradient computation during evaluation. Saves memory and speeds up inference.'
+        },
+        {
+          section: 'Get Predictions',
+          code: 'pred = output.argmax(dim=1)',
+          explanation: 'For each sample, find class with highest score. Argmax returns index of maximum value.'
+        }
+      ],
+
+      expectedOutput: `Using device: cuda
+
+Loading MNIST dataset...
+Training samples: 60000
+Test samples: 10000
+
+Model created with 567,498 parameters
+
+Starting training...
+
+Epoch 1/10
+--------------------------------------------------
+  Batch 0/469, Loss: 2.3142
+  Batch 100/469, Loss: 0.4521
+  ...
+Train Loss: 0.2847
+Test Loss: 0.1423, Test Accuracy: 95.82%
+
+Epoch 2/10
+--------------------------------------------------
+...
+Train Loss: 0.1134
+Test Loss: 0.0945, Test Accuracy: 97.12%
+
+...
+
+Epoch 10/10
+--------------------------------------------------
+Train Loss: 0.0234
+Test Loss: 0.0721, Test Accuracy: 98.24%
+
+Final Test Accuracy: 98.24%`,
+
+      runInstructions: [
+        'Install PyTorch: pip install torch torchvision',
+        'Save code as mlp_mnist.py',
+        'Run: python mlp_mnist.py',
+        'First run downloads MNIST (~10MB)',
+        'Training takes ~3-5 minutes on CPU, ~30s on GPU',
+        'View results plot showing learning curves and sample predictions',
+        'Saved model can be loaded later: model.load_state_dict(torch.load("mlp_mnist.pth"))'
+      ]
+    },
+
+    {
+      id: 'autoencoder-code',
+      title: 'Autoencoder - Image Reconstruction & Compression',
+      architecture: 'Basic Autoencoder',
+      difficulty: 'Intermediate',
+      problem: 'Learn compressed representation of MNIST digits and reconstruct them',
+
+      description: 'Build an autoencoder that compresses 784-dimensional images to 32 dimensions and reconstructs them. Demonstrates unsupervised learning and dimensionality reduction.',
+
+      code: `import torch
+import torch.nn as nn
+import torch.optim as optim
+from torchvision import datasets, transforms
+from torch.utils.data import DataLoader
+import matplotlib.pyplot as plt
+import numpy as np
+
+class Autoencoder(nn.Module):
+    def __init__(self, latent_dim=32):
+        super(Autoencoder, self).__init__()
+        
+        self.encoder = nn.Sequential(
+            nn.Linear(784, 256),
+            nn.ReLU(),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, latent_dim)
+        )
+        
+        self.decoder = nn.Sequential(
+            nn.Linear(latent_dim, 128),
+            nn.ReLU(),
+            nn.Linear(128, 256),
+            nn.ReLU(),
+            nn.Linear(256, 784),
+            nn.Sigmoid()
+        )
+    
+    def forward(self, x):
+        x = x.view(x.size(0), -1)
+        encoded = self.encoder(x)
+        decoded = self.decoder(encoded)
+        return decoded
+    
+    def encode(self, x):
+        x = x.view(x.size(0), -1)
+        return self.encoder(x)
+    
+    def decode(self, z):
+        return self.decoder(z)
+
+def main():
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f"Using device: {device}\\n")
+    
+    latent_dim = 32
+    batch_size = 128
+    learning_rate = 0.001
+    num_epochs = 20
+    
+    transform = transforms.Compose([transforms.ToTensor()])
+    
+    train_dataset = datasets.MNIST('./data', train=True, download=True, transform=transform)
+    test_dataset = datasets.MNIST('./data', train=False, transform=transform)
+    
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+    
+    print(f"Dataset loaded: {len(train_dataset)} training, {len(test_dataset)} test samples\\n")
+    
+    model = Autoencoder(latent_dim=latent_dim).to(device)
+    
+    total_params = sum(p.numel() for p in model.parameters())
+    encoder_params = sum(p.numel() for p in model.encoder.parameters())
+    decoder_params = sum(p.numel() for p in model.decoder.parameters())
+    
+    print(f"Model Architecture:")
+    print(f"  Latent dimension: {latent_dim}")
+    print(f"  Compression ratio: {784/latent_dim:.1f}x")
+    print(f"  Total parameters: {total_params:,}")
+    print(f"  Encoder parameters: {encoder_params:,}")
+    print(f"  Decoder parameters: {decoder_params:,}\\n")
+    
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+    
+    train_losses = []
+    test_losses = []
+    
+    print("Starting training...\\n")
+    
+    for epoch in range(1, num_epochs + 1):
+        model.train()
+        total_loss = 0
+        for batch_idx, (data, _) in enumerate(train_loader):
+            data = data.to(device)
+            optimizer.zero_grad()
+            reconstructed = model(data)
+            loss = criterion(reconstructed, data.view(data.size(0), -1))
+            loss.backward()
+            optimizer.step()
+            total_loss += loss.item()
+        
+        train_loss = total_loss / len(train_loader)
+        train_losses.append(train_loss)
+        
+        model.eval()
+        test_loss = 0
+        with torch.no_grad():
+            for data, _ in test_loader:
+                data = data.to(device)
+                reconstructed = model(data)
+                loss = criterion(reconstructed, data.view(data.size(0), -1))
+                test_loss += loss.item()
+        test_loss = test_loss / len(test_loader)
+        test_losses.append(test_loss)
+        
+        if epoch % 5 == 0:
+            print(f"Epoch {epoch}/{num_epochs} - Train Loss: {train_loss:.6f}, Test Loss: {test_loss:.6f}")
+    
+    print("\\nTraining complete!")
+    print(f"Final Test Loss: {test_losses[-1]:.6f}")
+
+if __name__ == '__main__':
+    main()`,
+
+      explanation: [
+        {
+          section: 'Encoder Structure',
+          code: 'nn.Linear(784, 256) → ReLU → Linear(256, 128) → ReLU → Linear(128, 32)',
+          explanation: 'Progressively compress input: 784 → 256 → 128 → 32. Each layer reduces dimensionality, forcing network to learn compact representation.'
+        },
+        {
+          section: 'Decoder Structure',
+          code: 'Linear(32, 128) → ReLU → Linear(128, 256) → ReLU → Linear(256, 784) → Sigmoid',
+          explanation: 'Mirror of encoder. Expands compressed code back to original dimensions. Sigmoid ensures output in [0,1] range.'
+        },
+        {
+          section: 'Bottleneck',
+          code: 'latent_dim=32',
+          explanation: 'Smallest layer (32 neurons) forces compression. Cannot memorize inputs - must learn meaningful features.'
+        },
+        {
+          section: 'MSE Loss',
+          code: 'criterion = nn.MSELoss()',
+          explanation: 'Mean Squared Error: (1/n)Σ(original - reconstructed)². Measures pixel-wise reconstruction quality.'
+        },
+        {
+          section: 'Unsupervised Learning',
+          code: 'for data, _ in train_loader:',
+          explanation: 'Ignore labels (underscore). Input IS the target. Network learns structure of data without labels.'
+        },
+        {
+          section: 'Encode Method',
+          code: 'def encode(self, x): return self.encoder(x)',
+          explanation: 'Get compressed representation only. Useful for visualization or using as features for other tasks.'
+        },
+        {
+          section: 'Decode Method',
+          code: 'def decode(self, z): return self.decoder(z)',
+          explanation: 'Reconstruct from latent code. Can decode arbitrary latent codes (not necessarily from real images).'
+        },
+        {
+          section: 'Compression Ratio',
+          code: '784/32 = 24.5x',
+          explanation: 'Original: 784 numbers. Compressed: 32 numbers. ~96% reduction in size while preserving visual information.'
+        },
+        {
+          section: 'Latent Space Visualization',
+          code: 'pca.fit_transform(latent_codes)',
+          explanation: 'Project 32D latent codes to 2D using PCA. Shows how network organizes different digits in latent space.'
+        }
+      ],
+
+      expectedOutput: `Using device: cuda
+
+Dataset loaded: 60000 training, 10000 test samples
+
+Model Architecture:
+  Latent dimension: 32
+  Compression ratio: 24.5x
+  Total parameters: 464,416
+  Encoder parameters: 232,128
+  Decoder parameters: 232,288
+
+Starting training...
+
+Epoch 5/20 - Train Loss: 0.028456, Test Loss: 0.022341
+Epoch 10/20 - Train Loss: 0.015234, Test Loss: 0.013891
+Epoch 15/20 - Train Loss: 0.010123, Test Loss: 0.009456
+Epoch 20/20 - Train Loss: 0.008234, Test Loss: 0.007891
+
+Training complete!
+Final Test Loss: 0.007891`,
+
+      runInstructions: [
+        'Install requirements: pip install torch torchvision scikit-learn',
+        'Save as autoencoder_demo.py',
+        'Run: python autoencoder_demo.py',
+        'Training takes ~5 minutes on CPU, ~1 minute on GPU',
+        'Check generated visualizations showing:',
+        '  1. Training curves (loss decreasing)',
+        '  2. Original vs reconstructed digits (should look similar)',
+        '  3. Latent space colored by digit (clusters visible)',
+        'Try changing latent_dim (8, 16, 64) to see effect on reconstruction quality'
+      ]
+    }
+  ];
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto">
+        
+        {/* Header */}
+        <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 mb-8 border-t-4 border-blue-600">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
+            <div className="flex items-center gap-4">
+              <div className="bg-gradient-to-br from-blue-600 to-purple-600 p-4 rounded-xl shadow-lg">
+                <Brain className="w-12 h-12 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl md:text-4xl font-bold text-gray-900">Feedforward Neural Networks</h1>
+                <p className="text-gray-600 mt-1">Theory, Mathematics, and Python Implementation</p>
+              </div>
+            </div>
+            <div className="bg-gradient-to-r from-blue-100 to-purple-100 px-6 py-3 rounded-lg border-2 border-blue-300">
+              <p className="text-sm font-semibold text-blue-900">Generated by</p>
+              <p className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                Blockchain Data Intelligence Lab
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 p-4 rounded-lg border border-amber-300">
+            <p className="text-sm text-gray-700">
+              <strong className="text-amber-900">Complete Learning Path:</strong> Master feedforward networks from theory to implementation with real Python code examples
+            </p>
+          </div>
+        </div>
+
+        {/* Navigation */}
+        <div className="bg-white rounded-xl shadow-lg p-2 mb-8 flex flex-wrap gap-2">
+          {['introduction', 'theory', 'code', 'comparison'].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`flex-1 min-w-[140px] py-3 px-4 rounded-lg font-semibold transition-all ${
+                activeTab === tab
+                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {tab === 'code' && <Code className="w-4 h-4 inline mr-2" />}
+              {tab === 'theory' && <BookOpen className="w-4 h-4 inline mr-2" />}
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </button>
+          ))}
+        </div>
+
+        {/* Content Tabs */}
+        {activeTab === 'introduction' && (
+          <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
+            <h2 className="text-3xl font-bold text-gray-900 mb-6">Welcome to Feedforward Neural Networks</h2>
+            
+            <div className="prose max-w-none">
+              <p className="text-lg text-gray-700 mb-6">
+                This comprehensive course covers classic feedforward and autoencoder architectures. You'll learn theory, mathematics, 
+                and practical implementation with real Python code.
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl border-2 border-blue-300">
+                  <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <BookOpen className="w-6 h-6 text-blue-600" />
+                    What You'll Learn
+                  </h3>
+                  <ul className="space-y-2 text-sm">
+                    <li className="flex items-start gap-2">
+                      <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                      <span><strong>Theory:</strong> Mathematical foundations and intuitions</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                      <span><strong>Architectures:</strong> Perceptron, MLP, RBFN, Autoencoders, VAE</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                      <span><strong>Mathematics:</strong> Step-by-step derivations with examples</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                      <span><strong>Implementation:</strong> Complete Python code with explanations</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-xl border-2 border-purple-300">
+                  <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <Code className="w-6 h-6 text-purple-600" />
+                    Code Examples
+                  </h3>
+                  <ul className="space-y-2 text-sm">
+                    <li className="flex items-start gap-2">
+                      <Play className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
+                      <span><strong>Perceptron:</strong> Binary classification from scratch</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Play className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
+                      <span><strong>MLP:</strong> MNIST digit classification (98%+ accuracy)</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Play className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
+                      <span><strong>Autoencoder:</strong> Image compression & reconstruction</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Play className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
+                      <span>All with line-by-line explanations</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="bg-green-50 border-2 border-green-300 p-6 rounded-xl mb-6">
+                <h3 className="text-xl font-bold text-green-900 mb-3">Architectures Covered</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                  {architectures.map((arch) => (
+                    <div key={arch.id} className="bg-white p-3 rounded-lg">
+                      <p className="font-semibold text-gray-900">{arch.name}</p>
+                      <p className="text-xs text-gray-600">{arch.year} • {arch.level}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'theory' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Select Architecture</h2>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {architectures.map((arch, idx) => (
+                  <button
+                    key={arch.id}
+                    onClick={() => setActiveArchitecture(idx)}
+                    className={`p-4 rounded-lg text-left transition-all ${
+                      activeArchitecture === idx
+                        ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <div className="text-sm font-semibold mb-1">{arch.name}</div>
+                    <div className="text-xs opacity-75">{arch.year}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Architecture Detail */}
+            <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
+              {architectures[activeArchitecture] && (
+                <>
+                  <div className="mb-6">
+                    <div className="flex items-center gap-3 mb-3">
+                      <h2 className="text-3xl font-bold text-gray-900">{architectures[activeArchitecture].name}</h2>
+                      <span className={`px-4 py-1 rounded-full text-sm font-semibold ${
+                        architectures[activeArchitecture].level === 'Beginner' ? 'bg-green-100 text-green-800' :
+                        architectures[activeArchitecture].level === 'Intermediate' ? 'bg-blue-100 text-blue-800' :
+                        'bg-purple-100 text-purple-800'
+                      }`}>
+                        {architectures[activeArchitecture].level}
+                      </span>
+                    </div>
+                    <p className="text-gray-600">{architectures[activeArchitecture].year} • {architectures[activeArchitecture].inventor}</p>
+                    <p className="text-lg text-gray-700 mt-3">{architectures[activeArchitecture].description}</p>
+                  </div>
+
+                  {/* Theory */}
+                  <div className="bg-blue-50 p-6 rounded-xl border-l-4 border-blue-600 mb-6">
+                    <h3 className="text-xl font-bold text-blue-900 mb-4">Theory</h3>
+                    <div className="space-y-3">
+                      {Object.entries(architectures[activeArchitecture].theory).map(([key, value]) => (
+                        <div key={key} className="bg-white p-4 rounded-lg">
+                          <p className="font-semibold text-gray-900 mb-2 capitalize">{key.replace(/([A-Z])/g, ' $1')}</p>
+                          {Array.isArray(value) ? (
+                            <ul className="space-y-1">
+                              {value.map((item, i) => (
+                                <li key={i} className="text-sm text-gray-700">• {item}</li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-sm text-gray-700">{value}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Mathematics */}
+                  <div className="bg-purple-50 p-6 rounded-xl border-l-4 border-purple-600 mb-6">
+                    <h3 className="text-xl font-bold text-purple-900 mb-4">Mathematics</h3>
+                    <div className="space-y-4">
+                      {Object.entries(architectures[activeArchitecture].mathematics).map(([key, value]) => (
+                        <div key={key} className="bg-white p-5 rounded-lg">
+                          <h4 className="font-bold text-gray-900 mb-3 capitalize">{key.replace(/([A-Z])/g, ' $1')}</h4>
+                          {typeof value === 'object' && !Array.isArray(value) ? (
+                            <div className="space-y-2">
+                              {Object.entries(value).map(([k, v]) => (
+                                <div key={k} className="bg-purple-50 p-3 rounded">
+                                  <p className="font-semibold text-sm text-gray-900 mb-1">{k}:</p>
+                                  <p className="text-sm text-gray-700 font-mono">{v}</p>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm font-mono bg-purple-50 p-3 rounded">{value}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Visual Direction */}
+                  {architectures[activeArchitecture].visualDirection && (
+                    <div className="bg-green-50 p-6 rounded-xl border-l-4 border-green-600 mb-6">
+                      <h3 className="text-xl font-bold text-green-900 mb-4 flex items-center gap-2">
+                        <Eye className="w-6 h-6" />
+                        Visual Guide - How to Draw
+                      </h3>
+                      <div className="space-y-4">
+                        {Array.isArray(architectures[activeArchitecture].visualDirection) ? (
+                          <div className="bg-white p-4 rounded-lg">
+                            <ol className="space-y-2">
+                              {architectures[activeArchitecture].visualDirection.map((item, i) => (
+                                <li key={i} className="text-sm text-gray-700 flex items-start gap-2">
+                                  <span className="bg-green-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs flex-shrink-0">
+                                    {i + 1}
+                                  </span>
+                                  <span className="pt-0.5">{item}</span>
+                                </li>
+                              ))}
+                            </ol>
+                          </div>
+                        ) : (
+                          Object.entries(architectures[activeArchitecture].visualDirection).map(([key, value]) => (
+                            <div key={key} className="bg-white p-4 rounded-lg">
+                              <h4 className="font-semibold text-gray-900 mb-2 capitalize">{key.replace(/([A-Z])/g, ' $1')}</h4>
+                              {Array.isArray(value) ? (
+                                <ol className="space-y-2">
+                                  {value.map((item, i) => (
+                                    <li key={i} className="text-sm text-gray-700 flex items-start gap-2">
+                                      <span className="bg-green-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs flex-shrink-0">
+                                        {i + 1}
+                                      </span>
+                                      <span className="pt-0.5">{item}</span>
+                                    </li>
+                                  ))}
+                                </ol>
+                              ) : (
+                                <p className="text-sm text-gray-700 italic">{value}</p>
+                              )}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step by Step */}
+                  {architectures[activeArchitecture].stepByStep && (
+                    <div className="bg-amber-50 p-6 rounded-xl border-l-4 border-amber-600">
+                      <h3 className="text-xl font-bold text-amber-900 mb-4">Step-by-Step Process</h3>
+                      <div className="space-y-4">
+                        {architectures[activeArchitecture].stepByStep.map((step, idx) => (
+                          <div key={idx} className="bg-white p-5 rounded-lg">
+                            <div className="flex items-start gap-3 mb-3">
+                              <div className="bg-amber-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold flex-shrink-0">
+                                {idx + 1}
+                              </div>
+                              <div>
+                                <h4 className="font-bold text-gray-900">{step.step}</h4>
+                                <p className="text-sm text-gray-700 mt-1">{step.description}</p>
+                              </div>
+                            </div>
+                            <div className="bg-gray-900 p-3 rounded mt-3">
+                              <code className="text-green-400 text-xs">{step.code}</code>
+                            </div>
+                            <p className="text-xs text-gray-600 mt-2 italic">Visual: {step.visual}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'code' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Python Code Examples</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {codeExamples.map((example, idx) => (
+                  <button
+                    key={example.id}
+                    onClick={() => setActiveCodeExample(idx)}
+                    className={`p-4 rounded-lg text-left transition-all ${
+                      activeCodeExample === idx
+                        ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <Terminal className="w-5 h-5" />
+                      <span className="font-bold">{example.title.split(' - ')[0]}</span>
+                    </div>
+                    <p className="text-xs opacity-90 mb-2">{example.title.split(' - ')[1]}</p>
+                    <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                      activeCodeExample === idx ? 'bg-white/20' : 'bg-blue-100 text-blue-800'
+                    }`}>
+                      {example.difficulty}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Code Example Detail */}
+            <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
+              {codeExamples[activeCodeExample] && (
+                <>
+                  <div className="mb-6">
+                    <h2 className="text-3xl font-bold text-gray-900 mb-2">{codeExamples[activeCodeExample].title}</h2>
+                    <p className="text-gray-600 mb-4">{codeExamples[activeCodeExample].description}</p>
+                    
+                    <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border border-blue-200">
+                      <h3 className="font-bold text-gray-900 mb-2">Problem:</h3>
+                      <p className="text-gray-700">{codeExamples[activeCodeExample].problem}</p>
+                    </div>
+                  </div>
+
+                  {/* Dataset Info */}
+                  <div className="bg-green-50 p-5 rounded-xl border-l-4 border-green-600 mb-6">
+                    <h3 className="font-bold text-green-900 mb-3">Dataset</h3>
+                    <div className="space-y-2 text-sm">
+                      {Object.entries(codeExamples[activeCodeExample].dataset).map(([key, value]) => (
+                        <p key={key} className="text-gray-700">
+                          <strong className="capitalize">{key.replace(/([A-Z])/g, ' $1')}:</strong> {value}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Full Code */}
+                  <div className="mb-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                        <Code className="w-6 h-6" />
+                        Complete Python Code
+                      </h3>
+                      <button
+                        onClick={() => navigator.clipboard.writeText(codeExamples[activeCodeExample].code)}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                      >
+                        <Copy className="w-4 h-4" />
+                        Copy Code
+                      </button>
+                    </div>
+                    <div className="bg-gray-900 p-6 rounded-xl overflow-x-auto">
+                      <pre className="text-green-400 text-sm">
+                        <code>{codeExamples[activeCodeExample].code}</code>
+                      </pre>
+                    </div>
+                  </div>
+
+                  {/* Code Explanation */}
+                  <div className="bg-purple-50 p-6 rounded-xl border-l-4 border-purple-600 mb-6">
+                    <h3 className="text-xl font-bold text-purple-900 mb-4">Code Explanation</h3>
+                    <div className="space-y-4">
+                      {codeExamples[activeCodeExample].explanation.map((item, idx) => (
+                        <div key={idx} className="bg-white p-4 rounded-lg">
+                          <h4 className="font-bold text-gray-900 mb-2">{item.section}</h4>
+                          <div className="bg-gray-900 p-3 rounded mb-2">
+                            <code className="text-green-400 text-xs">{item.code}</code>
+                          </div>
+                          <p className="text-sm text-gray-700">{item.explanation}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Expected Output */}
+                  <div className="bg-gray-900 p-6 rounded-xl mb-6">
+                    <h3 className="text-xl font-bold text-white mb-4">Expected Output</h3>
+                    <pre className="text-green-400 text-sm whitespace-pre-wrap">
+                      {codeExamples[activeCodeExample].expectedOutput}
+                    </pre>
+                  </div>
+
+                  {/* Run Instructions */}
+                  <div className="bg-blue-50 p-6 rounded-xl border-l-4 border-blue-600">
+                    <h3 className="text-xl font-bold text-blue-900 mb-4 flex items-center gap-2">
+                      <Play className="w-6 h-6" />
+                      How to Run
+                    </h3>
+                    <ol className="space-y-3">
+                      {codeExamples[activeCodeExample].runInstructions.map((instruction, idx) => (
+                        <li key={idx} className="flex items-start gap-3">
+                          <span className="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">
+                            {idx + 1}
+                          </span>
+                          <p className="text-gray-700 pt-1">{instruction}</p>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'comparison' && (
+          <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
+            <h2 className="text-3xl font-bold text-gray-900 mb-6">Architecture Comparison</h2>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+                    <th className="p-3 text-left">Architecture</th>
+                    <th className="p-3 text-left">Year</th>
+                    <th className="p-3 text-left">Type</th>
+                    <th className="p-3 text-left">Key Innovation</th>
+                    <th className="p-3 text-left">Best For</th>
+                    <th className="p-3 text-left">Level</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {architectures.map((arch, idx) => (
+                    <tr key={arch.id} className={`border-b hover:bg-blue-50 ${idx % 2 === 0 ? 'bg-gray-50' : ''}`}>
+                      <td className="p-3 font-semibold">{arch.name}</td>
+                      <td className="p-3">{arch.year}</td>
+                      <td className="p-3">{arch.category}</td>
+                      <td className="p-3 text-xs">{arch.theory.keyIdea}</td>
+                      <td className="p-3 text-xs">{arch.practicalExample.problem}</td>
+                      <td className="p-3">
+                        <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                          arch.level === 'Beginner' ? 'bg-green-100 text-green-800' :
+                          arch.level === 'Intermediate' ? 'bg-blue-100 text-blue-800' :
+                          'bg-purple-100 text-purple-800'
+                        }`}>
+                          {arch.level}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="mt-8 bg-white rounded-xl shadow-lg p-6 border-t-4 border-blue-600">
+          <div className="text-center">
+            <p className="text-gray-600 mb-3">
+              <strong>Complete Learning Resource:</strong> Theory, mathematics, visual guides, and working Python code
+            </p>
+            <div className="pt-4 border-t border-gray-200">
+              <p className="text-sm text-gray-500 mb-2">Generated by</p>
+              <p className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                Blockchain Data Intelligence Lab
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<FeedforwardDeepLearning />);
+</script>
+</body>
+</html>

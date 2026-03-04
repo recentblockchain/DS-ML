@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feature Engineering Learning Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        h1 {
+            font-size: 42px;
+            color: #667eea;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        .subtitle {
+            font-size: 18px;
+            color: #666;
+        }
+        .nav {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .tab-button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            background: #f0f0f0;
+            color: #333;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        .tab-button.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102,126,234,0.4);
+        }
+        .tab-button:hover {
+            transform: translateY(-2px);
+        }
+        .content-area {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 10px;
+            min-height: 500px;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+        h3 {
+            color: #764ba2;
+            margin-bottom: 15px;
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        th {
+            padding: 12px;
+            border: 1px solid #ddd;
+            background: #667eea;
+            color: white;
+        }
+        td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+        .info-box {
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        .info-box-blue {
+            background: #e3f2fd;
+        }
+        .info-box-green {
+            background: #e8f5e9;
+        }
+        .info-box-yellow {
+            background: #fff3cd;
+        }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        .feature-card {
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px solid #667eea;
+        }
+        .code-box {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        .transform-button {
+            padding: 12px 20px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            flex: 1;
+            min-width: 200px;
+            text-align: left;
+        }
+        .transform-button.selected {
+            border: 3px solid #667eea;
+            background: #e8eaff;
+        }
+        .bar {
+            height: 25px;
+            border-radius: 12px;
+            transition: all 0.3s;
+        }
+        .feature-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 2px solid;
+            transition: all 0.3s;
+        }
+        .feature-item.selected {
+            background: #e8f5e9;
+            border-color: #27ae60;
+        }
+        .feature-item.unselected {
+            background: #ffebee;
+            border-color: #e74c3c;
+        }
+        .stat-box {
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        .footer {
+            margin-top: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            color: white;
+            text-align: center;
+        }
+        .sentiment-positive {
+            background: #e8f5e9;
+            font-weight: bold;
+        }
+        .sentiment-negative {
+            background: #ffebee;
+            font-weight: bold;
+        }
+        .sentiment-neutral {
+            background: #fff9c4;
+            font-weight: bold;
+        }
+        ul {
+            margin-left: 20px;
+        }
+        li {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>✨ Feature Engineering & Selection Lab</h1>
+            <p class="subtitle">Master the art of creating and selecting powerful features for machine learning</p>
+        </div>
+
+        <!-- Navigation -->
+        <div class="nav">
+            <button class="tab-button active" onclick="switchTab('extraction')">
+                🔍 Feature Extraction
+            </button>
+            <button class="tab-button" onclick="switchTab('transformation')">
+                🔄 Transformation
+            </button>
+            <button class="tab-button" onclick="switchTab('creation')">
+                ✨ Feature Creation
+            </button>
+            <button class="tab-button" onclick="switchTab('selection')">
+                🎯 Feature Selection
+            </button>
+            <button class="tab-button" onclick="switchTab('dimensionality')">
+                📉 Dimensionality
+            </button>
+            <button class="tab-button" onclick="switchTab('scaling')">
+                ⚖️ Scaling Impact
+            </button>
+        </div>
+
+        <!-- Content Area -->
+        <div class="content-area">
+            <!-- EXTRACTION TAB -->
+            <div id="extraction" class="tab-content active">
+                <h2>🔍 Feature Extraction from Raw Data</h2>
+                
+                <div class="card">
+                    <h3>📝 Text Feature Extraction</h3>
+                    <p style="margin-bottom: 15px;">Extract meaningful features from text data:</p>
+                    
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Original Text</th>
+                                <th>Length</th>
+                                <th>Word Count</th>
+                                <th>Has '!'</th>
+                                <th>Sentiment</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="text-align: left;">I love this product! Amazing quality!</td>
+                                <td><strong>41</strong></td>
+                                <td><strong>6</strong></td>
+                                <td>✅</td>
+                                <td class="sentiment-positive">positive</td>
+                            </tr>
+                            <tr>
+                                <td style="text-align: left;">Terrible experience. Very disappointed.</td>
+                                <td><strong>39</strong></td>
+                                <td><strong>4</strong></td>
+                                <td>❌</td>
+                                <td class="sentiment-negative">negative</td>
+                            </tr>
+                            <tr>
+                                <td style="text-align: left;">It's okay, nothing special.</td>
+                                <td><strong>27</strong></td>
+                                <td><strong>4</strong></td>
+                                <td>❌</td>
+                                <td class="sentiment-neutral">neutral</td>
+                            </tr>
+                            <tr>
+                                <td style="text-align: left;">Best purchase ever!!! Highly recommend!</td>
+                                <td><strong>40</strong></td>
+                                <td><strong>5</strong></td>
+                                <td>✅</td>
+                                <td class="sentiment-positive">positive</td>
+                            </tr>
+                            <tr>
+                                <td style="text-align: left;">Not worth the money. Poor quality.</td>
+                                <td><strong>34</strong></td>
+                                <td><strong>6</strong></td>
+                                <td>❌</td>
+                                <td class="sentiment-negative">negative</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="info-box info-box-blue">
+                        <strong>💡 Extracted Features:</strong>
+                        <ul>
+                            <li><strong>Text Length:</strong> Number of characters</li>
+                            <li><strong>Word Count:</strong> Number of words</li>
+                            <li><strong>Has Exclamation:</strong> Indicator of excitement</li>
+                            <li><strong>Sentiment:</strong> Positive/Negative/Neutral classification</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>📅 Date/Time Feature Extraction</h3>
+                    <p style="margin-bottom: 15px;">A single date can yield many powerful features:</p>
+                    
+                    <div class="grid-2">
+                        <div class="code-box">
+                            <strong>Original Date:</strong> 2024-12-25<br/><br/>
+                            <strong style="color: #3498db;">Extracted Features:</strong><br/>
+                            ✓ year = 2024<br/>
+                            ✓ month = 12<br/>
+                            ✓ day = 25<br/>
+                            ✓ day_of_week = 3 (Wednesday)<br/>
+                            ✓ quarter = 4 (Q4)<br/>
+                            ✓ is_weekend = False<br/>
+                            ✓ is_holiday_season = True<br/>
+                            ✓ is_month_end = False<br/>
+                            ✓ week_of_year = 52
+                        </div>
+                        
+                        <div>
+                            <p><strong>Example Sales by Day of Week:</strong></p>
+                            <table style="margin-top: 10px;">
+                                <tr>
+                                    <th>Day</th>
+                                    <th>Sales</th>
+                                    <th>Weekend?</th>
+                                </tr>
+                                <tr>
+                                    <td>Monday</td>
+                                    <td>$1,200</td>
+                                    <td>❌</td>
+                                </tr>
+                                <tr style="background: #e8f5e9;">
+                                    <td>Saturday</td>
+                                    <td><strong>$2,500</strong></td>
+                                    <td>✅</td>
+                                </tr>
+                                <tr>
+                                    <td>Wednesday</td>
+                                    <td>$4,500</td>
+                                    <td>❌</td>
+                                </tr>
+                                <tr style="background: #e8f5e9;">
+                                    <td>Sunday</td>
+                                    <td><strong>$1,800</strong></td>
+                                    <td>✅</td>
+                                </tr>
+                            </table>
+                            <p style="font-size: 13px; color: #666; margin-top: 10px;">Weekend pattern visible!</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>🔢 Numerical Feature Extraction Strategies</h3>
+                    <div class="grid-3">
+                        <div class="feature-card">
+                            <h4 style="color: #667eea; margin-top: 0;">Statistical</h4>
+                            <ul style="font-size: 14px;">
+                                <li>Mean</li>
+                                <li>Median</li>
+                                <li>Std Dev</li>
+                                <li>Min/Max</li>
+                                <li>Quartiles</li>
+                                <li>Skewness</li>
+                            </ul>
+                        </div>
+                        <div class="feature-card">
+                            <h4 style="color: #667eea; margin-top: 0;">Binning</h4>
+                            <ul style="font-size: 14px;">
+                                <li>Equal Width</li>
+                                <li>Equal Frequency</li>
+                                <li>Custom Bins</li>
+                                <li>Quantile-based</li>
+                            </ul>
+                        </div>
+                        <div class="feature-card">
+                            <h4 style="color: #667eea; margin-top: 0;">Aggregations</h4>
+                            <ul style="font-size: 14px;">
+                                <li>Sum</li>
+                                <li>Count</li>
+                                <li>Rolling Average</li>
+                                <li>Cumulative Sum</li>
+                                <li>Difference</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TRANSFORMATION TAB -->
+            <div id="transformation" class="tab-content">
+                <h2>🔄 Feature Transformations</h2>
+                
+                <div class="card">
+                    <h3>📊 Transformation Methods for Skewed Data</h3>
+                    <p style="margin-bottom: 15px;">Different transformations help normalize skewed distributions:</p>
+                    
+                    <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                        <div class="transform-button" style="border: 3px solid #27ae60; background: #e8f5e9;">
+                            <div style="font-weight: bold;">📈 Log Transform</div>
+                            <div style="font-size: 12px; color: #666;">Best for right-skewed data</div>
+                        </div>
+                        <div class="transform-button">
+                            <div style="font-weight: bold;">√ Square Root</div>
+                            <div style="font-size: 12px; color: #666;">Milder than log</div>
+                        </div>
+                        <div class="transform-button">
+                            <div style="font-weight: bold;">📊 Box-Cox</div>
+                            <div style="font-size: 12px; color: #666;">Automatically finds best power</div>
+                        </div>
+                    </div>
+
+                    <div class="info-box info-box-yellow">
+                        <strong>🎯 When to Use:</strong>
+                        <div class="grid-2" style="margin-top: 10px;">
+                            <div>
+                                <strong style="color: #27ae60;">Log Transform:</strong>
+                                <ul style="font-size: 14px; margin-top: 5px;">
+                                    <li>Income, prices, population</li>
+                                    <li>Skewness &gt; 1</li>
+                                    <li>Spans multiple orders of magnitude</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <strong style="color: #3498db;">Square Root:</strong>
+                                <ul style="font-size: 14px; margin-top: 5px;">
+                                    <li>Count data</li>
+                                    <li>Moderate skewness</li>
+                                    <li>Preserve zero values</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>🎨 Polynomial Features - Capture Non-Linear Patterns</h3>
+                    <p style="margin-bottom: 15px;">Transform [x, y] → [x, y, x², xy, y²] to capture curves and interactions</p>
+                    
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>x</th>
+                                <th>y</th>
+                                <th style="background: #3498db;">x²</th>
+                                <th style="background: #e67e22;">xy</th>
+                                <th style="background: #9b59b6;">y²</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>1</td>
+                                <td>2</td>
+                                <td style="background: #e3f2fd;"><strong>1</strong></td>
+                                <td style="background: #fff3e0;"><strong>2</strong></td>
+                                <td style="background: #f3e5f5;"><strong>4</strong></td>
+                            </tr>
+                            <tr>
+                                <td>2</td>
+                                <td>4</td>
+                                <td style="background: #e3f2fd;"><strong>4</strong></td>
+                                <td style="background: #fff3e0;"><strong>8</strong></td>
+                                <td style="background: #f3e5f5;"><strong>16</strong></td>
+                            </tr>
+                            <tr>
+                                <td>3</td>
+                                <td>9</td>
+                                <td style="background: #e3f2fd;"><strong>9</strong></td>
+                                <td style="background: #fff3e0;"><strong>27</strong></td>
+                                <td style="background: #f3e5f5;"><strong>81</strong></td>
+                            </tr>
+                            <tr>
+                                <td>4</td>
+                                <td>16</td>
+                                <td style="background: #e3f2fd;"><strong>16</strong></td>
+                                <td style="background: #fff3e0;"><strong>64</strong></td>
+                                <td style="background: #f3e5f5;"><strong>256</strong></td>
+                            </tr>
+                            <tr>
+                                <td>5</td>
+                                <td>25</td>
+                                <td style="background: #e3f2fd;"><strong>25</strong></td>
+                                <td style="background: #fff3e0;"><strong>125</strong></td>
+                                <td style="background: #f3e5f5;"><strong>625</strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="info-box info-box-green" style="margin-top: 15px;">
+                        <strong>💡 Example Use Case:</strong> House price prediction
+                        <p style="font-size: 14px; margin-top: 5px; margin-bottom: 0;">
+                            Linear model with just 'sqft' can't capture that price per sqft changes with size. 
+                            Adding 'sqft²' allows the model to learn: small houses ($100/sqft) → medium houses ($150/sqft) → mansions ($200/sqft)
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CREATION TAB -->
+            <div id="creation" class="tab-content">
+                <h2>✨ Creating New Features from Existing Ones</h2>
+                
+                <div class="card">
+                    <h3>🔗 Interaction Features - The Power of Combinations</h3>
+                    <p style="margin-bottom: 15px;">Sometimes the combination of features is more informative than individuals:</p>
+                    
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Sqft</th>
+                                <th>Bedrooms</th>
+                                <th style="background: #27ae60;">Sqft/Bedroom</th>
+                                <th>Price</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>1000</td>
+                                <td>2</td>
+                                <td style="background: #e8f5e9;"><strong>500</strong></td>
+                                <td>$200,000</td>
+                            </tr>
+                            <tr>
+                                <td>1500</td>
+                                <td>3</td>
+                                <td style="background: #e8f5e9;"><strong>500</strong></td>
+                                <td>$300,000</td>
+                            </tr>
+                            <tr>
+                                <td>2000</td>
+                                <td>4</td>
+                                <td style="background: #e8f5e9;"><strong>500</strong></td>
+                                <td>$400,000</td>
+                            </tr>
+                            <tr>
+                                <td>2500</td>
+                                <td>3</td>
+                                <td style="background: #e8f5e9;"><strong>833</strong></td>
+                                <td>$500,000</td>
+                            </tr>
+                            <tr>
+                                <td>3000</td>
+                                <td>5</td>
+                                <td style="background: #e8f5e9;"><strong>600</strong></td>
+                                <td>$600,000</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="info-box info-box-blue" style="margin-top: 20px;">
+                        <strong>🎯 Why This Works:</strong>
+                        <p style="font-size: 14px; margin-top: 5px; margin-bottom: 0;">
+                            "Sqft per bedroom" reveals spaciousness! A 3000 sqft house with 5 bedrooms (600 sqft/bedroom) 
+                            feels cramped compared to 2500 sqft with 3 bedrooms (833 sqft/bedroom). This single derived 
+                            feature captures what two separate features couldn't!
+                        </p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>🎨 Creative Feature Engineering Ideas</h3>
+                    <div class="grid-3">
+                        <div class="feature-card">
+                            <h4 style="color: #667eea; margin-top: 0;">Mathematical Operations</h4>
+                            <ul style="font-size: 14px;">
+                                <li>Sum: total_rooms = bedrooms + bathrooms</li>
+                                <li>Ratio: price_per_sqft = price / sqft</li>
+                                <li>Difference: age_gap = age1 - age2</li>
+                                <li>Product: total_area = length × width</li>
+                            </ul>
+                        </div>
+                        <div class="feature-card">
+                            <h4 style="color: #667eea; margin-top: 0;">Domain Knowledge</h4>
+                            <ul style="font-size: 14px;">
+                                <li>BMI = weight / (height²)</li>
+                                <li>Debt-to-income ratio = debt / income</li>
+                                <li>Customer lifetime value = avg_purchase × frequency</li>
+                                <li>Click-through rate = clicks / impressions</li>
+                            </ul>
+                        </div>
+                        <div class="feature-card">
+                            <h4 style="color: #667eea; margin-top: 0;">Aggregations</h4>
+                            <ul style="font-size: 14px;">
+                                <li>Average purchase per customer</li>
+                                <li>Total spending last 30 days</li>
+                                <li>Number of visits this month</li>
+                                <li>Days since last purchase</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="info-box info-box-yellow" style="margin-top: 20px; border: 2px solid #ffc107;">
+                        <h4 style="margin-top: 0;">💡 Pro Tips for Feature Creation:</h4>
+                        <ol style="font-size: 14px; margin-bottom: 0;">
+                            <li><strong>Talk to domain experts</strong> - They know which combinations matter</li>
+                            <li><strong>Look at correlations</strong> - Highly correlated features might create good ratios</li>
+                            <li><strong>Think about business logic</strong> - What metrics do analysts already use?</li>
+                            <li><strong>Experiment freely</strong> - Try crazy ideas, remove what doesn't work</li>
+                            <li><strong>Validate with the model</strong> - Does it actually improve performance?</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SELECTION TAB -->
+            <div id="selection" class="tab-content">
+                <h2>🎯 Feature Selection - Choose Your Champions!</h2>
+                
+                <div class="card">
+                    <h3>📊 Feature Importance Ranking</h3>
+                    <p style="margin-bottom: 15px;">Understanding which features contribute most to model performance:</p>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <div class="feature-item selected">
+                            <div style="width: 30px; font-size: 20px;">✅</div>
+                            <div style="width: 120px; font-weight: bold;">Income</div>
+                            <div style="flex: 1; margin: 0 15px;">
+                                <div class="bar" style="width: 42%; background: #27ae60;"></div>
+                            </div>
+                            <div style="width: 80px; font-weight: bold; text-align: right; font-size: 18px;">42.0%</div>
+                        </div>
+
+                        <div class="feature-item selected">
+                            <div style="width: 30px; font-size: 20px;">✅</div>
+                            <div style="width: 120px; font-weight: bold;">Age</div>
+                            <div style="flex: 1; margin: 0 15px;">
+                                <div class="bar" style="width: 28%; background: #27ae60;"></div>
+                            </div>
+                            <div style="width: 80px; font-weight: bold; text-align: right; font-size: 18px;">28.0%</div>
+                        </div>
+
+                        <div class="feature-item selected">
+                            <div style="width: 30px; font-size: 20px;">✅</div>
+                            <div style="width: 120px; font-weight: bold;">Education</div>
+                            <div style="flex: 1; margin: 0 15px;">
+                                <div class="bar" style="width: 18%; background: #27ae60;"></div>
+                            </div>
+                            <div style="width: 80px; font-weight: bold; text-align: right; font-size: 18px;">18.0%</div>
+                        </div>
+
+                        <div class="feature-item unselected" onclick="alert('In interactive version, click to toggle!')">
+                            <div style="width: 30px; font-size: 20px;">❌</div>
+                            <div style="width: 120px; font-weight: bold;">Location</div>
+                            <div style="flex: 1; margin: 0 15px;">
+                                <div class="bar" style="width: 8%; background: #e74c3c;"></div>
+                            </div>
+                            <div style="width: 80px; font-weight: bold; text-align: right; font-size: 18px;">8.0%</div>
+                        </div>
+
+                        <div class="feature-item unselected" onclick="alert('In interactive version, click to toggle!')">
+                            <div style="width: 30px; font-size: 20px;">❌</div>
+                            <div style="width: 120px; font-weight: bold;">Gender</div>
+                            <div style="flex: 1; margin: 0 15px;">
+                                <div class="bar" style="width: 4%; background: #e74c3c;"></div>
+                            </div>
+                            <div style="width: 80px; font-weight: bold; text-align: right; font-size: 18px;">4.0%</div>
+                        </div>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="stat-box" style="background: #e3f2fd;">
+                            <strong>Selected Features:</strong>
+                            <div class="stat-value" style="color: #1976d2;">3 / 5</div>
+                        </div>
+                        <div class="stat-box" style="background: #f3e5f5;">
+                            <strong>Cumulative Importance:</strong>
+                            <div class="stat-value" style="color: #7b1fa2;">88.0%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>🔬 Three Methods of Feature Selection</h3>
+                    <div class="grid-3">
+                        <div class="feature-card" style="border-color: #3498db;">
+                            <h4 style="color: #3498db; margin-top: 0;">1️⃣ Filter Methods</h4>
+                            <p style="font-size: 13px; color: #666; margin-bottom: 10px;">
+                                Statistical tests before modeling
+                            </p>
+                            <div style="margin-bottom: 10px;">
+                                <strong style="font-size: 13px;">Techniques:</strong>
+                                <ul style="font-size: 12px; margin-top: 5px; margin-bottom: 5px;">
+                                    <li>Correlation</li>
+                                    <li>Chi-square</li>
+                                    <li>ANOVA</li>
+                                    <li>Mutual Information</li>
+                                </ul>
+                            </div>
+                            <div style="font-size: 12px;">
+                                <div style="color: #27ae60; margin-bottom: 3px;">✓ Fast, model-agnostic</div>
+                                <div style="color: #e74c3c; margin-bottom: 3px;">✗ Ignores feature interactions</div>
+                                <div style="color: #666;"><strong>Use when:</strong> Many features (&gt;1000), quick screening</div>
+                            </div>
+                        </div>
+
+                        <div class="feature-card" style="border-color: #9b59b6;">
+                            <h4 style="color: #9b59b6; margin-top: 0;">2️⃣ Wrapper Methods</h4>
+                            <p style="font-size: 13px; color: #666; margin-bottom: 10px;">
+                                Try different subsets with model
+                            </p>
+                            <div style="margin-bottom: 10px;">
+                                <strong style="font-size: 13px;">Techniques:</strong>
+                                <ul style="font-size: 12px; margin-top: 5px; margin-bottom: 5px;">
+                                    <li>Forward Selection</li>
+                                    <li>Backward Elimination</li>
+                                    <li>RFE</li>
+                                </ul>
+                            </div>
+                            <div style="font-size: 12px;">
+                                <div style="color: #27ae60; margin-bottom: 3px;">✓ Considers interactions</div>
+                                <div style="color: #e74c3c; margin-bottom: 3px;">✗ Computationally expensive</div>
+                                <div style="color: #666;"><strong>Use when:</strong> Moderate features, need best accuracy</div>
+                            </div>
+                        </div>
+
+                        <div class="feature-card" style="border-color: #e67e22;">
+                            <h4 style="color: #e67e22; margin-top: 0;">3️⃣ Embedded Methods</h4>
+                            <p style="font-size: 13px; color: #666; margin-bottom: 10px;">
+                                Selection during training
+                            </p>
+                            <div style="margin-bottom: 10px;">
+                                <strong style="font-size: 13px;">Techniques:</strong>
+                                <ul style="font-size: 12px; margin-top: 5px; margin-bottom: 5px;">
+                                    <li>Lasso (L1)</li>
+                                    <li>Random Forest</li>
+                                    <li>XGBoost</li>
+                                </ul>
+                            </div>
+                            <div style="font-size: 12px;">
+                                <div style="color: #27ae60; margin-bottom: 3px;">✓ Fast, automatic</div>
+                                <div style="color: #e74c3c; margin-bottom: 3px;">✗ Model-specific</div>
+                                <div style="color: #666;"><strong>Use when:</strong> Using tree models, want automation</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DIMENSIONALITY TAB -->
+            <div id="dimensionality" class="tab-content">
+                <h2>📉 Dimensionality Reduction - The Big Picture</h2>
+                
+                <div class="card">
+                    <h3>🎯 PCA: Principal Component Analysis</h3>
+                    <p style="margin-bottom: 15px;">Reduce dimensions while keeping maximum information:</p>
+                    
+                    <div class="info-box info-box-green">
+                        <strong>💡 How PCA Works:</strong>
+                        <ol style="font-size: 14px; margin-top: 5px; margin-bottom: 0;">
+                            <li><strong>Find direction of max variance</strong> → This becomes PC1</li>
+                            <li><strong>Find next perpendicular direction</strong> → This becomes PC2</li>
+                            <li><strong>Continue...</strong> → PC3, PC4, etc.</li>
+                            <li><strong>Keep top k components</strong> → Throw away the rest</li>
+                        </ol>
+                    </div>
+
+                    <div style="margin-top: 20px;">
+                        <h4>Variance Explained by Components:</h4>
+                        <div style="margin-top: 10px;">
+                            <div style="margin-bottom: 10px;">
+                                <div style="display: flex; align-items: center;">
+                                    <div style="width: 100px; font-weight: bold;">PC1:</div>
+                                    <div class="bar" style="width: 72%; background: #667eea;">
+                                        <div style="padding: 5px; color: white; font-weight: bold;">72%</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 10px;">
+                                <div style="display: flex; align-items: center;">
+                                    <div style="width: 100px; font-weight: bold;">PC2:</div>
+                                    <div class="bar" style="width: 18%; background: #3498db;">
+                                        <div style="padding: 5px; color: white; font-weight: bold;">18%</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 10px;">
+                                <div style="display: flex; align-items: center;">
+                                    <div style="width: 100px; font-weight: bold;">PC3:</div>
+                                    <div class="bar" style="width: 10%; background: #95a5a6;">
+                                        <div style="padding: 5px; color: white; font-weight: bold;">10%</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <p style="font-size: 13px; color: #666; margin-top: 10px;">
+                            PC1 and PC2 together capture 90% of the variance - we can safely drop PC3!
+                        </p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>⚠️ Curse of Dimensionality</h3>
+                    <div class="grid-2">
+                        <div style="padding: 15px; background: #ffebee; border-radius: 8px; border: 2px solid #e74c3c;">
+                            <h4 style="color: #e74c3c; margin-top: 0;">The Problem</h4>
+                            <p style="font-size: 14px; margin-bottom: 10px;">As dimensions increase:</p>
+                            <ul style="font-size: 14px; margin-bottom: 10px;">
+                                <li>Data becomes sparse</li>
+                                <li>Distances become meaningless</li>
+                                <li>Need exponentially more data</li>
+                                <li>Models overfit easily</li>
+                                <li>Computation slows down</li>
+                            </ul>
+                            <div class="code-box">
+                                <strong>Example:</strong><br/>
+                                1000 samples, 100 features<br/>
+                                Ratio: 10 samples/feature ❌<br/>
+                                <br/>
+                                1000 samples, 10 features<br/>
+                                Ratio: 100 samples/feature ✅
+                            </div>
+                        </div>
+
+                        <div style="padding: 15px; background: #e8f5e9; border-radius: 8px; border: 2px solid #27ae60;">
+                            <h4 style="color: #27ae60; margin-top: 0;">Solutions</h4>
+                            <p style="font-size: 14px; margin-bottom: 10px;">Reduce dimensions via:</p>
+                            <div style="margin-bottom: 15px;">
+                                <strong style="color: #3498db;">Feature Selection:</strong>
+                                <ul style="font-size: 13px; margin-top: 5px;">
+                                    <li>Keep original features</li>
+                                    <li>Interpretable</li>
+                                    <li>May miss interactions</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <strong style="color: #9b59b6;">Feature Extraction (PCA):</strong>
+                                <ul style="font-size: 13px; margin-top: 5px;">
+                                    <li>Create new features</li>
+                                    <li>Captures all variance</li>
+                                    <li>Loses interpretability</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="info-box info-box-yellow" style="margin-top: 20px; border: 2px solid #ffc107;">
+                        <strong>🎯 Rule of Thumb:</strong>
+                        <p style="font-size: 14px; margin-top: 5px; margin-bottom: 0;">
+                            Aim for at least <strong>10 samples per feature</strong>. With 1000 samples, limit yourself to ~100 features. 
+                            More features ≠ better model! Often, 10-20 well-engineered features beat 1000 raw features.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SCALING TAB -->
+            <div id="scaling" class="tab-content">
+                <h2>⚖️ Impact of Feature Scaling</h2>
+                
+                <div class="card">
+                    <h3>🎯 Real-World Impact on Models</h3>
+                    <p style="margin-bottom: 15px;">See how scaling affects different algorithms:</p>
+                    
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Algorithm</th>
+                                <th>No Scaling</th>
+                                <th>With Scaling</th>
+                                <th>Improvement</th>
+                                <th>Needs Scaling?</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="text-align: left; font-weight: bold;">K-Nearest Neighbors</td>
+                                <td style="background: #ffebee;">62%</td>
+                                <td style="background: #e8f5e9;">89%</td>
+                                <td style="color: #27ae60; font-weight: bold;">+27%</td>
+                                <td style="font-size: 20px;">✅</td>
+                            </tr>
+                            <tr>
+                                <td style="text-align: left; font-weight: bold;">Support Vector Machine</td>
+                                <td style="background: #ffebee;">58%</td>
+                                <td style="background: #e8f5e9;">87%</td>
+                                <td style="color: #27ae60; font-weight: bold;">+29%</td>
+                                <td style="font-size: 20px;">✅</td>
+                            </tr>
+                            <tr>
+                                <td style="text-align: left; font-weight: bold;">Neural Network</td>
+                                <td style="background: #ffebee;">65%</td>
+                                <td style="background: #e8f5e9;">91%</td>
+                                <td style="color: #27ae60; font-weight: bold;">+26%</td>
+                                <td style="font-size: 20px;">✅</td>
+                            </tr>
+                            <tr>
+                                <td style="text-align: left; font-weight: bold;">Logistic Regression</td>
+                                <td style="background: #ffebee;">78%</td>
+                                <td style="background: #e8f5e9;">85%</td>
+                                <td style="color: #27ae60; font-weight: bold;">+7%</td>
+                                <td style="font-size: 20px;">✅</td>
+                            </tr>
+                            <tr>
+                                <td style="text-align: left; font-weight: bold;">Decision Tree</td>
+                                <td style="background: #f8f9fa;">83%</td>
+                                <td style="background: #f8f9fa;">83%</td>
+                                <td style="color: #666; font-weight: bold;">0%</td>
+                                <td style="font-size: 20px;">❌</td>
+                            </tr>
+                            <tr>
+                                <td style="text-align: left; font-weight: bold;">Random Forest</td>
+                                <td style="background: #f8f9fa;">88%</td>
+                                <td style="background: #f8f9fa;">88%</td>
+                                <td style="color: #666; font-weight: bold;">0%</td>
+                                <td style="font-size: 20px;">❌</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card">
+                    <h3>🔍 Why Scaling Matters - Visual Proof</h3>
+                    <div class="grid-2">
+                        <div style="padding: 15px; background: #ffebee; border-radius: 8px;">
+                            <h4 style="color: #e74c3c; margin-top: 0;">❌ Without Scaling</h4>
+                            <div class="code-box" style="margin-bottom: 10px;">
+                                Age: [25, 30, 35] (range: 10)<br/>
+                                Income: [30k, 50k, 80k] (range: 50,000)
+                            </div>
+                            <p style="font-size: 14px; margin-bottom: 10px;"><strong>Distance calculation:</strong></p>
+                            <div class="code-box">
+                                Point A: [30, 50000]<br/>
+                                Point B: [35, 50000]<br/>
+                                <br/>
+                                Distance = √((35-30)² + (50000-50000)²)<br/>
+                                = √(25 + 0)<br/>
+                                = 5<br/>
+                                <br/>
+                                <strong style="color: #e74c3c;">Income dominates! Age ignored!</strong>
+                            </div>
+                        </div>
+
+                        <div style="padding: 15px; background: #e8f5e9; border-radius: 8px;">
+                            <h4 style="color: #27ae60; margin-top: 0;">✅ With Scaling</h4>
+                            <div class="code-box" style="margin-bottom: 10px;">
+                                Age: [0.0, 0.5, 1.0]<br/>
+                                Income: [0.0, 0.4, 1.0]
+                            </div>
+                            <p style="font-size: 14px; margin-bottom: 10px;"><strong>Distance calculation:</strong></p>
+                            <div class="code-box">
+                                Point A: [0.5, 0.4]<br/>
+                                Point B: [1.0, 0.4]<br/>
+                                <br/>
+                                Distance = √((1.0-0.5)² + (0.4-0.4)²)<br/>
+                                = √(0.25 + 0)<br/>
+                                = 0.5<br/>
+                                <br/>
+                                <strong style="color: #27ae60;">Both features contribute equally!</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>📋 Quick Decision Guide</h3>
+                    <div class="grid-2">
+                        <div style="padding: 15px; background: #e8f5e9; border-radius: 8px; border: 2px solid #27ae60;">
+                            <h4 style="color: #27ae60; margin-top: 0;">✅ MUST Scale For:</h4>
+                            <ul style="font-size: 14px; margin-bottom: 0;">
+                                <li><strong>K-Nearest Neighbors (KNN)</strong> - Uses distance directly</li>
+                                <li><strong>Support Vector Machines (SVM)</strong> - Margin-based</li>
+                                <li><strong>Neural Networks</strong> - Gradient descent optimization</li>
+                                <li><strong>Linear/Logistic Regression</strong> - When using regularization</li>
+                                <li><strong>PCA</strong> - Variance-based</li>
+                                <li><strong>K-Means Clustering</strong> - Distance-based</li>
+                            </ul>
+                        </div>
+
+                        <div style="padding: 15px; background: #e3f2fd; border-radius: 8px; border: 2px solid #2196f3;">
+                            <h4 style="color: #2196f3; margin-top: 0;">❌ No Need to Scale:</h4>
+                            <ul style="font-size: 14px; margin-bottom: 0;">
+                                <li><strong>Decision Trees</strong> - Uses splits, not distances</li>
+                                <li><strong>Random Forests</strong> - Ensemble of trees</li>
+                                <li><strong>Gradient Boosting</strong> - XGBoost, LightGBM, CatBoost</li>
+                                <li><strong>Naive Bayes</strong> - Probability-based</li>
+                                <li><strong>Rule-based models</strong> - Uses thresholds</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="info-box info-box-yellow" style="margin-top: 20px; border: 2px solid #ffc107;">
+                        <h4 style="margin-top: 0;">⚠️ CRITICAL: Prevent Data Leakage!</h4>
+                        <div class="grid-2" style="font-size: 14px;">
+                            <div>
+                                <strong style="color: #e74c3c;">❌ WRONG:</strong>
+                                <div class="code-box" style="margin-top: 5px; font-size: 12px;">
+                                    scaler.fit(entire_dataset)<br/>
+                                    X_train = scaler.transform(train)<br/>
+                                    X_test = scaler.transform(test)<br/>
+                                    <br/>
+                                    # Test data influenced training!
+                                </div>
+                            </div>
+                            <div>
+                                <strong style="color: #27ae60;">✅ CORRECT:</strong>
+                                <div class="code-box" style="margin-top: 5px; font-size: 12px;">
+                                    scaler.fit(X_train)<br/>
+                                    X_train = scaler.transform(X_train)<br/>
+                                    X_test = scaler.transform(X_test)<br/>
+                                    <br/>
+                                    # Only learn from training!
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <h3 style="margin-top: 0;">🎯 Feature Engineering Mastery Checklist</h3>
+            <div class="grid-3" style="font-size: 14px; text-align: left; margin-top: 15px;">
+                <div>
+                    <strong>✨ Extraction:</strong>
+                    <p style="font-size: 12px; margin: 5px 0 0 0;">Pull features from text, dates, images, and numbers</p>
+                </div>
+                <div>
+                    <strong>🔄 Transformation:</strong>
+                    <p style="font-size: 12px; margin: 5px 0 0 0;">Log, sqrt, polynomial to capture patterns</p>
+                </div>
+                <div>
+                    <strong>🎨 Creation:</strong>
+                    <p style="font-size: 12px; margin: 5px 0 0 0;">Combine features for powerful interactions</p>
+                </div>
+                <div>
+                    <strong>🎯 Selection:</strong>
+                    <p style="font-size: 12px; margin: 5px 0 0 0;">Keep only features that add value</p>
+                </div>
+                <div>
+                    <strong>📉 Reduction:</strong>
+                    <p style="font-size: 12px; margin: 5px 0 0 0;">PCA when you have too many dimensions</p>
+                </div>
+                <div>
+                    <strong>⚖️ Scaling:</strong>
+                    <p style="font-size: 12px; margin: 5px 0 0 0;">Always scale for distance-based models</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tabName) {
+            // Hide all tabs
+            const tabs = document.querySelectorAll('.tab-content');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            
+            // Remove active class from all buttons
+            const buttons = document.querySelectorAll('.tab-button');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            
+            // Highlight active button
+            event.target.classList.add('active');
+        }
+    </script>
+</body>
+</html>
