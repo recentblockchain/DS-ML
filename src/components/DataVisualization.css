@@ -1,0 +1,40 @@
+.data-viz {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.viz-toolbar {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.viz-btn {
+  padding: 0.5rem 1.25rem;
+  background: #1e2235;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #94a3b8;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.viz-btn:hover {
+  background: #252b42;
+  color: #e2e8f0;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.viz-btn--active {
+  background: rgba(233, 69, 96, 0.15);
+  border-color: #e94560;
+  color: #e94560;
+  font-weight: 600;
+}
+
+.viz-btn--active:hover {
+  background: rgba(233, 69, 96, 0.25);
+}
