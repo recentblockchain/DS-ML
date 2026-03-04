@@ -3,22 +3,24 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const jsx = fs.readFileSync(path.join(__dirname, '1. DeepLearningClassroom.jsx'), 'utf8');
+const jsxArg = process.argv[2] || '1. DeepLearningClassroom.jsx';
+const jsx = fs.readFileSync(path.join(__dirname, jsxArg), 'utf8');
 
 // Strip import lines and convert export default function → function
 const body = jsx
   .replace(/^import\s[\s\S]*?from\s['"].*?['"];?\r?\n/gm, '')
   .replace(/export\s+default\s+function\b/, 'function');
 
-// Escape backticks in the body so it safely embeds in a template literal
-// (We won't embed it in a template literal—we'll use a <script type="text/plain"> instead.)
+const baseName = path.basename(jsxArg, path.extname(jsxArg));
+const compMatch = jsx.match(/export\s+default\s+function\s+(\w+)/);
+const compName = compMatch ? compMatch[1] : 'App';
 
 const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DeepLearning Classroom</title>
+    <title>${baseName}</title>
     <!-- React + Babel with crossorigin so errors are not masked -->
     <script crossorigin="anonymous" src="https://unpkg.com/react@18/umd/react.development.js"></scr` + `ipt>
     <script crossorigin="anonymous" src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></scr` + `ipt>
@@ -70,7 +72,7 @@ const html = `<!DOCTYPE html>
 
         const _container = document.getElementById('root');
         const _root = ReactDOM.createRoot(_container);
-        _root.render(React.createElement(Classroom));
+        _root.render(React.createElement(${compName}));
         document.getElementById('loading').style.display = 'none';
     </scr` + `ipt>
 
@@ -91,6 +93,6 @@ const html = `<!DOCTYPE html>
 </body>
 </html>`;
 
-const outPath = path.join(__dirname, 'Interactive Pages', '1. DeepLearningClassroom-runner.html');
+const outPath = path.join(__dirname, 'Interactive Pages', baseName + '-runner.html');
 fs.writeFileSync(outPath, html, 'utf8');
 console.log('OK: runner written to', outPath, '(' + html.length + ' bytes)');
