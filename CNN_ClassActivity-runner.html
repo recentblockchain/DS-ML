@@ -3,65 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CNNClassActivity - Runner</title>
-    <!-- React and ReactDOM -->
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <!-- Babel Standalone for JSX transpilation -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,700;1,400;1,700&family=Lora:ital,wght@0,400;0,600;1,400&family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <title>CNN_ClassActivity</title>
+    <!-- React + Babel with crossorigin so errors are not masked -->
+    <script crossorigin="anonymous" src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin="anonymous" src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script crossorigin="anonymous" src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Fraunces:ital,wght@0,300;0,600;0,700;1,300;1,400&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        body { margin: 0; padding: 0; background-color: #080c14; color: #d4ddf0; font-family: sans-serif; }
+        body { margin: 0; padding: 0; background-color: #0c0f14; color: #c9d1e0; font-family: sans-serif; }
         #root { min-height: 100vh; }
         #error-overlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.9);
-            color: #ff4d4d;
-            padding: 40px;
-            font-family: 'JetBrains Mono', monospace;
-            z-index: 9999;
-            overflow: auto;
-            white-space: pre-wrap;
+            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.95); color: #ff6b6b; padding: 40px;
+            font-family: 'JetBrains Mono', monospace; z-index: 9999;
+            overflow: auto; white-space: pre-wrap;
         }
-        #error-overlay h1 { color: #fff; margin-top: 0; }
+        #error-overlay h1 { color: #fff; margin-top: 0; margin-bottom: 16px; }
         #loading {
-            position: fixed;
-            top: 50%; left: 50%;
+            position: fixed; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            font-family: 'Orbitron', sans-serif;
-            font-size: 24px;
-            color: #00d4ff;
-            text-shadow: 0 0 10px rgba(0,212,255,0.5);
+            font-family: 'Orbitron', sans-serif; font-size: 24px;
+            color: #00d4ff; text-shadow: 0 0 10px rgba(0,212,255,0.5);
         }
     </style>
 </head>
 <body>
     <div id="loading">INITIALIZING ENGINE...</div>
     <div id="root"></div>
-    <div id="error-overlay">
-        <h1>[CRITICAL ENGINE FAILURE]</h1>
-        <div id="error-message"></div>
-    </div>
+    <div id="error-overlay"><h1>&#x26A0; Render Error</h1><div id="error-message"></div></div>
 
     <script>
-        window.onerror = function(msg, url, line, col, error) {
-            const overlay = document.getElementById('error-overlay');
-            const message = document.getElementById('error-message');
-            document.getElementById('loading').style.display = 'none';
-            overlay.style.display = 'block';
-            message.textContent = `Error: ${msg}\nLine: ${line}\nColumn: ${col}\n\nStack Trace:\n${error ? error.stack : 'N/A'}`;
-        };
+    function showError(msg) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('error-overlay').style.display = 'block';
+        document.getElementById('error-message').textContent = msg;
+    }
+    window.onerror = function(msg, url, line, col, err) {
+        showError('Error: ' + msg + '\nURL: ' + url + '\nLine: ' + line + ', Col: ' + col + (err ? '\n\n' + err.stack : ''));
+        return true;
+    };
+    window.addEventListener('unhandledrejection', function(e) {
+        showError('Unhandled Promise: ' + (e.reason ? (e.reason.stack || String(e.reason)) : String(e)));
+    });
     </script>
 
-    <script type="text/babel" data-presets="env,react">
+    <!-- JSX source stored as plain text so backticks / special chars are safe -->
+    <script id="jsx-source" type="text/plain">
         const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
-        /* --- START OF EMBEDDED JSX --- */
         
-
 /* ─────────────────────────────────────────────
    GLOBAL STYLES
 ───────────────────────────────────────────── */
@@ -1662,17 +1652,26 @@ function CNNClassActivity() {
   );
 }
 
-        /* --- END OF EMBEDDED JSX --- */
 
-        try {
-            const container = document.getElementById("root");
-            const root = ReactDOM.createRoot(container);
-            root.render(<CNNClassActivity />);
-            document.getElementById('loading').style.display = 'none';
-        } catch (err) {
-            console.error(err);
-            window.onerror(err.message, null, null, null, err);
-        }
+        const _container = document.getElementById('root');
+        const _root = ReactDOM.createRoot(_container);
+        _root.render(React.createElement(CNNClassActivity));
+        document.getElementById('loading').style.display = 'none';
+    </script>
+
+    <script>
+    try {
+        const src = document.getElementById('jsx-source').textContent;
+        const compiled = Babel.transform(src, {
+            presets: [['env', { targets: { browsers: ['last 2 Chrome versions'] }, modules: false }], 'react'],
+            filename: 'CNN_ClassActivity.jsx'
+        });
+        // Use indirect eval so strict-mode globals (React, ReactDOM) are in scope
+        const fn = new Function('React', 'ReactDOM', 'showError', compiled.code);
+        fn(React, ReactDOM, showError);
+    } catch(e) {
+        showError('Babel / Compile Error:\n' + (e.message || String(e)) + (e.stack ? '\n\n' + e.stack : ''));
+    }
     </script>
 </body>
 </html>
