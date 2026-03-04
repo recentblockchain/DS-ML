@@ -8,6 +8,8 @@
     <script crossorigin="anonymous" src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin="anonymous" src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script crossorigin="anonymous" src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script crossorigin="anonymous" src="https://unpkg.com/lucide-react@0.344.0/dist/umd/lucide-react.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Fraunces:ital,wght@0,300;0,600;0,700;1,300;1,400&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         body { margin: 0; padding: 0; background-color: #0c0f14; color: #c9d1e0; font-family: sans-serif; }
@@ -50,6 +52,7 @@
     <!-- JSX source stored as plain text so backticks / special chars are safe -->
     <script id="jsx-source" type="text/plain">
         const { useState, useEffect, useRef, useCallback, useMemo } = React;
+        const { Brain, Layers, Zap, TrendingUp, Code, BookOpen, Award, ChevronRight, CheckCircle, XCircle, Lightbulb, Eye, Activity, GitBranch, Play } = LucideReact;
 
         
 function DeepLearningMastery() {
