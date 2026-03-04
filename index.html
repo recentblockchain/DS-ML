@@ -1,67 +1,60 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Feature Engineering Interactive Learning Tool</title>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DS-ML — Interactive React Pages</title>
     <style>
-        body {
-            margin: 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-                sans-serif;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-            background-color: #f5f5f5;
-        }
-        #root {
-            min-height: 100vh;
-        }
+      body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;margin:24px;line-height:1.5}
+      h1{margin:0 0 6px 0}
+      p{margin:0 0 16px 0;color:#444}
+      ul{padding-left:18px}
+      li{margin:6px 0}
     </style>
-</head>
-<body>
-    <div id="root">Loading...</div>
-    <script type="text/babel" data-type="module">
-        // Inline the component to avoid CORS issues
-        const { useState, useEffect } = React;
-        const { LineChart, Line, BarChart, Bar, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } = window.Recharts || {};
-        
-        // Check if Recharts loaded
-        if (!window.Recharts) {
-            document.getElementById('root').innerHTML = '<div style="padding: 20px; text-align: center;"><h2>Loading Recharts...</h2><p>Please wait while the charts library loads...</p></div>';
-            
-            // Load Recharts dynamically
-            const script = document.createElement('script');
-            script.src = 'https://unpkg.com/recharts@2.5.0/dist/Recharts.js';
-            script.onload = () => {
-                window.location.reload();
-            };
-            document.head.appendChild(script);
-        } else {
-            // Load the JSX file
-            fetch('feature_engineering_interactive.jsx')
-                .then(response => response.text())
-                .then(jsxCode => {
-                    // Remove the import statement and export statement
-                    jsxCode = jsxCode.replace(/^import.*from.*;\s*/gm, '');
-                    jsxCode = jsxCode.replace(/export default.*;\s*$/, '');
-                    
-                    // Execute the code
-                    eval(Babel.transform(jsxCode, { presets: ['react'] }).code);
-                    
-                    // Render the component
-                    const root = ReactDOM.createRoot(document.getElementById('root'));
-                    root.render(React.createElement(FeatureEngineeringLearningTool));
-                })
-                .catch(error => {
-                    document.getElementById('root').innerHTML = `<div style="padding: 20px; color: red;"><h2>Error loading component</h2><pre>${error.message}</pre></div>`;
-                    console.error('Error:', error);
-                });
-        }
-    </script>
-    <script src="https://unpkg.com/recharts@2.5.0/dist/Recharts.js"></script>
-</body>
+  </head>
+  <body>
+    <h1>DS-ML — Interactive React Pages</h1>
+    <p>Click a page to open it.</p>
+    <ul>
+<li><a href="1.%20DeepLearningClassroom-runner.html">1. DeepLearningClassroom-runner.html</a></li>
+<li><a href="20260205-%20ML%2BFeature%20Engineering.html">20260205- ML+Feature Engineering.html</a></li>
+<li><a href="20260205-%20ML%2BFeature.html">20260205- ML+Feature.html</a></li>
+<li><a href="20260205-ML%2BFE.html">20260205-ML+FE.html</a></li>
+<li><a href="Adjusting%20Weight%20%26%20Bias.html">Adjusting Weight & Bias.html</a></li>
+<li><a href="BackpropLearn-runner.html">BackpropLearn-runner.html</a></li>
+<li><a href="BackpropTutorial-runner.html">BackpropTutorial-runner.html</a></li>
+<li><a href="CNN%20Introduction.html">CNN Introduction.html</a></li>
+<li><a href="cnn-audio-ai-guide-complete.html">cnn-audio-ai-guide-complete.html</a></li>
+<li><a href="CNN_ClassActivity-runner.html">CNN_ClassActivity-runner.html</a></li>
+<li><a href="CNN_Lesson-runner.html">CNN_Lesson-runner.html</a></li>
+<li><a href="CNN_Tutorial-runner.html">CNN_Tutorial-runner.html</a></li>
+<li><a href="comprehensive_ml_models.html">comprehensive_ml_models.html</a></li>
+<li><a href="decision_machine_academy.html">decision_machine_academy.html</a></li>
+<li><a href="deep-learning-architectures.html">deep-learning-architectures.html</a></li>
+<li><a href="deep-learning-lstm-audio-complete.html">deep-learning-lstm-audio-complete.html</a></li>
+<li><a href="deep-learning-mastery.html">deep-learning-mastery.html</a></li>
+<li><a href="DeepLearningClassroom-runner.html">DeepLearningClassroom-runner.html</a></li>
+<li><a href="DeepLearningExplorer.html">DeepLearningExplorer.html</a></li>
+<li><a href="DL%20Models.html">DL Models.html</a></li>
+<li><a href="error_handling.html">error_handling.html</a></li>
+<li><a href="Feature%20Engineering%20Working.html">Feature Engineering Working.html</a></li>
+<li><a href="Feature%20Enginneing.html">Feature Enginneing.html</a></li>
+<li><a href="feature-engineering.html">feature-engineering.html</a></li>
+<li><a href="feedforward-deep-learning.html">feedforward-deep-learning.html</a></li>
+<li><a href="generative-ai-audio.html">generative-ai-audio.html</a></li>
+<li><a href="image_recognition_technical.html">image_recognition_technical.html</a></li>
+<li><a href="image_recognition_technical_guide.html">image_recognition_technical_guide.html</a></li>
+<li><a href="interactive_ml_algorithms.html">interactive_ml_algorithms.html</a></li>
+<li><a href="intro-data-science-ml.html">intro-data-science-ml.html</a></li>
+<li><a href="ML%20-%20Description.html">ML - Description.html</a></li>
+<li><a href="ml_guide.html">ml_guide.html</a></li>
+<li><a href="ml_tasks_with_code.html">ml_tasks_with_code.html</a></li>
+<li><a href="NeuralNetLesson-runner.html">NeuralNetLesson-runner.html</a></li>
+<li><a href="nlp_technical_guide.html">nlp_technical_guide.html</a></li>
+<li><a href="Practical%20-ML%20Models.html">Practical -ML Models.html</a></li>
+<li><a href="ReactTest.html">ReactTest.html</a></li>
+<li><a href="realtime_ml_applications.html">realtime_ml_applications.html</a></li>
+<li><a href="statistical-analysis-lab.html">statistical-analysis-lab.html</a></li>
+    </ul>
+  </body>
 </html>
