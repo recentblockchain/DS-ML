@@ -1,0 +1,2273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>probability-interactive</title>
+    <!-- React + Babel with crossorigin so errors are not masked -->
+    <script crossorigin="anonymous" src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin="anonymous" src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script crossorigin="anonymous" src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Fraunces:ital,wght@0,300;0,600;0,700;1,300;1,400&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; padding: 0; background-color: #0c0f14; color: #c9d1e0; font-family: sans-serif; }
+        #root { min-height: 100vh; }
+        #error-overlay {
+            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.95); color: #ff6b6b; padding: 40px;
+            font-family: 'JetBrains Mono', monospace; z-index: 9999;
+            overflow: auto; white-space: pre-wrap;
+        }
+        #error-overlay h1 { color: #fff; margin-top: 0; margin-bottom: 16px; }
+        #loading {
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'Orbitron', sans-serif; font-size: 24px;
+            color: #00d4ff; text-shadow: 0 0 10px rgba(0,212,255,0.5);
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">INITIALIZING ENGINE...</div>
+    <div id="root"></div>
+    <div id="error-overlay"><h1>&#x26A0; Render Error</h1><div id="error-message"></div></div>
+
+    <script>
+    function showError(msg) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('error-overlay').style.display = 'block';
+        document.getElementById('error-message').textContent = msg;
+    }
+    window.onerror = function(msg, url, line, col, err) {
+        showError('Error: ' + msg + '\nURL: ' + url + '\nLine: ' + line + ', Col: ' + col + (err ? '\n\n' + err.stack : ''));
+        return true;
+    };
+    window.addEventListener('unhandledrejection', function(e) {
+        showError('Unhandled Promise: ' + (e.reason ? (e.reason.stack || String(e.reason)) : String(e)));
+    });
+    </script>
+
+    <!-- JSX source stored as plain text so backticks / special chars are safe -->
+    <script id="jsx-source" type="text/plain">
+        const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+        
+const ProbabilityInteractive = () => {
+  const [activeTab, setActiveTab] = useState('random-variables');
+  const [simulationRunning, setSimulationRunning] = useState(false);
+  const [selectedDistribution, setSelectedDistribution] = useState('normal');
+  const [markovSteps, setMarkovSteps] = useState(0);
+  const [bayesParams, setBayesParams] = useState({ pA: 0.01, pBA: 0.95, pBnotA: 0.05 });
+  const [cltSamples, setCltSamples] = useState(30);
+  const [entropyText, setEntropyText] = useState('hello world');
+
+  // Simulation states
+  const [normalSamples, setNormalSamples] = useState([]);
+  const [markovState, setMarkovState] = useState('sunny');
+  const [markovHistory, setMarkovHistory] = useState(['sunny']);
+
+  // Distribution parameters
+  const [distParams, setDistParams] = useState({
+    normal: { mu: 0, sigma: 1 },
+    binomial: { n: 10, p: 0.5 },
+    poisson: { lambda: 3 },
+    exponential: { lambda: 1 },
+    uniform: { a: 0, b: 1 }
+  });
+
+  // Common distributions data
+  const distributions = [
+    {
+      name: 'Normal (Gaussian)',
+      key: 'normal',
+      description: 'The most important continuous distribution in statistics, characterized by its bell-shaped curve.',
+      pdf: 'f(x) = (1 / (σ√(2π))) * exp(-(x-μ)²/(2σ²))',
+      parameters: 'μ (mean), σ (standard deviation)',
+      mean: 'μ',
+      variance: 'σ²',
+      applications: ['Height/weight measurements', 'IQ scores', 'Measurement errors', 'Central Limit Theorem'],
+      pythonCode: `import numpy as np
+from scipy import stats
+import matplotlib.pyplot as plt
+
+# Parameters
+mu, sigma = 0, 1
+
+# Generate samples
+samples = np.random.normal(mu, sigma, 1000)
+
+# Calculate PDF
+x = np.linspace(-4, 4, 100)
+pdf = stats.norm.pdf(x, mu, sigma)
+
+# Plot
+plt.hist(samples, bins=30, density=True, alpha=0.7, label='Samples')
+plt.plot(x, pdf, 'r-', linewidth=2, label='PDF')
+plt.xlabel('x')
+plt.ylabel('Density')
+plt.title(f'Normal Distribution (μ={mu}, σ={sigma})')
+plt.legend()
+plt.show()
+
+# Calculate probabilities
+print(f"P(X < 0) = {stats.norm.cdf(0, mu, sigma):.4f}")
+print(f"P(-1 < X < 1) = {stats.norm.cdf(1, mu, sigma) - stats.norm.cdf(-1, mu, sigma):.4f}")`
+    },
+    {
+      name: 'Binomial',
+      key: 'binomial',
+      description: 'Discrete distribution modeling the number of successes in n independent trials.',
+      pdf: 'P(X=k) = C(n,k) * p^k * (1-p)^(n-k)',
+      parameters: 'n (trials), p (success probability)',
+      mean: 'np',
+      variance: 'np(1-p)',
+      applications: ['Coin flips', 'Quality control', 'A/B testing', 'Clinical trials'],
+      pythonCode: `import numpy as np
+from scipy import stats
+import matplotlib.pyplot as plt
+
+# Parameters
+n, p = 10, 0.5
+
+# Generate samples
+samples = np.random.binomial(n, p, 1000)
+
+# Calculate PMF
+k = np.arange(0, n+1)
+pmf = stats.binom.pmf(k, n, p)
+
+# Plot
+plt.figure(figsize=(10, 6))
+plt.hist(samples, bins=np.arange(0, n+2)-0.5, density=True, alpha=0.7, label='Samples')
+plt.plot(k, pmf, 'ro-', linewidth=2, markersize=8, label='PMF')
+plt.xlabel('Number of Successes')
+plt.ylabel('Probability')
+plt.title(f'Binomial Distribution (n={n}, p={p})')
+plt.legend()
+plt.grid(alpha=0.3)
+plt.show()
+
+# Expected value and variance
+print(f"E[X] = {n*p}")
+print(f"Var[X] = {n*p*(1-p)}")`
+    },
+    {
+      name: 'Poisson',
+      key: 'poisson',
+      description: 'Models the number of events occurring in a fixed interval of time or space.',
+      pdf: 'P(X=k) = (λ^k * e^(-λ)) / k!',
+      parameters: 'λ (rate parameter)',
+      mean: 'λ',
+      variance: 'λ',
+      applications: ['Number of calls to call center', 'Website visits', 'Radioactive decay', 'Rare events'],
+      pythonCode: `import numpy as np
+from scipy import stats
+import matplotlib.pyplot as plt
+
+# Parameters
+lambda_param = 3
+
+# Generate samples
+samples = np.random.poisson(lambda_param, 1000)
+
+# Calculate PMF
+k = np.arange(0, 15)
+pmf = stats.poisson.pmf(k, lambda_param)
+
+# Plot
+plt.figure(figsize=(10, 6))
+plt.hist(samples, bins=np.arange(0, 16)-0.5, density=True, alpha=0.7, label='Samples')
+plt.plot(k, pmf, 'go-', linewidth=2, markersize=8, label='PMF')
+plt.xlabel('Number of Events')
+plt.ylabel('Probability')
+plt.title(f'Poisson Distribution (λ={lambda_param})')
+plt.legend()
+plt.grid(alpha=0.3)
+plt.show()
+
+# Properties
+print(f"E[X] = {lambda_param}")
+print(f"Var[X] = {lambda_param}")
+print(f"P(X=0) = {stats.poisson.pmf(0, lambda_param):.4f}")`
+    },
+    {
+      name: 'Exponential',
+      key: 'exponential',
+      description: 'Continuous distribution modeling time between events in a Poisson process.',
+      pdf: 'f(x) = λ * e^(-λx) for x ≥ 0',
+      parameters: 'λ (rate parameter)',
+      mean: '1/λ',
+      variance: '1/λ²',
+      applications: ['Time between arrivals', 'Service times', 'Lifetime of components', 'Waiting times'],
+      pythonCode: `import numpy as np
+from scipy import stats
+import matplotlib.pyplot as plt
+
+# Parameters
+lambda_param = 1
+
+# Generate samples
+samples = np.random.exponential(1/lambda_param, 1000)
+
+# Calculate PDF
+x = np.linspace(0, 5, 100)
+pdf = stats.expon.pdf(x, scale=1/lambda_param)
+
+# Plot
+plt.figure(figsize=(10, 6))
+plt.hist(samples, bins=30, density=True, alpha=0.7, label='Samples')
+plt.plot(x, pdf, 'r-', linewidth=2, label='PDF')
+plt.xlabel('x')
+plt.ylabel('Density')
+plt.title(f'Exponential Distribution (λ={lambda_param})')
+plt.legend()
+plt.grid(alpha=0.3)
+plt.show()
+
+# Properties
+print(f"E[X] = {1/lambda_param}")
+print(f"Var[X] = {1/lambda_param**2}")
+print(f"P(X > 2) = {1 - stats.expon.cdf(2, scale=1/lambda_param):.4f}")`
+    },
+    {
+      name: 'Uniform',
+      key: 'uniform',
+      description: 'All values in an interval are equally likely.',
+      pdf: 'f(x) = 1/(b-a) for a ≤ x ≤ b',
+      parameters: 'a (min), b (max)',
+      mean: '(a+b)/2',
+      variance: '(b-a)²/12',
+      applications: ['Random number generation', 'Initial assumptions', 'Monte Carlo simulation'],
+      pythonCode: `import numpy as np
+from scipy import stats
+import matplotlib.pyplot as plt
+
+# Parameters
+a, b = 0, 1
+
+# Generate samples
+samples = np.random.uniform(a, b, 1000)
+
+# Calculate PDF
+x = np.linspace(a-0.5, b+0.5, 100)
+pdf = stats.uniform.pdf(x, loc=a, scale=b-a)
+
+# Plot
+plt.figure(figsize=(10, 6))
+plt.hist(samples, bins=30, density=True, alpha=0.7, label='Samples')
+plt.plot(x, pdf, 'r-', linewidth=2, label='PDF')
+plt.xlabel('x')
+plt.ylabel('Density')
+plt.title(f'Uniform Distribution [a={a}, b={b}]')
+plt.legend()
+plt.grid(alpha=0.3)
+plt.show()
+
+# Properties
+print(f"E[X] = {(a+b)/2}")
+print(f"Var[X] = {(b-a)**2/12}")`
+    }
+  ];
+
+  // Bayes' Rule calculation
+  const calculateBayes = () => {
+    const { pA, pBA, pBnotA } = bayesParams;
+    const pNotA = 1 - pA;
+    const pB = pBA * pA + pBnotA * pNotA;
+    const pAB = (pBA * pA) / pB;
+    return { pB, pAB, pNotA };
+  };
+
+  // Markov chain simulation
+  const markovTransition = {
+    sunny: { sunny: 0.8, cloudy: 0.15, rainy: 0.05 },
+    cloudy: { sunny: 0.3, cloudy: 0.4, rainy: 0.3 },
+    rainy: { sunny: 0.2, cloudy: 0.3, rainy: 0.5 }
+  };
+
+  const simulateMarkovStep = () => {
+    const transitions = markovTransition[markovState];
+    const rand = Math.random();
+    let cumProb = 0;
+    let newState = markovState;
+    
+    for (const [state, prob] of Object.entries(transitions)) {
+      cumProb += prob;
+      if (rand < cumProb) {
+        newState = state;
+        break;
+      }
+    }
+    
+    setMarkovState(newState);
+    setMarkovHistory([...markovHistory, newState]);
+    setMarkovSteps(markovSteps + 1);
+  };
+
+  const resetMarkov = () => {
+    setMarkovState('sunny');
+    setMarkovHistory(['sunny']);
+    setMarkovSteps(0);
+  };
+
+  // Calculate entropy
+  const calculateEntropy = (text) => {
+    const freq = {};
+    for (const char of text.toLowerCase()) {
+      if (char !== ' ') {
+        freq[char] = (freq[char] || 0) + 1;
+      }
+    }
+    
+    const total = Object.values(freq).reduce((a, b) => a + b, 0);
+    let entropy = 0;
+    
+    for (const count of Object.values(freq)) {
+      const p = count / total;
+      entropy -= p * Math.log2(p);
+    }
+    
+    return { entropy, freq, total };
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50 p-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="bg-white rounded-2xl shadow-xl p-8 mb-8">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="bg-gradient-to-br from-purple-500 to-indigo-600 p-4 rounded-xl">
+              <TrendingUp className="w-12 h-12 text-white" />
+            </div>
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900">
+                Probability Theory & Stochastic Processes
+              </h1>
+              <p className="text-gray-600 mt-2">
+                Interactive exploration with mathematical foundations and programming examples
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation */}
+        <div className="bg-white rounded-xl shadow-lg p-2 mb-8">
+          <div className="flex gap-2 flex-wrap">
+            {[
+              { id: 'random-variables', label: 'Random Variables & Distributions', icon: BarChart3 },
+              { id: 'conditional', label: 'Conditional Probability & Bayes', icon: GitBranch },
+              { id: 'moments', label: 'Expectation & Variance', icon: Calculator },
+              { id: 'theorems', label: 'LLN & CLT', icon: TrendingUp },
+              { id: 'markov', label: 'Markov Chains', icon: Activity },
+              { id: 'information', label: 'Information Theory', icon: Database }
+            ].map(tab => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all ${
+                    activeTab === tab.id
+                      ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-lg'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span className="hidden lg:inline">{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Random Variables & Distributions */}
+        {activeTab === 'random-variables' && (
+          <div className="space-y-6">
+            {/* Introduction */}
+            <div className="bg-white rounded-xl shadow-lg p-8">
+              <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+                <BarChart3 className="w-8 h-8 text-purple-600" />
+                Random Variables & Probability Distributions
+              </h2>
+              
+              <div className="grid md:grid-cols-2 gap-6 mb-8">
+                <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg p-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-3">Random Variable</h3>
+                  <p className="text-gray-700 mb-4">
+                    A function that maps outcomes from a sample space to real numbers: X: Ω → ℝ
+                  </p>
+                  <div className="space-y-2 text-sm">
+                    <div className="bg-white rounded p-3">
+                      <strong>Discrete:</strong> Takes countable values (e.g., dice roll, coin flips)
+                    </div>
+                    <div className="bg-white rounded p-3">
+                      <strong>Continuous:</strong> Takes values in an interval (e.g., height, temperature)
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-lg p-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-3">Probability Distribution</h3>
+                  <p className="text-gray-700 mb-4">
+                    Describes how probabilities are distributed over values
+                  </p>
+                  <div className="space-y-2 text-sm">
+                    <div className="bg-white rounded p-3">
+                      <strong>PMF (Discrete):</strong> P(X = x) for each value x
+                    </div>
+                    <div className="bg-white rounded p-3">
+                      <strong>PDF (Continuous):</strong> f(x) where P(a ≤ X ≤ b) = ∫[a,b] f(x)dx
+                    </div>
+                    <div className="bg-white rounded p-3">
+                      <strong>CDF:</strong> F(x) = P(X ≤ x)
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mathematical Foundations */}
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6 mb-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Mathematical Foundations</h3>
+                <div className="grid md:grid-cols-2 gap-4 text-sm">
+                  <div className="bg-white rounded p-4">
+                    <h4 className="font-bold mb-2">For Discrete RV:</h4>
+                    <div className="space-y-2 font-mono text-xs">
+                      <div>PMF: P(X = xᵢ) = pᵢ</div>
+                      <div>∑ pᵢ = 1</div>
+                      <div>CDF: F(x) = ∑[xᵢ≤x] P(X = xᵢ)</div>
+                    </div>
+                  </div>
+                  <div className="bg-white rounded p-4">
+                    <h4 className="font-bold mb-2">For Continuous RV:</h4>
+                    <div className="space-y-2 font-mono text-xs">
+                      <div>PDF: f(x) ≥ 0</div>
+                      <div>∫[-∞,∞] f(x)dx = 1</div>
+                      <div>CDF: F(x) = ∫[-∞,x] f(t)dt</div>
+                      <div>f(x) = dF(x)/dx</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Common Distributions */}
+            <div className="bg-white rounded-xl shadow-lg p-8">
+              <h3 className="text-2xl font-bold text-gray-900 mb-6">Common Probability Distributions</h3>
+              
+              {/* Distribution Selector */}
+              <div className="flex gap-2 mb-6 flex-wrap">
+                {distributions.map(dist => (
+                  <button
+                    key={dist.key}
+                    onClick={() => setSelectedDistribution(dist.key)}
+                    className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                      selectedDistribution === dist.key
+                        ? 'bg-purple-500 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {dist.name}
+                  </button>
+                ))}
+              </div>
+
+              {/* Distribution Details */}
+              {distributions.filter(d => d.key === selectedDistribution).map(dist => (
+                <div key={dist.key} className="space-y-6">
+                  <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-lg p-6">
+                    <h4 className="text-2xl font-bold text-gray-900 mb-3">{dist.name}</h4>
+                    <p className="text-gray-700 mb-4">{dist.description}</p>
+                    
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="bg-white rounded-lg p-4">
+                        <h5 className="font-bold text-gray-900 mb-2">Mathematical Definition</h5>
+                        <div className="font-mono text-sm bg-gray-50 p-3 rounded">
+                          {dist.pdf}
+                        </div>
+                        <div className="mt-3 space-y-1 text-sm">
+                          <div><strong>Parameters:</strong> {dist.parameters}</div>
+                          <div><strong>Mean (E[X]):</strong> {dist.mean}</div>
+                          <div><strong>Variance (Var[X]):</strong> {dist.variance}</div>
+                        </div>
+                      </div>
+
+                      <div className="bg-white rounded-lg p-4">
+                        <h5 className="font-bold text-gray-900 mb-2">Real-world Applications</h5>
+                        <ul className="space-y-2">
+                          {dist.applications.map((app, idx) => (
+                            <li key={idx} className="flex items-start gap-2">
+                              <ChevronRight className="w-4 h-4 text-purple-500 mt-1 flex-shrink-0" />
+                              <span className="text-gray-700 text-sm">{app}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Python Code Example */}
+                  <div className="bg-gray-900 rounded-lg p-6 text-white">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Code className="w-5 h-5 text-green-400" />
+                      <h5 className="font-bold">Python Implementation</h5>
+                    </div>
+                    <pre className="text-sm overflow-x-auto">
+                      <code>{dist.pythonCode}</code>
+                    </pre>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Conditional Probability & Bayes' Rule */}
+        {activeTab === 'conditional' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl shadow-lg p-8">
+              <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+                <GitBranch className="w-8 h-8 text-purple-600" />
+                Conditional Probability & Bayes' Rule
+              </h2>
+
+              {/* Mathematical Theory */}
+              <div className="grid md:grid-cols-2 gap-6 mb-8">
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-4">Conditional Probability</h3>
+                  <div className="space-y-4">
+                    <div className="bg-white rounded p-4">
+                      <div className="font-bold mb-2">Definition:</div>
+                      <div className="font-mono text-sm bg-gray-50 p-3 rounded">
+                        P(A|B) = P(A ∩ B) / P(B)
+                      </div>
+                      <p className="text-sm text-gray-600 mt-2">
+                        Probability of A given that B has occurred
+                      </p>
+                    </div>
+
+                    <div className="bg-white rounded p-4">
+                      <div className="font-bold mb-2">Multiplication Rule:</div>
+                      <div className="font-mono text-sm bg-gray-50 p-3 rounded">
+                        P(A ∩ B) = P(A|B) · P(B)
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded p-4">
+                      <div className="font-bold mb-2">Independence:</div>
+                      <div className="font-mono text-sm bg-gray-50 p-3 rounded">
+                        P(A|B) = P(A) ⟺ A ⊥ B
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg p-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-4">Bayes' Theorem</h3>
+                  <div className="space-y-4">
+                    <div className="bg-white rounded p-4">
+                      <div className="font-bold mb-2">Bayes' Rule:</div>
+                      <div className="font-mono text-sm bg-gray-50 p-3 rounded">
+                        P(A|B) = [P(B|A) · P(A)] / P(B)
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded p-4">
+                      <div className="font-bold mb-2">Law of Total Probability:</div>
+                      <div className="font-mono text-sm bg-gray-50 p-3 rounded">
+                        P(B) = ∑ᵢ P(B|Aᵢ) · P(Aᵢ)
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded p-4 text-sm">
+                      <div className="font-bold mb-2">Components:</div>
+                      <div className="space-y-1 text-gray-700">
+                        <div><strong>P(A)</strong>: Prior probability</div>
+                        <div><strong>P(B|A)</strong>: Likelihood</div>
+                        <div><strong>P(A|B)</strong>: Posterior probability</div>
+                        <div><strong>P(B)</strong>: Evidence/marginal</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Interactive Bayes Calculator */}
+              <div className="bg-gradient-to-br from-green-50 to-teal-50 border-2 border-green-200 rounded-xl p-6 mb-6">
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">Interactive Bayes' Rule Calculator</h3>
+                <p className="text-gray-700 mb-6">
+                  Medical Test Example: Calculate the probability of having a disease given a positive test result.
+                </p>
+
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        P(Disease) - Prior probability: {(bayesParams.pA * 100).toFixed(1)}%
+                      </label>
+                      <input
+                        type="range"
+                        min="0.001"
+                        max="0.2"
+                        step="0.001"
+                        value={bayesParams.pA}
+                        onChange={(e) => setBayesParams({...bayesParams, pA: parseFloat(e.target.value)})}
+                        className="w-full"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        P(Positive|Disease) - Sensitivity: {(bayesParams.pBA * 100).toFixed(1)}%
+                      </label>
+                      <input
+                        type="range"
+                        min="0.5"
+                        max="0.999"
+                        step="0.001"
+                        value={bayesParams.pBA}
+                        onChange={(e) => setBayesParams({...bayesParams, pBA: parseFloat(e.target.value)})}
+                        className="w-full"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        P(Positive|No Disease) - False Positive: {(bayesParams.pBnotA * 100).toFixed(1)}%
+                      </label>
+                      <input
+                        type="range"
+                        min="0.001"
+                        max="0.5"
+                        step="0.001"
+                        value={bayesParams.pBnotA}
+                        onChange={(e) => setBayesParams({...bayesParams, pBnotA: parseFloat(e.target.value)})}
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-lg p-6">
+                    <h4 className="font-bold text-gray-900 mb-4">Results:</h4>
+                    {(() => {
+                      const { pB, pAB, pNotA } = calculateBayes();
+                      return (
+                        <div className="space-y-3">
+                          <div className="bg-blue-50 p-4 rounded">
+                            <div className="text-sm text-gray-600">P(Positive Test)</div>
+                            <div className="text-2xl font-bold text-blue-600">{(pB * 100).toFixed(2)}%</div>
+                          </div>
+                          <div className="bg-green-50 p-4 rounded">
+                            <div className="text-sm text-gray-600">P(Disease|Positive) - Posterior</div>
+                            <div className="text-2xl font-bold text-green-600">{(pAB * 100).toFixed(2)}%</div>
+                          </div>
+                          <div className="text-sm text-gray-600 mt-4">
+                            <strong>Interpretation:</strong> Even with a positive test result, 
+                            the actual probability of having the disease is {(pAB * 100).toFixed(2)}%, 
+                            because the disease is rare (only {(bayesParams.pA * 100).toFixed(1)}% prevalence).
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Python Implementation */}
+              <div className="bg-gray-900 rounded-lg p-6 text-white">
+                <div className="flex items-center gap-2 mb-4">
+                  <Code className="w-5 h-5 text-green-400" />
+                  <h5 className="font-bold">Python Implementation: Bayes' Rule</h5>
+                </div>
+                <pre className="text-sm overflow-x-auto">
+                  <code>{`import numpy as np
+import matplotlib.pyplot as plt
+
+def bayes_rule(prior, likelihood, false_positive):
+    """
+    Calculate posterior probability using Bayes' rule
+    
+    Args:
+        prior: P(A) - prior probability of event
+        likelihood: P(B|A) - probability of evidence given event
+        false_positive: P(B|not A) - probability of evidence without event
+    
+    Returns:
+        posterior: P(A|B) - probability of event given evidence
+    """
+    # P(not A)
+    not_prior = 1 - prior
+    
+    # P(B) using law of total probability
+    evidence = likelihood * prior + false_positive * not_prior
+    
+    # Bayes' rule: P(A|B) = P(B|A) * P(A) / P(B)
+    posterior = (likelihood * prior) / evidence
+    
+    return posterior, evidence
+
+# Medical test example
+prior = 0.01  # 1% disease prevalence
+sensitivity = 0.95  # 95% true positive rate
+false_pos_rate = 0.05  # 5% false positive rate
+
+posterior, evidence_prob = bayes_rule(prior, sensitivity, false_pos_rate)
+
+print(f"Prior P(Disease) = {prior:.2%}")
+print(f"Sensitivity P(+|Disease) = {sensitivity:.2%}")
+print(f"False Positive Rate P(+|Healthy) = {false_pos_rate:.2%}")
+print(f"\\nP(Positive Test) = {evidence_prob:.2%}")
+print(f"Posterior P(Disease|+) = {posterior:.2%}")
+
+# Visualize how prior affects posterior
+priors = np.linspace(0.001, 0.2, 100)
+posteriors = [bayes_rule(p, sensitivity, false_pos_rate)[0] for p in priors]
+
+plt.figure(figsize=(10, 6))
+plt.plot(priors * 100, np.array(posteriors) * 100, linewidth=2)
+plt.xlabel('Prior Probability (%)')
+plt.ylabel('Posterior Probability (%)')
+plt.title('Effect of Prior on Posterior (Sensitivity=95%, FPR=5%)')
+plt.grid(alpha=0.3)
+plt.show()`}</code>
+                </pre>
+              </div>
+
+              {/* Joint Probability */}
+              <div className="mt-6 bg-gradient-to-br from-orange-50 to-red-50 rounded-lg p-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Joint Probability</h3>
+                <div className="grid md:grid-cols-2 gap-4 text-sm">
+                  <div className="bg-white rounded p-4">
+                    <h4 className="font-bold mb-2">For Discrete Variables:</h4>
+                    <div className="font-mono text-xs bg-gray-50 p-3 rounded mb-3">
+                      P(X=x, Y=y) = pₓᵧ
+                    </div>
+                    <div className="font-mono text-xs bg-gray-50 p-3 rounded">
+                      ∑ₓ ∑ᵧ P(X=x, Y=y) = 1
+                    </div>
+                  </div>
+                  <div className="bg-white rounded p-4">
+                    <h4 className="font-bold mb-2">For Continuous Variables:</h4>
+                    <div className="font-mono text-xs bg-gray-50 p-3 rounded mb-3">
+                      f(x,y) - joint PDF
+                    </div>
+                    <div className="font-mono text-xs bg-gray-50 p-3 rounded">
+                      ∫∫ f(x,y) dx dy = 1
+                    </div>
+                  </div>
+                  <div className="bg-white rounded p-4">
+                    <h4 className="font-bold mb-2">Marginal Distribution:</h4>
+                    <div className="font-mono text-xs bg-gray-50 p-3 rounded">
+                      P(X=x) = ∑ᵧ P(X=x, Y=y)
+                    </div>
+                  </div>
+                  <div className="bg-white rounded p-4">
+                    <h4 className="font-bold mb-2">Independence:</h4>
+                    <div className="font-mono text-xs bg-gray-50 p-3 rounded">
+                      P(X,Y) = P(X)·P(Y)
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Expectation, Variance, Covariance */}
+        {activeTab === 'moments' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl shadow-lg p-8">
+              <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+                <Calculator className="w-8 h-8 text-purple-600" />
+                Expectation, Variance, Covariance & Correlation
+              </h2>
+
+              {/* Expectation */}
+              <div className="mb-8">
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">Expected Value (Mean)</h3>
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg p-6">
+                    <h4 className="font-bold text-gray-900 mb-3">Definition & Properties</h4>
+                    <div className="space-y-3 text-sm">
+                      <div className="bg-white rounded p-3">
+                        <strong>Discrete:</strong>
+                        <div className="font-mono text-xs mt-1 bg-gray-50 p-2 rounded">
+                          E[X] = ∑ xᵢ · P(X = xᵢ)
+                        </div>
+                      </div>
+                      <div className="bg-white rounded p-3">
+                        <strong>Continuous:</strong>
+                        <div className="font-mono text-xs mt-1 bg-gray-50 p-2 rounded">
+                          E[X] = ∫ x · f(x) dx
+                        </div>
+                      </div>
+                      <div className="bg-white rounded p-3">
+                        <strong>Linearity:</strong>
+                        <div className="font-mono text-xs mt-1 bg-gray-50 p-2 rounded">
+                          E[aX + bY] = aE[X] + bE[Y]
+                        </div>
+                      </div>
+                      <div className="bg-white rounded p-3">
+                        <strong>Law of Unconscious Statistician:</strong>
+                        <div className="font-mono text-xs mt-1 bg-gray-50 p-2 rounded">
+                          E[g(X)] = ∑ g(xᵢ) · P(X = xᵢ)
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-green-50 to-teal-50 rounded-lg p-6">
+                    <h4 className="font-bold text-gray-900 mb-3">Interpretation</h4>
+                    <p className="text-gray-700 text-sm mb-4">
+                      The expected value represents the long-run average value if we repeat an experiment infinitely many times. 
+                      It's the center of mass of the probability distribution.
+                    </p>
+                    <div className="bg-white rounded p-4 text-sm">
+                      <strong>Example:</strong>
+                      <p className="mt-2 text-gray-700">
+                        Rolling a fair six-sided die:
+                      </p>
+                      <div className="font-mono text-xs mt-2 bg-gray-50 p-2 rounded">
+                        E[X] = 1·(1/6) + 2·(1/6) + ... + 6·(1/6) = 3.5
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Variance */}
+              <div className="mb-8">
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">Variance & Standard Deviation</h3>
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg p-6">
+                    <h4 className="font-bold text-gray-900 mb-3">Mathematical Definitions</h4>
+                    <div className="space-y-3 text-sm">
+                      <div className="bg-white rounded p-3">
+                        <strong>Variance:</strong>
+                        <div className="font-mono text-xs mt-1 bg-gray-50 p-2 rounded">
+                          Var(X) = E[(X - μ)²] = E[X²] - (E[X])²
+                        </div>
+                      </div>
+                      <div className="bg-white rounded p-3">
+                        <strong>Standard Deviation:</strong>
+                        <div className="font-mono text-xs mt-1 bg-gray-50 p-2 rounded">
+                          σ = √Var(X)
+                        </div>
+                      </div>
+                      <div className="bg-white rounded p-3">
+                        <strong>Properties:</strong>
+                        <div className="space-y-1 mt-1 text-xs">
+                          <div className="font-mono bg-gray-50 p-2 rounded">Var(aX + b) = a²Var(X)</div>
+                          <div className="font-mono bg-gray-50 p-2 rounded">Var(X + Y) = Var(X) + Var(Y) + 2Cov(X,Y)</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-lg p-6">
+                    <h4 className="font-bold text-gray-900 mb-3">Interpretation</h4>
+                    <p className="text-gray-700 text-sm mb-4">
+                      Variance measures the spread or dispersion of a distribution around its mean. 
+                      Higher variance means more variability in the data.
+                    </p>
+                    <div className="bg-white rounded p-4">
+                      <strong className="text-sm">Computational Formula:</strong>
+                      <div className="font-mono text-xs mt-2 bg-gray-50 p-3 rounded">
+                        σ² = [∑(xᵢ - μ)²·P(X=xᵢ)]
+                        <br/>or
+                        <br/>σ² = E[X²] - μ²
+                      </div>
+                      <p className="text-xs text-gray-600 mt-2">
+                        The second formula is often easier for computation
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Covariance and Correlation */}
+              <div className="mb-8">
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">Covariance & Correlation</h3>
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="bg-gradient-to-br from-indigo-50 to-blue-50 rounded-lg p-6">
+                    <h4 className="font-bold text-gray-900 mb-3">Covariance</h4>
+                    <div className="space-y-3 text-sm">
+                      <div className="bg-white rounded p-3">
+                        <strong>Definition:</strong>
+                        <div className="font-mono text-xs mt-1 bg-gray-50 p-2 rounded">
+                          Cov(X,Y) = E[(X-μₓ)(Y-μᵧ)]
+                          <br/>= E[XY] - E[X]E[Y]
+                        </div>
+                      </div>
+                      <div className="bg-white rounded p-3">
+                        <strong>Properties:</strong>
+                        <div className="space-y-1 mt-1 text-xs">
+                          <div>• Cov(X,X) = Var(X)</div>
+                          <div>• Cov(X,Y) = Cov(Y,X)</div>
+                          <div>• Cov(aX,bY) = ab·Cov(X,Y)</div>
+                          <div>• If X ⊥ Y, then Cov(X,Y) = 0</div>
+                        </div>
+                      </div>
+                      <div className="bg-white rounded p-3">
+                        <strong>Interpretation:</strong>
+                        <div className="text-xs mt-1 text-gray-700">
+                          <div>• Positive: Variables tend to increase together</div>
+                          <div>• Negative: One increases, other decreases</div>
+                          <div>• Zero: No linear relationship</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-pink-50 to-purple-50 rounded-lg p-6">
+                    <h4 className="font-bold text-gray-900 mb-3">Correlation Coefficient</h4>
+                    <div className="space-y-3 text-sm">
+                      <div className="bg-white rounded p-3">
+                        <strong>Pearson Correlation:</strong>
+                        <div className="font-mono text-xs mt-1 bg-gray-50 p-2 rounded">
+                          ρ(X,Y) = Cov(X,Y) / (σₓ · σᵧ)
+                        </div>
+                      </div>
+                      <div className="bg-white rounded p-3">
+                        <strong>Properties:</strong>
+                        <div className="space-y-1 mt-1 text-xs">
+                          <div>• -1 ≤ ρ ≤ 1</div>
+                          <div>• ρ = 1: Perfect positive correlation</div>
+                          <div>• ρ = -1: Perfect negative correlation</div>
+                          <div>• ρ = 0: No linear correlation</div>
+                        </div>
+                      </div>
+                      <div className="bg-white rounded p-3">
+                        <strong>Advantage over Covariance:</strong>
+                        <div className="text-xs mt-1 text-gray-700">
+                          Correlation is dimensionless and bounded, making it easier to interpret 
+                          the strength of relationship
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Python Implementation */}
+              <div className="bg-gray-900 rounded-lg p-6 text-white">
+                <div className="flex items-center gap-2 mb-4">
+                  <Code className="w-5 h-5 text-green-400" />
+                  <h5 className="font-bold">Python Implementation: Statistical Moments</h5>
+                </div>
+                <pre className="text-sm overflow-x-auto">
+                  <code>{`import numpy as np
+import matplotlib.pyplot as plt
+from scipy import stats
+
+# Generate correlated data
+np.random.seed(42)
+n = 1000
+
+# Create correlation matrix
+rho = 0.7  # correlation coefficient
+mean = [0, 0]
+cov_matrix = [[1, rho], [rho, 1]]
+
+# Generate bivariate normal data
+X, Y = np.random.multivariate_normal(mean, cov_matrix, n).T
+
+# Calculate moments
+print("=== Statistical Moments ===")
+print(f"E[X] = {np.mean(X):.4f}")
+print(f"E[Y] = {np.mean(Y):.4f}")
+print(f"Var(X) = {np.var(X, ddof=1):.4f}")
+print(f"Var(Y) = {np.var(Y, ddof=1):.4f}")
+print(f"Std(X) = {np.std(X, ddof=1):.4f}")
+print(f"Std(Y) = {np.std(Y, ddof=1):.4f}")
+
+# Calculate covariance and correlation
+cov_xy = np.cov(X, Y)[0, 1]
+corr_xy = np.corrcoef(X, Y)[0, 1]
+
+print(f"\\nCov(X,Y) = {cov_xy:.4f}")
+print(f"Corr(X,Y) = {corr_xy:.4f}")
+
+# Verify formulas
+manual_cov = np.mean((X - np.mean(X)) * (Y - np.mean(Y)))
+manual_corr = manual_cov / (np.std(X, ddof=1) * np.std(Y, ddof=1))
+
+print(f"\\nManual Cov(X,Y) = {manual_cov:.4f}")
+print(f"Manual Corr(X,Y) = {manual_corr:.4f}")
+
+# Visualize
+fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+
+# Scatter plot
+axes[0].scatter(X, Y, alpha=0.5, s=20)
+axes[0].set_xlabel('X')
+axes[0].set_ylabel('Y')
+axes[0].set_title(f'Scatter Plot (ρ = {corr_xy:.2f})')
+axes[0].grid(alpha=0.3)
+
+# Marginal distributions
+axes[1].hist(X, bins=30, alpha=0.7, density=True, label='X')
+axes[1].hist(Y, bins=30, alpha=0.7, density=True, label='Y')
+axes[1].set_xlabel('Value')
+axes[1].set_ylabel('Density')
+axes[1].set_title('Marginal Distributions')
+axes[1].legend()
+axes[1].grid(alpha=0.3)
+
+# Correlation for different rho values
+rho_values = np.linspace(-0.95, 0.95, 10)
+for i, rho_val in enumerate(rho_values):
+    cov_mat = [[1, rho_val], [rho_val, 1]]
+    X_temp, Y_temp = np.random.multivariate_normal([0, 0], cov_mat, 100).T
+    axes[2].scatter(X_temp, Y_temp, alpha=0.3, s=10, label=f'ρ={rho_val:.1f}' if i % 2 == 0 else '')
+
+axes[2].set_xlabel('X')
+axes[2].set_ylabel('Y')
+axes[2].set_title('Effect of Correlation')
+axes[2].legend()
+axes[2].grid(alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# Example: Portfolio variance
+print("\\n=== Portfolio Example ===")
+# Two assets with returns
+r1, r2 = 0.08, 0.12  # expected returns
+sigma1, sigma2 = 0.15, 0.20  # volatilities
+rho_12 = 0.3  # correlation
+
+# Portfolio with weights w1, w2 = 1-w1
+w1 = 0.6
+w2 = 1 - w1
+
+# Portfolio return
+portfolio_return = w1 * r1 + w2 * r2
+
+# Portfolio variance
+portfolio_var = (w1**2 * sigma1**2 + 
+                 w2**2 * sigma2**2 + 
+                 2 * w1 * w2 * rho_12 * sigma1 * sigma2)
+portfolio_std = np.sqrt(portfolio_var)
+
+print(f"Portfolio Return: {portfolio_return:.2%}")
+print(f"Portfolio Risk (Std): {portfolio_std:.2%}")
+print(f"Diversification benefit from correlation: {rho_12}")`}</code>
+                </pre>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Law of Large Numbers & Central Limit Theorem */}
+        {activeTab === 'theorems' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl shadow-lg p-8">
+              <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+                <TrendingUp className="w-8 h-8 text-purple-600" />
+                Law of Large Numbers & Central Limit Theorem
+              </h2>
+
+              {/* Law of Large Numbers */}
+              <div className="mb-8">
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">Law of Large Numbers (LLN)</h3>
+                <div className="grid md:grid-cols-2 gap-6 mb-6">
+                  <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg p-6">
+                    <h4 className="font-bold text-gray-900 mb-3">Weak Law of Large Numbers</h4>
+                    <div className="bg-white rounded p-4 mb-4">
+                      <div className="font-mono text-sm bg-gray-50 p-3 rounded mb-2">
+                        lim(n→∞) P(|X̄ₙ - μ| &gt; ε) = 0
+                      </div>
+                      <p className="text-sm text-gray-700">
+                        For any ε &gt; 0, where X̄ₙ = (X₁ + ... + Xₙ)/n
+                      </p>
+                    </div>
+                    <p className="text-sm text-gray-700 mb-3">
+                      The sample mean converges in probability to the population mean as sample size increases.
+                    </p>
+                    <div className="bg-green-50 border border-green-200 rounded p-3 text-sm">
+                      <strong>Intuition:</strong> As you collect more data, your sample average gets closer 
+                      to the true population average.
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg p-6">
+                    <h4 className="font-bold text-gray-900 mb-3">Strong Law of Large Numbers</h4>
+                    <div className="bg-white rounded p-4 mb-4">
+                      <div className="font-mono text-sm bg-gray-50 p-3 rounded mb-2">
+                        P(lim(n→∞) X̄ₙ = μ) = 1
+                      </div>
+                      <p className="text-sm text-gray-700">
+                        Almost sure convergence
+                      </p>
+                    </div>
+                    <p className="text-sm text-gray-700 mb-3">
+                      The sample mean converges almost surely to the population mean. This is a stronger 
+                      condition than the weak law.
+                    </p>
+                    <div className="bg-yellow-50 border border-yellow-200 rounded p-3 text-sm">
+                      <strong>Key Difference:</strong> SLLN guarantees convergence for almost all sequences, 
+                      while WLLN only requires convergence in probability.
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-green-50 to-teal-50 border-2 border-green-200 rounded-lg p-6">
+                  <h4 className="font-bold text-gray-900 mb-3">Applications of LLN</h4>
+                  <div className="grid md:grid-cols-2 gap-4 text-sm">
+                    <div className="bg-white rounded p-4">
+                      <strong className="text-green-700">Monte Carlo Simulation:</strong>
+                      <p className="text-gray-700 mt-2">
+                        Use random sampling to estimate integrals, probabilities, and expectations
+                      </p>
+                    </div>
+                    <div className="bg-white rounded p-4">
+                      <strong className="text-green-700">Polling & Surveys:</strong>
+                      <p className="text-gray-700 mt-2">
+                        Larger samples give more accurate estimates of population parameters
+                      </p>
+                    </div>
+                    <div className="bg-white rounded p-4">
+                      <strong className="text-green-700">Quality Control:</strong>
+                      <p className="text-gray-700 mt-2">
+                        Long-run average of defect rates converges to true defect probability
+                      </p>
+                    </div>
+                    <div className="bg-white rounded p-4">
+                      <strong className="text-green-700">Insurance:</strong>
+                      <p className="text-gray-700 mt-2">
+                        Average claim amount approaches expected value with many policyholders
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Central Limit Theorem */}
+              <div className="mb-8">
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">Central Limit Theorem (CLT)</h3>
+                <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-lg p-6 mb-6">
+                  <h4 className="font-bold text-gray-900 mb-4">Theorem Statement</h4>
+                  <div className="bg-white rounded p-6">
+                    <p className="text-gray-700 mb-4">
+                      Let X₁, X₂, ..., Xₙ be i.i.d. random variables with mean μ and variance σ². 
+                      Define the sample mean X̄ₙ = (X₁ + ... + Xₙ)/n. Then:
+                    </p>
+                    <div className="font-mono text-sm bg-gray-50 p-4 rounded mb-4">
+                      √n(X̄ₙ - μ) / σ → N(0, 1)
+                      <br/><br/>
+                      Or equivalently:
+                      <br/>
+                      X̄ₙ ~ N(μ, σ²/n) approximately for large n
+                    </div>
+                    <p className="text-gray-700">
+                      The distribution of the sample mean approaches a normal distribution, 
+                      <strong> regardless of the original distribution</strong>, as n increases.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-6 mb-6">
+                  <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-lg p-6">
+                    <h4 className="font-bold text-gray-900 mb-3">Key Properties</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="bg-white rounded p-3">
+                        <strong>Distribution-Free:</strong> Works for any distribution with finite variance
+                      </div>
+                      <div className="bg-white rounded p-3">
+                        <strong>Sample Size:</strong> Usually n ≥ 30 is sufficient, but depends on original distribution
+                      </div>
+                      <div className="bg-white rounded p-3">
+                        <strong>Convergence Rate:</strong> Error decreases at rate 1/√n
+                      </div>
+                      <div className="bg-white rounded p-3">
+                        <strong>Standard Error:</strong> SE(X̄ₙ) = σ/√n
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-pink-50 to-purple-50 rounded-lg p-6">
+                    <h4 className="font-bold text-gray-900 mb-3">Applications</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="bg-white rounded p-3">
+                        <strong>Confidence Intervals:</strong> Construct intervals for unknown parameters
+                      </div>
+                      <div className="bg-white rounded p-3">
+                        <strong>Hypothesis Testing:</strong> Test statistical hypotheses about means
+                      </div>
+                      <div className="bg-white rounded p-3">
+                        <strong>Sample Size Calculation:</strong> Determine required sample size for desired precision
+                      </div>
+                      <div className="bg-white rounded p-3">
+                        <strong>A/B Testing:</strong> Compare treatment effects using normal approximation
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Interactive CLT Demonstration */}
+                <div className="bg-gradient-to-br from-teal-50 to-cyan-50 border-2 border-teal-200 rounded-lg p-6">
+                  <h4 className="font-bold text-gray-900 mb-4">Interactive CLT Demonstration</h4>
+                  <p className="text-gray-700 mb-4 text-sm">
+                    Adjust the sample size to see how the distribution of sample means approaches normality, 
+                    even when sampling from non-normal distributions.
+                  </p>
+                  
+                  <div className="mb-4">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Sample Size per Mean (n): {cltSamples}
+                    </label>
+                    <input
+                      type="range"
+                      min="2"
+                      max="200"
+                      value={cltSamples}
+                      onChange={(e) => setCltSamples(parseInt(e.target.value))}
+                      className="w-full"
+                    />
+                  </div>
+
+                  <div className="bg-white rounded p-4">
+                    <div className="text-sm text-gray-700">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <strong>Original Distribution:</strong> Uniform(0,1)
+                          <div className="mt-1">Mean μ = 0.5, Variance σ² = 1/12</div>
+                        </div>
+                        <div>
+                          <strong>Sample Mean Distribution:</strong>
+                          <div className="mt-1">E[X̄] = 0.5, Var(X̄) = 1/(12n) = {(1/(12*cltSamples)).toFixed(5)}</div>
+                          <div>SE(X̄) = {(1/Math.sqrt(12*cltSamples)).toFixed(4)}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Python Implementation */}
+              <div className="bg-gray-900 rounded-lg p-6 text-white">
+                <div className="flex items-center gap-2 mb-4">
+                  <Code className="w-5 h-5 text-green-400" />
+                  <h5 className="font-bold">Python Implementation: LLN & CLT</h5>
+                </div>
+                <pre className="text-sm overflow-x-auto">
+                  <code>{`import numpy as np
+import matplotlib.pyplot as plt
+from scipy import stats
+
+# ============= Law of Large Numbers =============
+np.random.seed(42)
+
+# True population parameters (uniform distribution)
+true_mean = 0.5
+n_experiments = 1000
+
+# Running average
+sample_sizes = np.arange(1, n_experiments + 1)
+samples = np.random.uniform(0, 1, n_experiments)
+running_means = np.cumsum(samples) / sample_sizes
+
+# Plot LLN
+plt.figure(figsize=(12, 5))
+
+plt.subplot(1, 2, 1)
+plt.plot(sample_sizes, running_means, linewidth=2)
+plt.axhline(y=true_mean, color='r', linestyle='--', linewidth=2, label=f'True Mean = {true_mean}')
+plt.xlabel('Number of Samples')
+plt.ylabel('Sample Mean')
+plt.title('Law of Large Numbers: Convergence to True Mean')
+plt.legend()
+plt.grid(alpha=0.3)
+
+# ============= Central Limit Theorem =============
+# Sample from non-normal distribution (exponential)
+lambda_param = 2
+population_mean = 1 / lambda_param
+population_std = 1 / lambda_param
+
+# Different sample sizes
+sample_sizes_clt = [5, 10, 30, 100]
+n_simulations = 10000
+
+plt.subplot(1, 2, 2)
+for n in sample_sizes_clt:
+    sample_means = []
+    for _ in range(n_simulations):
+        sample = np.random.exponential(1/lambda_param, n)
+        sample_means.append(np.mean(sample))
+    
+    # Plot histogram
+    plt.hist(sample_means, bins=50, alpha=0.5, density=True, label=f'n={n}')
+
+# Overlay theoretical normal distribution
+x = np.linspace(0.2, 0.8, 100)
+plt.plot(x, stats.norm.pdf(x, population_mean, population_std/np.sqrt(100)), 
+         'r-', linewidth=2, label='N(μ, σ²/n) for n=100')
+
+plt.xlabel('Sample Mean')
+plt.ylabel('Density')
+plt.title('Central Limit Theorem: Sampling from Exponential')
+plt.legend()
+plt.grid(alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# ============= CLT for Confidence Intervals =============
+def confidence_interval(data, confidence=0.95):
+    """
+    Calculate confidence interval using CLT
+    """
+    n = len(data)
+    mean = np.mean(data)
+    se = stats.sem(data)  # Standard error
+    
+    # Critical value from standard normal
+    alpha = 1 - confidence
+    z_critical = stats.norm.ppf(1 - alpha/2)
+    
+    margin_of_error = z_critical * se
+    ci_lower = mean - margin_of_error
+    ci_upper = mean + margin_of_error
+    
+    return mean, ci_lower, ci_upper
+
+# Example: estimate mean of population
+np.random.seed(123)
+sample_data = np.random.exponential(1/lambda_param, 100)
+mean_est, ci_lower, ci_upper = confidence_interval(sample_data, 0.95)
+
+print(f"\\n=== 95% Confidence Interval ===")
+print(f"Sample Mean: {mean_est:.4f}")
+print(f"95% CI: [{ci_lower:.4f}, {ci_upper:.4f}]")
+print(f"True Mean: {population_mean:.4f}")
+print(f"CI Contains True Mean: {ci_lower <= population_mean <= ci_upper}")
+
+# Verify coverage probability
+coverage_count = 0
+n_trials = 1000
+
+for _ in range(n_trials):
+    sample = np.random.exponential(1/lambda_param, 100)
+    _, ci_l, ci_u = confidence_interval(sample, 0.95)
+    if ci_l <= population_mean <= ci_u:
+        coverage_count += 1
+
+print(f"\\nEmpirical Coverage: {coverage_count/n_trials:.2%} (should be ~95%)")
+
+# ============= CLT for Hypothesis Testing =============
+# Two-sample t-test example
+group1 = np.random.normal(10, 2, 50)
+group2 = np.random.normal(11, 2, 50)
+
+t_stat, p_value = stats.ttest_ind(group1, group2)
+
+print(f"\\n=== Two-Sample t-test (using CLT) ===")
+print(f"Group 1 Mean: {np.mean(group1):.4f}")
+print(f"Group 2 Mean: {np.mean(group2):.4f}")
+print(f"t-statistic: {t_stat:.4f}")
+print(f"p-value: {p_value:.4f}")
+print(f"Reject H0 at α=0.05: {p_value < 0.05}")`}</code>
+                </pre>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Markov Chains */}
+        {activeTab === 'markov' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl shadow-lg p-8">
+              <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+                <Activity className="w-8 h-8 text-purple-600" />
+                Markov Chains & Stochastic Processes
+              </h2>
+
+              {/* Theory */}
+              <div className="grid md:grid-cols-2 gap-6 mb-8">
+                <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg p-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-4">Markov Property</h3>
+                  <div className="bg-white rounded p-4 mb-4">
+                    <div className="font-mono text-sm bg-gray-50 p-3 rounded">
+                      P(Xₙ₊₁|X₀,X₁,...,Xₙ) = P(Xₙ₊₁|Xₙ)
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-700 mb-4">
+                    The future state depends only on the current state, not on the sequence of 
+                    states that preceded it. This is the "memoryless" property.
+                  </p>
+                  <div className="bg-yellow-50 border border-yellow-200 rounded p-3 text-sm">
+                    <strong>Key Insight:</strong> Past and future are independent given the present.
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg p-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-4">Transition Matrix</h3>
+                  <div className="bg-white rounded p-4 mb-4">
+                    <div className="font-mono text-sm bg-gray-50 p-3 rounded">
+                      P = [pᵢⱼ] where pᵢⱼ = P(Xₙ₊₁=j|Xₙ=i)
+                      <br/><br/>
+                      ∑ⱼ pᵢⱼ = 1 for all i
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-700 mb-4">
+                    The transition matrix contains all one-step transition probabilities. 
+                    Each row sums to 1.
+                  </p>
+                  <div className="bg-green-50 border border-green-200 rounded p-3 text-sm">
+                    <strong>n-step transitions:</strong> Pⁿ gives probabilities for n steps ahead
+                  </div>
+                </div>
+              </div>
+
+              {/* Interactive Weather Model */}
+              <div className="bg-gradient-to-br from-green-50 to-teal-50 border-2 border-green-200 rounded-lg p-6 mb-8">
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">Interactive Weather Markov Chain</h3>
+                <p className="text-gray-700 mb-6 text-sm">
+                  A simple 3-state weather model. Click "Step" to transition to the next state based on 
+                  the transition probabilities.
+                </p>
+
+                {/* Transition Matrix Display */}
+                <div className="bg-white rounded-lg p-6 mb-6">
+                  <h4 className="font-bold text-gray-900 mb-3">Transition Matrix P:</h4>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead>
+                        <tr>
+                          <th className="p-2 border"></th>
+                          <th className="p-2 border bg-yellow-100">Sunny</th>
+                          <th className="p-2 border bg-gray-100">Cloudy</th>
+                          <th className="p-2 border bg-blue-100">Rainy</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td className="p-2 border bg-yellow-100 font-bold">Sunny</td>
+                          <td className="p-2 border text-center">0.80</td>
+                          <td className="p-2 border text-center">0.15</td>
+                          <td className="p-2 border text-center">0.05</td>
+                        </tr>
+                        <tr>
+                          <td className="p-2 border bg-gray-100 font-bold">Cloudy</td>
+                          <td className="p-2 border text-center">0.30</td>
+                          <td className="p-2 border text-center">0.40</td>
+                          <td className="p-2 border text-center">0.30</td>
+                        </tr>
+                        <tr>
+                          <td className="p-2 border bg-blue-100 font-bold">Rainy</td>
+                          <td className="p-2 border text-center">0.20</td>
+                          <td className="p-2 border text-center">0.30</td>
+                          <td className="p-2 border text-center">0.50</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Simulation */}
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="bg-white rounded-lg p-6">
+                    <h4 className="font-bold text-gray-900 mb-4">Current State</h4>
+                    <div className={`text-6xl text-center mb-4`}>
+                      {markovState === 'sunny' && '☀️'}
+                      {markovState === 'cloudy' && '☁️'}
+                      {markovState === 'rainy' && '🌧️'}
+                    </div>
+                    <div className="text-2xl font-bold text-center mb-4 capitalize">
+                      {markovState}
+                    </div>
+                    <div className="text-center text-gray-600 mb-4">
+                      Step: {markovSteps}
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={simulateMarkovStep}
+                        className="flex-1 bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition-all flex items-center justify-center gap-2"
+                      >
+                        <Play className="w-4 h-4" />
+                        Step
+                      </button>
+                      <button
+                        onClick={resetMarkov}
+                        className="flex-1 bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-all flex items-center justify-center gap-2"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        Reset
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-lg p-6">
+                    <h4 className="font-bold text-gray-900 mb-4">State History</h4>
+                    <div className="h-40 overflow-y-auto bg-gray-50 rounded p-3">
+                      {markovHistory.map((state, idx) => (
+                        <div key={idx} className="flex items-center gap-2 mb-2">
+                          <span className="text-gray-600 text-sm">Step {idx}:</span>
+                          <span className="font-semibold capitalize">{state}</span>
+                          <span>
+                            {state === 'sunny' && '☀️'}
+                            {state === 'cloudy' && '☁️'}
+                            {state === 'rainy' && '🌧️'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Advanced Concepts */}
+              <div className="grid md:grid-cols-2 gap-6 mb-8">
+                <div className="bg-gradient-to-br from-indigo-50 to-blue-50 rounded-lg p-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-4">Stationary Distribution</h3>
+                  <div className="bg-white rounded p-4 mb-4">
+                    <div className="font-mono text-sm bg-gray-50 p-3 rounded">
+                      π = πP, where ∑ᵢ πᵢ = 1
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-700 mb-4">
+                    A probability distribution that remains unchanged by the transition matrix. 
+                    The long-run proportion of time spent in each state.
+                  </p>
+                  <div className="bg-white rounded p-3 text-xs">
+                    <strong>Properties:</strong>
+                    <div className="mt-2 space-y-1">
+                      <div>• Unique for irreducible, aperiodic chains</div>
+                      <div>• lim(n→∞) Pⁿ converges to π</div>
+                      <div>• Eigenvector of P with eigenvalue 1</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-lg p-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-4">Key Properties</h3>
+                  <div className="space-y-3 text-sm">
+                    <div className="bg-white rounded p-3">
+                      <strong>Irreducible:</strong> All states communicate (can reach any state from any other)
+                    </div>
+                    <div className="bg-white rounded p-3">
+                      <strong>Aperiodic:</strong> Can return to a state at irregular times (no cycles)
+                    </div>
+                    <div className="bg-white rounded p-3">
+                      <strong>Ergodic:</strong> Irreducible + aperiodic (has unique stationary distribution)
+                    </div>
+                    <div className="bg-white rounded p-3">
+                      <strong>Absorbing:</strong> State that cannot be left once entered (pᵢᵢ = 1)
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Python Implementation */}
+              <div className="bg-gray-900 rounded-lg p-6 text-white">
+                <div className="flex items-center gap-2 mb-4">
+                  <Code className="w-5 h-5 text-green-400" />
+                  <h5 className="font-bold">Python Implementation: Markov Chains</h5>
+                </div>
+                <pre className="text-sm overflow-x-auto">
+                  <code>{`import numpy as np
+import matplotlib.pyplot as plt
+from scipy.linalg import eig
+
+# Define transition matrix (weather example)
+P = np.array([
+    [0.8, 0.15, 0.05],   # Sunny -> [Sunny, Cloudy, Rainy]
+    [0.3, 0.4, 0.3],      # Cloudy -> [Sunny, Cloudy, Rainy]
+    [0.2, 0.3, 0.5]       # Rainy -> [Sunny, Cloudy, Rainy]
+])
+
+states = ['Sunny', 'Cloudy', 'Rainy']
+
+# Verify it's a valid transition matrix
+print("=== Transition Matrix ===")
+print(P)
+print(f"\\nRow sums (should be 1): {P.sum(axis=1)}")
+
+# ============= Simulate Markov Chain =============
+def simulate_markov_chain(P, initial_state, n_steps):
+    """
+    Simulate a Markov chain
+    
+    Args:
+        P: transition matrix
+        initial_state: starting state index
+        n_steps: number of steps to simulate
+        
+    Returns:
+        List of states visited
+    """
+    n_states = P.shape[0]
+    states = [initial_state]
+    current_state = initial_state
+    
+    for _ in range(n_steps):
+        # Transition probabilities from current state
+        probs = P[current_state, :]
+        # Sample next state
+        next_state = np.random.choice(n_states, p=probs)
+        states.append(next_state)
+        current_state = next_state
+    
+    return states
+
+# Simulate
+np.random.seed(42)
+n_steps = 100
+initial_state = 0  # Start with Sunny
+
+trajectory = simulate_markov_chain(P, initial_state, n_steps)
+
+print(f"\\n=== Simulation (first 20 steps) ===")
+for i, state_idx in enumerate(trajectory[:20]):
+    print(f"Step {i}: {states[state_idx]}")
+
+# ============= Find Stationary Distribution =============
+def find_stationary_distribution(P):
+    """
+    Find stationary distribution by solving πP = π
+    """
+    # Find eigenvector with eigenvalue 1
+    eigenvalues, eigenvectors = eig(P.T)
+    
+    # Find index of eigenvalue closest to 1
+    idx = np.argmin(np.abs(eigenvalues - 1))
+    stationary = np.real(eigenvectors[:, idx])
+    
+    # Normalize to sum to 1
+    stationary = stationary / stationary.sum()
+    
+    return stationary
+
+stationary_dist = find_stationary_distribution(P)
+
+print(f"\\n=== Stationary Distribution ===")
+for state, prob in zip(states, stationary_dist):
+    print(f"{state}: {prob:.4f}")
+
+# Verify: π should equal πP
+verify = stationary_dist @ P
+print(f"\\nVerification (πP should equal π):")
+print(f"π = {stationary_dist}")
+print(f"πP = {verify}")
+
+# ============= Long-run Behavior =============
+# Compute P^n for large n
+n_powers = [1, 5, 10, 20, 50, 100]
+print(f"\\n=== P^n (convergence to stationary distribution) ===")
+
+for n in n_powers:
+    P_n = np.linalg.matrix_power(P, n)
+    print(f"\\nP^{n}:")
+    print(P_n)
+
+# Each row should converge to the stationary distribution
+
+# ============= Empirical Distribution =============
+# Count state visits in simulation
+state_counts = np.bincount(trajectory, minlength=len(states))
+empirical_dist = state_counts / len(trajectory)
+
+print(f"\\n=== Empirical vs Theoretical ===")
+print(f"{'State':<10} {'Empirical':<12} {'Theoretical':<12}")
+for i, state in enumerate(states):
+    print(f"{state:<10} {empirical_dist[i]:<12.4f} {stationary_dist[i]:<12.4f}")
+
+# ============= Visualization =============
+fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+
+# Trajectory
+axes[0].plot(trajectory[:100])
+axes[0].set_yticks([0, 1, 2])
+axes[0].set_yticklabels(states)
+axes[0].set_xlabel('Time Step')
+axes[0].set_ylabel('State')
+axes[0].set_title('Markov Chain Trajectory')
+axes[0].grid(alpha=0.3)
+
+# State distribution over time
+window_size = 50
+running_dist = np.zeros((len(trajectory) - window_size, len(states)))
+for i in range(len(trajectory) - window_size):
+    window = trajectory[i:i+window_size]
+    for j in range(len(states)):
+        running_dist[i, j] = (np.array(window) == j).sum() / window_size
+
+for i, state in enumerate(states):
+    axes[1].plot(running_dist[:, i], label=state)
+    axes[1].axhline(y=stationary_dist[i], color=f'C{i}', linestyle='--', alpha=0.5)
+
+axes[1].set_xlabel('Time')
+axes[1].set_ylabel('Proportion')
+axes[1].set_title('State Distribution Over Time')
+axes[1].legend()
+axes[1].grid(alpha=0.3)
+
+# Comparison bar plot
+x = np.arange(len(states))
+width = 0.35
+axes[2].bar(x - width/2, empirical_dist, width, label='Empirical', alpha=0.8)
+axes[2].bar(x + width/2, stationary_dist, width, label='Theoretical', alpha=0.8)
+axes[2].set_xticks(x)
+axes[2].set_xticklabels(states)
+axes[2].set_ylabel('Probability')
+axes[2].set_title('Stationary Distribution Comparison')
+axes[2].legend()
+axes[2].grid(alpha=0.3, axis='y')
+
+plt.tight_layout()
+plt.show()
+
+# ============= Applications =============
+print(f"\\n=== Real-world Applications ===")
+print("1. PageRank: Web pages as states, links as transitions")
+print("2. Speech Recognition: Hidden Markov Models (HMM)")
+print("3. Queueing Theory: Customer states in service systems")
+print("4. Finance: Credit rating transitions")
+print("5. Biology: DNA sequence modeling")`}</code>
+                </pre>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Information Theory */}
+        {activeTab === 'information' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl shadow-lg p-8">
+              <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+                <Database className="w-8 h-8 text-purple-600" />
+                Information Theory Basics
+              </h2>
+
+              {/* Entropy */}
+              <div className="mb-8">
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">Shannon Entropy</h3>
+                <div className="grid md:grid-cols-2 gap-6 mb-6">
+                  <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg p-6">
+                    <h4 className="font-bold text-gray-900 mb-4">Mathematical Definition</h4>
+                    <div className="bg-white rounded p-4 mb-4">
+                      <div className="font-mono text-sm bg-gray-50 p-3 rounded mb-2">
+                        H(X) = -∑ᵢ p(xᵢ) log₂ p(xᵢ)
+                      </div>
+                      <p className="text-sm text-gray-700">
+                        Or equivalently:
+                      </p>
+                      <div className="font-mono text-sm bg-gray-50 p-3 rounded mt-2">
+                        H(X) = E[-log₂ P(X)]
+                      </div>
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      <div className="bg-white rounded p-3">
+                        <strong>Units:</strong> Bits (when using log₂), nats (when using ln)
+                      </div>
+                      <div className="bg-white rounded p-3">
+                        <strong>Range:</strong> 0 ≤ H(X) ≤ log₂(n), where n is number of outcomes
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg p-6">
+                    <h4 className="font-bold text-gray-900 mb-4">Interpretation</h4>
+                    <p className="text-gray-700 text-sm mb-4">
+                      Entropy measures the average amount of information (or uncertainty) in a random variable. 
+                      Higher entropy means more uncertainty.
+                    </p>
+                    <div className="space-y-2 text-sm">
+                      <div className="bg-white rounded p-3">
+                        <strong>Minimum (H=0):</strong> Deterministic (one outcome has p=1)
+                      </div>
+                      <div className="bg-white rounded p-3">
+                        <strong>Maximum:</strong> Uniform distribution (all outcomes equally likely)
+                      </div>
+                      <div className="bg-white rounded p-3">
+                        <strong>Interpretation:</strong> Minimum bits needed to encode a message on average
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Interactive Entropy Calculator */}
+                <div className="bg-gradient-to-br from-green-50 to-teal-50 border-2 border-green-200 rounded-lg p-6 mb-6">
+                  <h4 className="font-bold text-gray-900 mb-4">Interactive Entropy Calculator</h4>
+                  <div className="mb-4">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Enter text to calculate entropy:
+                    </label>
+                    <input
+                      type="text"
+                      value={entropyText}
+                      onChange={(e) => setEntropyText(e.target.value)}
+                      className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 outline-none"
+                      placeholder="Type something..."
+                    />
+                  </div>
+
+                  {(() => {
+                    const { entropy, freq, total } = calculateEntropy(entropyText);
+                    return (
+                      <div className="grid md:grid-cols-2 gap-6">
+                        <div className="bg-white rounded-lg p-6">
+                          <h5 className="font-bold text-gray-900 mb-3">Results:</h5>
+                          <div className="space-y-3">
+                            <div className="bg-blue-50 p-4 rounded">
+                              <div className="text-sm text-gray-600">Entropy</div>
+                              <div className="text-2xl font-bold text-blue-600">{entropy.toFixed(4)} bits</div>
+                            </div>
+                            <div className="bg-green-50 p-4 rounded">
+                              <div className="text-sm text-gray-600">Unique Characters</div>
+                              <div className="text-2xl font-bold text-green-600">{Object.keys(freq).length}</div>
+                            </div>
+                            <div className="bg-purple-50 p-4 rounded">
+                              <div className="text-sm text-gray-600">Total Characters</div>
+                              <div className="text-2xl font-bold text-purple-600">{total}</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-white rounded-lg p-6">
+                          <h5 className="font-bold text-gray-900 mb-3">Character Frequencies:</h5>
+                          <div className="max-h-40 overflow-y-auto">
+                            {Object.entries(freq)
+                              .sort((a, b) => b[1] - a[1])
+                              .map(([char, count]) => (
+                                <div key={char} className="flex justify-between items-center mb-2 text-sm">
+                                  <span className="font-mono bg-gray-100 px-2 py-1 rounded">{char}</span>
+                                  <span className="text-gray-600">{count} ({((count/total)*100).toFixed(1)}%)</span>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* KL Divergence */}
+              <div className="mb-8">
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">Kullback-Leibler (KL) Divergence</h3>
+                <div className="grid md:grid-cols-2 gap-6 mb-6">
+                  <div className="bg-gradient-to-br from-indigo-50 to-blue-50 rounded-lg p-6">
+                    <h4 className="font-bold text-gray-900 mb-4">Definition</h4>
+                    <div className="bg-white rounded p-4 mb-4">
+                      <div className="font-mono text-sm bg-gray-50 p-3 rounded mb-2">
+                        D_KL(P||Q) = ∑ᵢ P(xᵢ) log₂[P(xᵢ)/Q(xᵢ)]
+                      </div>
+                      <p className="text-sm text-gray-700 mt-2">
+                        Or equivalently:
+                      </p>
+                      <div className="font-mono text-sm bg-gray-50 p-3 rounded mt-2">
+                        D_KL(P||Q) = E_P[log P(X) - log Q(X)]
+                      </div>
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      <div className="bg-white rounded p-3">
+                        <strong>Properties:</strong>
+                        <div className="mt-1 space-y-1 text-xs">
+                          <div>• D_KL(P||Q) ≥ 0 (non-negative)</div>
+                          <div>• D_KL(P||Q) = 0 iff P = Q</div>
+                          <div>• NOT symmetric: D_KL(P||Q) ≠ D_KL(Q||P)</div>
+                          <div>• NOT a distance metric</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-lg p-6">
+                    <h4 className="font-bold text-gray-900 mb-4">Interpretation</h4>
+                    <p className="text-gray-700 text-sm mb-4">
+                      KL divergence measures how much one probability distribution P differs from 
+                      a reference distribution Q. It quantifies the "information loss" when using 
+                      Q to approximate P.
+                    </p>
+                    <div className="bg-white rounded p-4">
+                      <strong className="text-sm">Applications:</strong>
+                      <ul className="mt-2 space-y-1 text-xs">
+                        <li>• Variational inference (ELBO)</li>
+                        <li>• Model comparison and selection</li>
+                        <li>• Maximum likelihood estimation</li>
+                        <li>• Information bottleneck method</li>
+                        <li>• Neural network training (cross-entropy loss)</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mutual Information */}
+              <div className="mb-8">
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">Mutual Information</h3>
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="bg-gradient-to-br from-pink-50 to-purple-50 rounded-lg p-6">
+                    <h4 className="font-bold text-gray-900 mb-4">Mathematical Definitions</h4>
+                    <div className="space-y-3 text-sm">
+                      <div className="bg-white rounded p-4">
+                        <strong>Mutual Information:</strong>
+                        <div className="font-mono text-xs mt-1 bg-gray-50 p-2 rounded">
+                          I(X;Y) = ∑ᵢ∑ⱼ P(xᵢ,yⱼ) log₂[P(xᵢ,yⱼ)/(P(xᵢ)P(yⱼ))]
+                        </div>
+                      </div>
+                      <div className="bg-white rounded p-4">
+                        <strong>Alternative Form:</strong>
+                        <div className="font-mono text-xs mt-1 bg-gray-50 p-2 rounded">
+                          I(X;Y) = H(X) + H(Y) - H(X,Y)
+                        </div>
+                      </div>
+                      <div className="bg-white rounded p-4">
+                        <strong>As KL Divergence:</strong>
+                        <div className="font-mono text-xs mt-1 bg-gray-50 p-2 rounded">
+                          I(X;Y) = D_KL(P(X,Y) || P(X)P(Y))
+                        </div>
+                      </div>
+                      <div className="bg-white rounded p-4">
+                        <strong>Properties:</strong>
+                        <div className="mt-1 space-y-1 text-xs">
+                          <div>• I(X;Y) ≥ 0</div>
+                          <div>• I(X;Y) = 0 iff X ⊥ Y</div>
+                          <div>• I(X;Y) = I(Y;X) (symmetric)</div>
+                          <div>• I(X;X) = H(X)</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-6">
+                    <h4 className="font-bold text-gray-900 mb-4">Interpretation & Applications</h4>
+                    <p className="text-gray-700 text-sm mb-4">
+                      Mutual information quantifies the amount of information one random variable 
+                      contains about another. It measures the reduction in uncertainty about X 
+                      given knowledge of Y.
+                    </p>
+                    <div className="space-y-3">
+                      <div className="bg-white rounded p-3 text-sm">
+                        <strong>Feature Selection:</strong>
+                        <p className="text-xs mt-1 text-gray-600">
+                          Select features with high MI with target variable
+                        </p>
+                      </div>
+                      <div className="bg-white rounded p-3 text-sm">
+                        <strong>Image Registration:</strong>
+                        <p className="text-xs mt-1 text-gray-600">
+                          Align images by maximizing MI between them
+                        </p>
+                      </div>
+                      <div className="bg-white rounded p-3 text-sm">
+                        <strong>Clustering:</strong>
+                        <p className="text-xs mt-1 text-gray-600">
+                          Evaluate cluster quality using normalized MI
+                        </p>
+                      </div>
+                      <div className="bg-white rounded p-3 text-sm">
+                        <strong>Neural Networks:</strong>
+                        <p className="text-xs mt-1 text-gray-600">
+                          Information bottleneck theory, representation learning
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Cross-Entropy */}
+              <div className="bg-gradient-to-br from-yellow-50 to-orange-50 border-2 border-yellow-200 rounded-lg p-6 mb-8">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Cross-Entropy</h3>
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="bg-white rounded p-4">
+                    <div className="font-mono text-sm bg-gray-50 p-3 rounded mb-3">
+                      H(P,Q) = -∑ᵢ P(xᵢ) log₂ Q(xᵢ)
+                    </div>
+                    <div className="font-mono text-sm bg-gray-50 p-3 rounded mb-3">
+                      H(P,Q) = H(P) + D_KL(P||Q)
+                    </div>
+                    <p className="text-sm text-gray-700">
+                      Cross-entropy between distributions P and Q equals the entropy of P plus 
+                      the KL divergence from P to Q.
+                    </p>
+                  </div>
+                  <div className="bg-white rounded p-4">
+                    <strong className="text-sm">ML Applications:</strong>
+                    <ul className="mt-2 space-y-1 text-sm">
+                      <li>• Classification loss function</li>
+                      <li>• Language model training</li>
+                      <li>• Measures prediction quality</li>
+                      <li>• Minimizing cross-entropy = maximizing likelihood</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* Python Implementation */}
+              <div className="bg-gray-900 rounded-lg p-6 text-white">
+                <div className="flex items-center gap-2 mb-4">
+                  <Code className="w-5 h-5 text-green-400" />
+                  <h5 className="font-bold">Python Implementation: Information Theory</h5>
+                </div>
+                <pre className="text-sm overflow-x-auto">
+                  <code>{`import numpy as np
+import matplotlib.pyplot as plt
+from scipy.stats import entropy as scipy_entropy
+from sklearn.metrics import mutual_info_score
+
+# ============= Entropy =============
+def entropy(p):
+    """
+    Calculate Shannon entropy
+    
+    Args:
+        p: probability distribution (sums to 1)
+        
+    Returns:
+        Entropy in bits
+    """
+    # Remove zero probabilities
+    p = p[p > 0]
+    return -np.sum(p * np.log2(p))
+
+# Example: Fair coin
+p_fair = np.array([0.5, 0.5])
+H_fair = entropy(p_fair)
+print(f"Entropy of fair coin: {H_fair:.4f} bits")
+
+# Example: Biased coin
+p_biased = np.array([0.9, 0.1])
+H_biased = entropy(p_biased)
+print(f"Entropy of biased coin: {H_biased:.4f} bits")
+
+# Maximum entropy (uniform distribution)
+n = 6  # Six-sided die
+p_uniform = np.ones(n) / n
+H_max = entropy(p_uniform)
+print(f"Maximum entropy (uniform over {n} outcomes): {H_max:.4f} bits")
+print(f"Theoretical maximum: {np.log2(n):.4f} bits")
+
+# Visualize entropy as function of probability
+probs = np.linspace(0.01, 0.99, 100)
+entropies = [entropy(np.array([p, 1-p])) for p in probs]
+
+plt.figure(figsize=(10, 6))
+plt.plot(probs, entropies, linewidth=2)
+plt.xlabel('P(X=1)')
+plt.ylabel('Entropy (bits)')
+plt.title('Binary Entropy Function')
+plt.grid(alpha=0.3)
+plt.axhline(y=1, color='r', linestyle='--', label='Maximum (1 bit)')
+plt.legend()
+plt.show()
+
+# ============= KL Divergence =============
+def kl_divergence(p, q):
+    """
+    Calculate KL divergence D_KL(P||Q)
+    
+    Args:
+        p: true distribution
+        q: approximate distribution
+        
+    Returns:
+        KL divergence in bits
+    """
+    # Remove zero probabilities from p
+    mask = p > 0
+    p_nz = p[mask]
+    q_nz = q[mask]
+    
+    # Avoid log(0)
+    q_nz = np.maximum(q_nz, 1e-10)
+    
+    return np.sum(p_nz * np.log2(p_nz / q_nz))
+
+# Example: Compare distributions
+p_true = np.array([0.4, 0.3, 0.2, 0.1])
+q_approx = np.array([0.25, 0.25, 0.25, 0.25])
+
+kl_pq = kl_divergence(p_true, q_approx)
+kl_qp = kl_divergence(q_approx, p_true)
+
+print(f"\\n=== KL Divergence ===")
+print(f"D_KL(P||Q) = {kl_pq:.4f} bits")
+print(f"D_KL(Q||P) = {kl_qp:.4f} bits")
+print(f"Not symmetric: D_KL(P||Q) != D_KL(Q||P)")
+
+# Visualize KL divergence
+fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+x = np.arange(len(p_true))
+axes[0].bar(x - 0.2, p_true, 0.4, label='P (true)', alpha=0.8)
+axes[0].bar(x + 0.2, q_approx, 0.4, label='Q (approx)', alpha=0.8)
+axes[0].set_xlabel('Outcome')
+axes[0].set_ylabel('Probability')
+axes[0].set_title('Distribution Comparison')
+axes[0].legend()
+axes[0].grid(alpha=0.3, axis='y')
+
+# KL divergence vs. distribution parameter
+alphas = np.linspace(0.1, 0.9, 50)
+kl_values = []
+for alpha in alphas:
+    q_param = np.array([alpha, 1-alpha, 0, 0])
+    # Normalize to match size
+    q_param = np.concatenate([q_param[:2], [0, 0]])
+    q_param = q_param / q_param.sum() if q_param.sum() > 0 else q_approx
+    kl_values.append(kl_divergence(p_true, q_param))
+
+axes[1].plot(alphas, kl_values, linewidth=2)
+axes[1].set_xlabel('Parameter α')
+axes[1].set_ylabel('D_KL(P||Q_α)')
+axes[1].set_title('KL Divergence vs. Distribution Parameter')
+axes[1].grid(alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# ============= Cross-Entropy =============
+def cross_entropy(p, q):
+    """
+    Calculate cross-entropy H(P,Q)
+    
+    Args:
+        p: true distribution
+        q: predicted distribution
+        
+    Returns:
+        Cross-entropy in bits
+    """
+    mask = p > 0
+    p_nz = p[mask]
+    q_nz = q[mask]
+    q_nz = np.maximum(q_nz, 1e-10)
+    
+    return -np.sum(p_nz * np.log2(q_nz))
+
+H_p = entropy(p_true)
+H_pq = cross_entropy(p_true, q_approx)
+kl = kl_divergence(p_true, q_approx)
+
+print(f"\\n=== Cross-Entropy ===")
+print(f"H(P) = {H_p:.4f} bits")
+print(f"H(P,Q) = {H_pq:.4f} bits")
+print(f"D_KL(P||Q) = {kl:.4f} bits")
+print(f"Verify: H(P,Q) = H(P) + D_KL(P||Q)")
+print(f"{H_pq:.4f} = {H_p:.4f} + {kl:.4f} = {H_p + kl:.4f}")
+
+# ============= Mutual Information =============
+def mutual_information(joint_prob):
+    """
+    Calculate mutual information from joint probability
+    
+    Args:
+        joint_prob: 2D array of joint probabilities P(X,Y)
+        
+    Returns:
+        Mutual information in bits
+    """
+    # Marginal distributions
+    p_x = joint_prob.sum(axis=1)
+    p_y = joint_prob.sum(axis=0)
+    
+    mi = 0
+    for i in range(joint_prob.shape[0]):
+        for j in range(joint_prob.shape[1]):
+            if joint_prob[i, j] > 0:
+                mi += joint_prob[i, j] * np.log2(
+                    joint_prob[i, j] / (p_x[i] * p_y[j])
+                )
+    
+    return mi
+
+# Example: Two dice
+# Joint distribution for X and Y where Y = X (perfect correlation)
+n_outcomes = 6
+joint_perfect = np.eye(n_outcomes) / n_outcomes
+
+# Independent dice
+joint_indep = np.ones((n_outcomes, n_outcomes)) / (n_outcomes ** 2)
+
+mi_perfect = mutual_information(joint_perfect)
+mi_indep = mutual_information(joint_indep)
+
+print(f"\\n=== Mutual Information ===")
+print(f"I(X;Y) for perfect correlation: {mi_perfect:.4f} bits")
+print(f"I(X;Y) for independence: {mi_indep:.4f} bits")
+print(f"H(X) for uniform die: {np.log2(n_outcomes):.4f} bits")
+
+# Relationship: I(X;Y) = H(X) + H(Y) - H(X,Y)
+joint_prob = joint_perfect
+p_x = joint_prob.sum(axis=1)
+p_y = joint_prob.sum(axis=0)
+
+H_X = entropy(p_x)
+H_Y = entropy(p_y)
+H_XY = entropy(joint_prob.flatten())
+
+mi_calc = H_X + H_Y - H_XY
+
+print(f"\\nVerify: I(X;Y) = H(X) + H(Y) - H(X,Y)")
+print(f"I(X;Y) = {mi_perfect:.4f}")
+print(f"H(X) + H(Y) - H(X,Y) = {H_X:.4f} + {H_Y:.4f} - {H_XY:.4f} = {mi_calc:.4f}")
+
+# ============= Information Theory in ML ===
+print(f"\\n=== Information Theory in Machine Learning ===")
+print("1. Cross-Entropy Loss: Standard loss for classification")
+print("2. Mutual Information: Feature selection, clustering evaluation")
+print("3. KL Divergence: Variational inference (ELBO), model comparison")
+print("4. Entropy Regularization: Encourage exploration in RL")
+print("5. Information Bottleneck: Representation learning theory")
+print("6. Minimum Description Length: Model selection principle")`}</code>
+                </pre>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="bg-gradient-to-r from-purple-500 to-indigo-600 rounded-xl shadow-lg p-8 text-white">
+          <h3 className="text-2xl font-bold mb-4">Master Probability & Information Theory</h3>
+          <p className="mb-6 opacity-90">
+            These mathematical foundations are essential for understanding machine learning, statistics, 
+            and data science. Practice implementing these concepts and explore their applications!
+          </p>
+          <div className="grid md:grid-cols-3 gap-4">
+            <div className="bg-white bg-opacity-20 rounded-lg p-4">
+              <h4 className="font-bold mb-2">Further Study</h4>
+              <p className="text-sm opacity-90">Measure theory, stochastic calculus, advanced probability</p>
+            </div>
+            <div className="bg-white bg-opacity-20 rounded-lg p-4">
+              <h4 className="font-bold mb-2">Applications</h4>
+              <p className="text-sm opacity-90">Bayesian inference, reinforcement learning, information geometry</p>
+            </div>
+            <div className="bg-white bg-opacity-20 rounded-lg p-4">
+              <h4 className="font-bold mb-2">Practice</h4>
+              <p className="text-sm opacity-90">Implement algorithms, solve problems, work with real data</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ProbabilityInteractive;
+
+        const _container = document.getElementById('root');
+        const _root = ReactDOM.createRoot(_container);
+        _root.render(React.createElement(App));
+        document.getElementById('loading').style.display = 'none';
+    </script>
+
+    <script>
+    try {
+        const src = document.getElementById('jsx-source').textContent;
+        const compiled = Babel.transform(src, {
+            presets: [['env', { targets: { esmodules: true } }], 'react'],
+            filename: 'DeepLearningClassroom.jsx'
+        });
+        // Use indirect eval so strict-mode globals (React, ReactDOM) are in scope
+        const fn = new Function('React', 'ReactDOM', 'showError', compiled.code);
+        fn(React, ReactDOM, showError);
+    } catch(e) {
+        showError('Babel / Compile Error:\n' + (e.message || String(e)) + (e.stack ? '\n\n' + e.stack : ''));
+    }
+    </script>
+</body>
+</html>

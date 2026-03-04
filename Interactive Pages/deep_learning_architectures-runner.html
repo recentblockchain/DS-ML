@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>deep_learning_architectures</title>
+    <!-- React + Babel with crossorigin so errors are not masked -->
+    <script crossorigin="anonymous" src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin="anonymous" src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script crossorigin="anonymous" src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Fraunces:ital,wght@0,300;0,600;0,700;1,300;1,400&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; padding: 0; background-color: #0c0f14; color: #c9d1e0; font-family: sans-serif; }
+        #root { min-height: 100vh; }
+        #error-overlay {
+            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.95); color: #ff6b6b; padding: 40px;
+            font-family: 'JetBrains Mono', monospace; z-index: 9999;
+            overflow: auto; white-space: pre-wrap;
+        }
+        #error-overlay h1 { color: #fff; margin-top: 0; margin-bottom: 16px; }
+        #loading {
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'Orbitron', sans-serif; font-size: 24px;
+            color: #00d4ff; text-shadow: 0 0 10px rgba(0,212,255,0.5);
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">INITIALIZING ENGINE...</div>
+    <div id="root"></div>
+    <div id="error-overlay"><h1>&#x26A0; Render Error</h1><div id="error-message"></div></div>
+
+    <script>
+    function showError(msg) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('error-overlay').style.display = 'block';
+        document.getElementById('error-message').textContent = msg;
+    }
+    window.onerror = function(msg, url, line, col, err) {
+        showError('Error: ' + msg + '\nURL: ' + url + '\nLine: ' + line + ', Col: ' + col + (err ? '\n\n' + err.stack : ''));
+        return true;
+    };
+    window.addEventListener('unhandledrejection', function(e) {
+        showError('Unhandled Promise: ' + (e.reason ? (e.reason.stack || String(e.reason)) : String(e)));
+    });
+    </script>
+
+    <!-- JSX source stored as plain text so backticks / special chars are safe -->
+    <script id="jsx-source" type="text/plain">
+        const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+        
+// ─── Math Utilities ───────────────────────────────────────────────────────────
+const sigmoid = x => 1 / (1 + Math.exp(-x));
+const tanh = x => Math.tanh(x);
+const relu = x => Math.max(0, x);
+const softmax = arr => {
+  const max = Math.max(...arr);
+  const exps = arr.map(x => Math.exp(x - max));
+  const sum = exps.reduce((a, b) => a + b, 0);
+  return exps.map(e => e / sum);
+};
+const dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0);
+const fmt = n => typeof n === "number" ? n.toFixed(4) : n;
+const fmtArr = arr => arr.map(fmt).join(", ");
+
+// ─── Convolution ──────────────────────────────────────────────────────────────
+function convolve2d(input, kernel) {
+  const kh = kernel.length, kw = kernel[0].length;
+  const oh = input.length - kh + 1, ow = input[0].length - kw + 1;
+  const out = Array.from({ length: oh }, () => Array(ow).fill(0));
+  for (let i = 0; i < oh; i++)
+    for (let j = 0; j < ow; j++)
+      for (let ki = 0; ki < kh; ki++)
+        for (let kj = 0; kj < kw; kj++)
+          out[i][j] += input[i + ki][j + kj] * kernel[ki][kj];
+  return out;
+}
+
+function maxPool2d(input, size = 2) {
+  const oh = Math.floor(input.length / size), ow = Math.floor(input[0].length / size);
+  return Array.from({ length: oh }, (_, i) =>
+    Array.from({ length: ow }, (_, j) => {
+      let m = -Infinity;
+      for (let di = 0; di < size; di++)
+        for (let dj = 0; dj < size; dj++)
+          m = Math.max(m, input[i * size + di][j * size + dj]);
+      return m;
+    })
+  );
+}
+
+// ─── Color palette ────────────────────────────────────────────────────────────
+const COLORS = {
+  lenet:    { main: "#22d3ee", glow: "rgba(34,211,238,0.3)",  bg: "rgba(34,211,238,0.08)" },
+  googlenet:{ main: "#fbbf24", glow: "rgba(251,191,36,0.3)",  bg: "rgba(251,191,36,0.08)" },
+  vggnet:   { main: "#a78bfa", glow: "rgba(167,139,250,0.3)", bg: "rgba(167,139,250,0.08)" },
+  rnn:      { main: "#4ade80", glow: "rgba(74,222,128,0.3)",  bg: "rgba(74,222,128,0.08)" },
+  lstm:     { main: "#f472b6", glow: "rgba(244,114,182,0.3)", bg: "rgba(244,114,182,0.08)" },
+  gru:      { main: "#fb923c", glow: "rgba(251,146,60,0.3)",  bg: "rgba(251,146,60,0.08)" },
+};
+
+const TABS = [
+  { id: "lenet",     label: "LeNet",      emoji: "🔭" },
+  { id: "googlenet", label: "GoogLeNet",  emoji: "🔬" },
+  { id: "vggnet",    label: "VGGNet",     emoji: "🏗️" },
+  { id: "rnn",       label: "RNN",        emoji: "🔄" },
+  { id: "lstm",      label: "LSTM",       emoji: "🧠" },
+  { id: "gru",       label: "GRU",        emoji: "⚡" },
+];
+
+// ─── Shared Components ────────────────────────────────────────────────────────
+const InfoCard = ({ color, title, children }) => (
+  <div style={{
+    background: color.bg, border: `1px solid ${color.main}40`,
+    borderRadius: 12, padding: "16px 20px", marginBottom: 16,
+    boxShadow: `inset 0 0 20px ${color.glow}`
+  }}>
+    <div style={{ color: color.main, fontFamily: "'Courier New', monospace", fontWeight: 700, fontSize: 13, letterSpacing: 2, marginBottom: 10, textTransform: "uppercase" }}>{title}</div>
+    <div style={{ color: "#cbd5e1", fontSize: 14, lineHeight: 1.7 }}>{children}</div>
+  </div>
+);
+
+const MathBox = ({ color, children }) => (
+  <div style={{
+    background: "#0f172a", border: `1px solid ${color.main}60`,
+    borderRadius: 8, padding: "12px 16px", fontFamily: "'Courier New', monospace",
+    fontSize: 13, color: color.main, margin: "10px 0", lineHeight: 1.8,
+    whiteSpace: "pre-wrap"
+  }}>{children}</div>
+);
+
+const SectionTitle = ({ color, children }) => (
+  <h3 style={{
+    color: color.main, fontFamily: "'Courier New', monospace", fontSize: 16,
+    fontWeight: 700, letterSpacing: 3, textTransform: "uppercase",
+    borderBottom: `1px solid ${color.main}40`, paddingBottom: 8, marginBottom: 16,
+    textShadow: `0 0 12px ${color.main}`
+  }}>{children}</h3>
+);
+
+const GridViz = ({ data, color, title, scale = 1, showVals = true }) => {
+  const max = Math.max(...data.flat().map(Math.abs)) || 1;
+  return (
+    <div style={{ textAlign: "center", margin: "0 8px" }}>
+      <div style={{ color: "#94a3b8", fontSize: 11, marginBottom: 4 }}>{title}</div>
+      <div style={{ display: "inline-block", border: `1px solid ${color.main}50`, borderRadius: 4, overflow: "hidden" }}>
+        {data.map((row, i) => (
+          <div key={i} style={{ display: "flex" }}>
+            {row.map((val, j) => {
+              const intensity = Math.abs(val) / max;
+              const r = val >= 0 ? Math.round(intensity * 34 + (1-intensity)*15) : 15;
+              const g = val >= 0 ? Math.round(intensity * 211 + (1-intensity)*23) : 23;
+              const b = val >= 0 ? Math.round(intensity * 238 + (1-intensity)*42) : 42;
+              const bg = `rgb(${r},${g},${b})`;
+              return (
+                <div key={j} style={{
+                  width: 28 * scale, height: 28 * scale,
+                  background: bg, display: "flex",
+                  alignItems: "center", justifyContent: "center",
+                  fontSize: 8 * scale, color: intensity > 0.5 ? "#0f172a" : "#94a3b8",
+                  border: "1px solid #1e293b"
+                }}>
+                  {showVals && val.toFixed(1)}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// LENET SECTION
+// ══════════════════════════════════════════════════════════════════════════════
+function LeNetSection() {
+  const color = COLORS.lenet;
+  const [step, setStep] = useState(0);
+  const [learningRate, setLearningRate] = useState(0.1);
+  const [trainEpoch, setTrainEpoch] = useState(0);
+  const [weights, setWeights] = useState([0.5, -0.3, 0.8, -0.6, 0.2, -0.4, 0.7, 0.1, -0.5]);
+  const [loss, setLoss] = useState(null);
+  const [prediction, setPrediction] = useState(null);
+  const [training, setTraining] = useState(false);
+
+  // 5x5 sample digit "1" pattern
+  const inputImage = [
+    [0,0,1,0,0],
+    [0,1,1,0,0],
+    [0,0,1,0,0],
+    [0,0,1,0,0],
+    [0,0,1,1,0],
+  ];
+
+  const kernel1 = [[weights[0],weights[1],weights[2]],[weights[3],weights[4],weights[5]],[weights[6],weights[7],weights[8]]];
+  const conv1 = convolve2d(inputImage, kernel1).map(r => r.map(relu));
+  const pool1 = maxPool2d(conv1, 2);
+
+  const fcInput = pool1.flat();
+  const fcWeight = [0.4, -0.2, 0.6, -0.3];
+  const fcBias = 0.1;
+  const fcOut = sigmoid(dot(fcInput.slice(0,4), fcWeight) + fcBias);
+  const target = 1.0; // it IS a "1"
+  const currentLoss = 0.5 * Math.pow(target - fcOut, 2);
+
+  const steps = [
+    { title: "Input Image (5×5)", desc: "A 5×5 grayscale image representing the digit '1'. Each cell holds a value 0 (black) or 1 (white). This is the raw pixel data fed into LeNet." },
+    { title: "Conv Layer 1 (3×3 kernel)", desc: "A 3×3 filter (kernel) slides across the image. At each position, it multiplies its values with the overlapping pixels and sums them. This detects local patterns like edges. ReLU activation zeros out negatives." },
+    { title: "Max Pooling (2×2)", desc: "We take the maximum value in each 2×2 region. This shrinks the feature map by half, keeping the strongest signals and discarding small position differences — making the network robust to slight shifts." },
+    { title: "Fully Connected + Output", desc: "The flattened pooled values multiply with learned weights and add a bias. Sigmoid activation squashes the result to [0,1]. We interpret this as the probability it's a '1'." },
+    { title: "Loss & Error Backpropagation", desc: "We compute Mean Squared Error. The error flows backward, computing how much each weight contributed. Gradient descent subtracts (learning_rate × gradient) from each weight — nudging them toward lower loss." },
+  ];
+
+  const trainStep = () => {
+    setTraining(true);
+    setTimeout(() => {
+      const grad = -(target - fcOut) * fcOut * (1 - fcOut);
+      setWeights(w => w.map((wi, i) => {
+        const perturbation = (Math.random() - 0.5) * 0.05;
+        return wi - learningRate * grad * (0.1 + perturbation);
+      }));
+      setTrainEpoch(e => e + 1);
+      setLoss(currentLoss);
+      setPrediction(fcOut);
+      setTraining(false);
+    }, 300);
+  };
+
+  return (
+    <div>
+      <InfoCard color={color} title="What is LeNet?">
+        LeNet (1998, Yann LeCun) is the <strong style={{color:color.main}}>original Convolutional Neural Network</strong> designed to read handwritten digits (0–9). It introduced the concept of learning spatial features directly from pixels — no manual feature engineering needed. It powers systems like zip-code readers and bank check readers.
+      </InfoCard>
+      <InfoCard color={color} title="Why do we use it?">
+        Before LeNet, engineers had to manually craft features (like "look for diagonal lines"). LeNet learns these features automatically from data. Its <strong style={{color:color.main}}>convolution layers detect edges → shapes → objects</strong> in a hierarchy, using far fewer parameters than a plain network would need.
+      </InfoCard>
+      <InfoCard color={color} title="Architecture: Input → Conv1 → Pool1 → Conv2 → Pool2 → FC1 → FC2 → Output">
+        Original LeNet used 32×32 inputs, two conv-pool pairs, then fully connected layers. Our demo simplifies to 5×5 for clarity, showing the exact same principles.
+      </InfoCard>
+
+      <SectionTitle color={color}>🔬 Step-by-Step Interactive Walkthrough</SectionTitle>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+        {steps.map((s, i) => (
+          <button key={i} onClick={() => setStep(i)} style={{
+            padding: "6px 14px", borderRadius: 20, border: `1px solid ${color.main}`,
+            background: step === i ? color.main : "transparent",
+            color: step === i ? "#0f172a" : color.main,
+            fontFamily: "'Courier New', monospace", fontSize: 12, cursor: "pointer",
+            fontWeight: step === i ? 700 : 400
+          }}>Step {i+1}</button>
+        ))}
+      </div>
+
+      <div style={{ background: "#0f172a", borderRadius: 12, padding: 20, marginBottom: 16, border: `1px solid ${color.main}30` }}>
+        <div style={{ color: color.main, fontWeight: 700, fontSize: 15, marginBottom: 8 }}>{steps[step].title}</div>
+        <div style={{ color: "#94a3b8", fontSize: 13, lineHeight: 1.7, marginBottom: 16 }}>{steps[step].desc}</div>
+
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "flex-start", justifyContent: "center" }}>
+          {step === 0 && <GridViz data={inputImage} color={color} title="5×5 Input" scale={1.4} />}
+          {step === 1 && <>
+            <GridViz data={inputImage} color={color} title="Input (5×5)" />
+            <div style={{ color: color.main, fontSize: 24, alignSelf: "center" }}>⊛</div>
+            <GridViz data={kernel1} color={color} title="Kernel (3×3)" />
+            <div style={{ color: color.main, fontSize: 24, alignSelf: "center" }}>→</div>
+            <GridViz data={conv1} color={color} title="After Conv+ReLU (3×3)" />
+          </>}
+          {step === 2 && <>
+            <GridViz data={conv1} color={color} title="Before Pooling (3×3)" />
+            <div style={{ color: color.main, fontSize: 24, alignSelf: "center" }}>→ MaxPool →</div>
+            <GridViz data={pool1} color={color} title="After Pooling (1×1)" scale={2} />
+          </>}
+          {step === 3 && (
+            <div style={{ width: "100%" }}>
+              <MathBox color={color}>
+{`Flattened pool values: [${fcInput.slice(0,4).map(f=>f.toFixed(3)).join(", ")}]
+FC Weights: [${fcWeight.join(", ")}]
+FC Bias:    ${fcBias}
+
+Net input = Σ(input_i × weight_i) + bias
+          = ${fcInput.slice(0,4).map((v,i)=>`${v.toFixed(2)}×${fcWeight[i]}`).join(" + ")} + ${fcBias}
+          = ${(dot(fcInput.slice(0,4), fcWeight)+fcBias).toFixed(4)}
+
+Output = sigmoid(net) = ${fcOut.toFixed(4)}
+→ Probability of being "1": ${(fcOut*100).toFixed(1)}%`}
+              </MathBox>
+            </div>
+          )}
+          {step === 4 && (
+            <div style={{ width: "100%" }}>
+              <MathBox color={color}>
+{`Target (true label): ${target}
+Prediction:          ${fcOut.toFixed(4)}
+Error:               ${(target - fcOut).toFixed(4)}
+
+Loss (MSE) = 0.5 × (target - prediction)²
+           = 0.5 × (${target} - ${fcOut.toFixed(4)})²
+           = ${currentLoss.toFixed(6)}
+
+∂Loss/∂output = -(target - prediction) = ${(-(target-fcOut)).toFixed(4)}
+∂output/∂net  = sigmoid'(net) = output×(1-output)
+              = ${fcOut.toFixed(4)} × ${(1-fcOut).toFixed(4)} = ${(fcOut*(1-fcOut)).toFixed(4)}
+
+δ (delta) = ∂Loss/∂output × ∂output/∂net = ${(-(target-fcOut)*fcOut*(1-fcOut)).toFixed(4)}
+
+Weight update rule:
+  new_weight = old_weight − (learning_rate × δ × input)
+  new_bias   = old_bias   − (learning_rate × δ)
+
+With lr = ${learningRate}:
+  new_bias = ${fcBias} − ${learningRate} × ${(-(target-fcOut)*fcOut*(1-fcOut)).toFixed(4)}
+           = ${(fcBias - learningRate*(-(target-fcOut)*fcOut*(1-fcOut))).toFixed(4)}`}
+              </MathBox>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <SectionTitle color={color}>🏋️ Live Training Simulator</SectionTitle>
+      <div style={{ background: "#0f172a", borderRadius: 12, padding: 20, border: `1px solid ${color.main}30` }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
+          <label style={{ color: "#94a3b8", fontSize: 13 }}>
+            Learning Rate: <strong style={{ color: color.main }}>{learningRate}</strong>
+            <input type="range" min="0.001" max="0.5" step="0.001" value={learningRate}
+              onChange={e => setLearningRate(+e.target.value)}
+              style={{ marginLeft: 8, accentColor: color.main, width: 120 }} />
+          </label>
+          <button onClick={trainStep} disabled={training} style={{
+            padding: "8px 20px", borderRadius: 8, border: "none",
+            background: color.main, color: "#0f172a", fontWeight: 700,
+            fontFamily: "'Courier New', monospace", fontSize: 13, cursor: "pointer"
+          }}>{training ? "Training..." : "▶ Train 1 Step"}</button>
+          <button onClick={() => { setWeights([0.5,-0.3,0.8,-0.6,0.2,-0.4,0.7,0.1,-0.5]); setTrainEpoch(0); setLoss(null); setPrediction(null); }} style={{
+            padding: "8px 16px", borderRadius: 8, border: `1px solid ${color.main}`,
+            background: "transparent", color: color.main, fontFamily: "'Courier New', monospace",
+            fontSize: 13, cursor: "pointer"
+          }}>↺ Reset</button>
+        </div>
+        {(loss !== null) && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+            {[["Epoch", trainEpoch],["Loss (MSE)", fmt(loss)],["Prediction", fmt(prediction)]].map(([k,v]) => (
+              <div key={k} style={{ background: color.bg, borderRadius: 8, padding: 12, textAlign: "center" }}>
+                <div style={{ color: "#64748b", fontSize: 11, marginBottom: 4 }}>{k}</div>
+                <div style={{ color: color.main, fontSize: 20, fontFamily: "'Courier New', monospace", fontWeight: 700 }}>{v}</div>
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={{ color: "#64748b", fontSize: 12, marginTop: 12 }}>
+          💡 <strong>What to observe:</strong> As you train, watch the Loss decrease and Prediction approach 1.0 (correct answer). A high learning rate trains fast but may overshoot and become unstable. A low learning rate is stable but slow.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// GOOGLENET SECTION
+// ══════════════════════════════════════════════════════════════════════════════
+function GoogLeNetSection() {
+  const color = COLORS.googlenet;
+  const [selectedBranch, setSelectedBranch] = useState(null);
+  const [inputVal, setInputVal] = useState(0.7);
+  const [step, setStep] = useState(0);
+
+  // Simulated Inception module computation
+  const branches = [
+    { label: "1×1 Conv", kernel: "1×1", filters: 64, desc: "Reduces channels cheaply. Acts as a learned linear combination of input channels. No spatial analysis — just channel mixing.", out: sigmoid(inputVal * 0.6 - 0.1) },
+    { label: "1×1 → 3×3 Conv", kernel: "3×3", filters: 128, desc: "First 1×1 reduces channel depth (bottleneck). Then 3×3 learns medium spatial patterns (edges, textures). Efficient and powerful.", out: relu(inputVal * 0.8 + 0.05) },
+    { label: "1×1 → 5×5 Conv", kernel: "5×5", filters: 32, desc: "First 1×1 compresses. Then 5×5 captures larger spatial context (broader shapes, larger textures). Fewer parameters because of the bottleneck.", out: tanh(inputVal * 0.5 - 0.2) },
+    { label: "3×3 Pool → 1×1", kernel: "pool", filters: 32, desc: "MaxPool captures the strongest local features. Then 1×1 conv reduces dimensions. Adds spatial invariance to the module.", out: relu(inputVal * 0.4 + 0.1) },
+  ];
+  const concat = branches.map(b => b.out.toFixed(3)).join(" | ");
+
+  const architectureSteps = [
+    { title: "Stem", desc: "7×7 Conv → MaxPool → 1×1 Conv → 3×3 Conv → MaxPool. Rapidly reduces 224×224 image to 28×28 feature maps." },
+    { title: "Inception Block ×2", desc: "Two inception modules with 4 parallel branches each, concatenated at depth dimension." },
+    { title: "MaxPool + Inception ×5", desc: "Spatial downsampling followed by five more inception blocks. Depth grows while spatial size shrinks." },
+    { title: "Inception ×2 + AvgPool", desc: "Final two inception modules. Global Average Pooling replaces fully connected layers — averages each feature map to a single number. Massive parameter reduction." },
+    { title: "Dropout + Softmax", desc: "Dropout randomly zeroes activations during training (regularization). Final 1000-class softmax for ImageNet classification." },
+  ];
+
+  return (
+    <div>
+      <InfoCard color={color} title="What is GoogLeNet (Inception)?">
+        GoogLeNet (2014, Google Brain) won ImageNet with a radical idea: instead of choosing one convolution size, use <strong style={{color:color.main}}>all of them simultaneously</strong> in parallel "Inception modules." It has 22 layers but uses <strong style={{color:color.main}}>12× fewer parameters</strong> than AlexNet through aggressive bottleneck design.
+      </InfoCard>
+      <InfoCard color={color} title="Why do we use it?">
+        Different features live at different scales — some patterns are small (texture), others are large (object shape). Processing multiple scales in parallel captures all of them. The 1×1 bottleneck convolutions dramatically reduce computation before expensive 3×3 and 5×5 convolutions.
+      </InfoCard>
+
+      <SectionTitle color={color}>🔬 Inception Module — Live Demo</SectionTitle>
+      <div style={{ background: "#0f172a", borderRadius: 12, padding: 20, marginBottom: 16, border: `1px solid ${color.main}30` }}>
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ color: "#94a3b8", fontSize: 13 }}>
+            Input activation value: <strong style={{ color: color.main }}>{inputVal.toFixed(2)}</strong>
+            <input type="range" min="0" max="1" step="0.01" value={inputVal}
+              onChange={e => setInputVal(+e.target.value)}
+              style={{ marginLeft: 12, accentColor: color.main, width: 160 }} />
+          </label>
+        </div>
+
+        {/* Inception module visual */}
+        <div style={{ textAlign: "center", marginBottom: 16 }}>
+          <div style={{ color: "#64748b", fontSize: 12, marginBottom: 8 }}>Previous Layer Output</div>
+          <div style={{ background: color.bg, border: `2px solid ${color.main}`, borderRadius: 8, padding: "8px 24px", display: "inline-block", color: color.main, fontWeight: 700, fontSize: 14, marginBottom: 16 }}>
+            Input: {inputVal.toFixed(2)}
+          </div>
+          <div style={{ display: "flex", justifyContent: "center", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+            {branches.map((b, i) => (
+              <div key={i} onClick={() => setSelectedBranch(selectedBranch === i ? null : i)}
+                style={{
+                  background: selectedBranch === i ? color.bg : "#1e293b",
+                  border: `2px solid ${selectedBranch === i ? color.main : color.main+"40"}`,
+                  borderRadius: 10, padding: "12px 16px", cursor: "pointer",
+                  minWidth: 140, textAlign: "center",
+                  transition: "all 0.2s",
+                  boxShadow: selectedBranch === i ? `0 0 16px ${color.glow}` : "none"
+                }}>
+                <div style={{ color: color.main, fontWeight: 700, fontSize: 13 }}>{b.label}</div>
+                <div style={{ color: "#64748b", fontSize: 11 }}>{b.filters} filters</div>
+                <div style={{ color: "#e2e8f0", fontSize: 14, marginTop: 6, fontFamily: "'Courier New', monospace" }}>→ {b.out.toFixed(3)}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ color: "#64748b", fontSize: 12, marginBottom: 8 }}>Concatenated along depth dimension →</div>
+          <div style={{ background: color.bg, border: `2px solid ${color.main}60`, borderRadius: 8, padding: "8px 16px", display: "inline-block", color: color.main, fontFamily: "'Courier New', monospace", fontSize: 13 }}>
+            [{concat}]  (256 channels total)
+          </div>
+        </div>
+
+        {selectedBranch !== null && (
+          <div style={{ background: "#0f172a", border: `1px solid ${color.main}50`, borderRadius: 10, padding: 16 }}>
+            <div style={{ color: color.main, fontWeight: 700, marginBottom: 8 }}>{branches[selectedBranch].label}</div>
+            <div style={{ color: "#94a3b8", fontSize: 13, lineHeight: 1.7, marginBottom: 10 }}>{branches[selectedBranch].desc}</div>
+            <MathBox color={color}>
+{`Branch input: ${inputVal.toFixed(3)}
+Kernel size:  ${branches[selectedBranch].kernel}
+Filters:      ${branches[selectedBranch].filters}
+Activation:   ${["sigmoid","relu","tanh","relu"][selectedBranch]}
+Output:       ${branches[selectedBranch].out.toFixed(4)}`}
+            </MathBox>
+          </div>
+        )}
+      </div>
+
+      <SectionTitle color={color}>🏛️ Full Architecture (22 Layers)</SectionTitle>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {architectureSteps.map((s, i) => (
+          <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start", background: "#0f172a", borderRadius: 10, padding: 14, border: `1px solid ${color.main}20` }}>
+            <div style={{ background: color.bg, border: `1px solid ${color.main}`, borderRadius: "50%", width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", color: color.main, fontWeight: 700, fontSize: 13, flexShrink: 0 }}>{i+1}</div>
+            <div>
+              <div style={{ color: color.main, fontWeight: 600, fontSize: 13, marginBottom: 4 }}>{s.title}</div>
+              <div style={{ color: "#94a3b8", fontSize: 12, lineHeight: 1.6 }}>{s.desc}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <InfoCard color={color} title="Error Handling & Weight Update">
+        GoogLeNet uses <strong style={{color:color.main}}>auxiliary classifiers</strong> at intermediate layers during training — a unique error handling technique. If the main output is wrong, gradients also flow from these intermediate checkpoints, preventing the vanishing gradient problem in the deep network. Weight update: <code style={{color:color.main}}>w ← w − α·∇L</code> where ∇L includes gradients from all three loss points (two auxiliary + final).
+      </InfoCard>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// VGGNET SECTION
+// ══════════════════════════════════════════════════════════════════════════════
+function VGGNetSection() {
+  const color = COLORS.vggnet;
+  const [depth, setDepth] = useState(3);
+  const [inputPixel, setInputPixel] = useState(0.6);
+  const [showMath, setShowMath] = useState(false);
+
+  const layers = [
+    { name: "Input", size: "224×224×3", desc: "RGB image: 224 rows, 224 columns, 3 color channels" },
+    { name: "Conv Block 1 (×2)", size: "224×224×64", desc: "Two 3×3 convolutions. 64 filters each. Detect basic edges and colors." },
+    { name: "MaxPool", size: "112×112×64", desc: "Halve spatial dimensions. Retain strongest edge responses." },
+    { name: "Conv Block 2 (×2)", size: "112×112×128", desc: "Two 3×3 convolutions. 128 filters. Detect corners, simple textures." },
+    { name: "MaxPool", size: "56×56×128", desc: "Spatial halving again." },
+    { name: "Conv Block 3 (×3)", size: "56×56×256", desc: "Three 3×3 convolutions. 256 filters. Detect complex textures and patterns." },
+    { name: "MaxPool", size: "28×28×256", desc: "Spatial halving." },
+    { name: "Conv Block 4 (×3)", size: "28×28×512", desc: "Three 3×3 convolutions. 512 filters. Detect parts of objects (wheels, eyes, etc.)." },
+    { name: "MaxPool", size: "14×14×512", desc: "Spatial halving." },
+    { name: "Conv Block 5 (×3)", size: "14×14×512", desc: "Three more 3×3 convolutions. 512 filters. High-level semantic features." },
+    { name: "MaxPool", size: "7×7×512", desc: "Final spatial reduction." },
+    { name: "FC-4096", size: "4096", desc: "Fully connected. 4096 neurons. Combines all spatial features." },
+    { name: "FC-4096", size: "4096", desc: "Second fully connected layer. Refines combination." },
+    { name: "FC-1000 + Softmax", size: "1000", desc: "Output probabilities for 1000 ImageNet classes." },
+  ];
+
+  // Simulate stacked 3x3 = effective receptive field
+  const stackedConvSim = () => {
+    let val = inputPixel;
+    const trace = [`Input: ${val.toFixed(3)}`];
+    for (let i = 0; i < depth; i++) {
+      const w = [0.4, 0.3, -0.2, 0.5, 0.6, -0.1, 0.2, 0.4, 0.3][i % 9];
+      const b = [0.05, -0.02, 0.03][i % 3];
+      val = relu(val * w * 3 + b);
+      trace.push(`Conv ${i+1}: relu(${(val/(relu(val*w*3+b)||1)).toFixed(2)}×${w}×3 + ${b}) = ${val.toFixed(4)}`);
+    }
+    return trace;
+  };
+
+  const trace = stackedConvSim();
+
+  return (
+    <div>
+      <InfoCard color={color} title="What is VGGNet?">
+        VGGNet (2014, Oxford Visual Geometry Group) proved that <strong style={{color:color.main}}>depth matters above all else</strong>. It uses only 3×3 convolution filters stacked repeatedly — up to 19 layers deep. Its brutal simplicity made it one of the most studied architectures in deep learning history.
+      </InfoCard>
+      <InfoCard color={color} title="Why only 3×3 kernels?">
+        Two stacked 3×3 convolutions cover the same receptive field as one 5×5 convolution, but with <strong style={{color:color.main}}>fewer parameters and more non-linearity</strong>. Three 3×3 convolutions ≡ one 7×7 convolution, using only 3×(9C²) vs. 49C² parameters. More activations = richer representations.
+      </InfoCard>
+
+      <SectionTitle color={color}>📐 Depth vs. Receptive Field Simulator</SectionTitle>
+      <div style={{ background: "#0f172a", borderRadius: 12, padding: 20, marginBottom: 16, border: `1px solid ${color.main}30` }}>
+        <div style={{ display: "flex", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
+          <label style={{ color: "#94a3b8", fontSize: 13 }}>
+            Stacked Conv Layers: <strong style={{ color: color.main }}>{depth}</strong>
+            <input type="range" min={1} max={9} step={1} value={depth}
+              onChange={e => setDepth(+e.target.value)}
+              style={{ marginLeft: 8, accentColor: color.main, width: 120 }} />
+          </label>
+          <label style={{ color: "#94a3b8", fontSize: 13 }}>
+            Input value: <strong style={{ color: color.main }}>{inputPixel.toFixed(2)}</strong>
+            <input type="range" min={0} max={1} step={0.01} value={inputPixel}
+              onChange={e => setInputPixel(+e.target.value)}
+              style={{ marginLeft: 8, accentColor: color.main, width: 120 }} />
+          </label>
+        </div>
+
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}>
+          {Array.from({ length: depth }, (_, i) => (
+            <div key={i} style={{ textAlign: "center" }}>
+              <div style={{
+                background: `rgba(167,139,250,${0.2 + i * 0.08})`,
+                border: `2px solid ${color.main}`,
+                borderRadius: 8, padding: "12px 10px",
+                color: color.main, fontFamily: "'Courier New', monospace",
+                fontSize: 11, minWidth: 70
+              }}>
+                Conv {i+1}<br />3×3<br />
+                <span style={{ color: "#e2e8f0" }}>RF: {i*2+3}×{i*2+3}</span>
+              </div>
+              {i < depth-1 && <div style={{ color: color.main, fontSize: 18, textAlign: "center" }}>→</div>}
+            </div>
+          ))}
+        </div>
+
+        <div style={{ color: "#64748b", fontSize: 12, marginBottom: 10 }}>
+          Effective receptive field: <span style={{ color: color.main, fontWeight: 700 }}>{depth*2+1}×{depth*2+1} pixels</span> — covered by just {depth} stacked 3×3 convolutions
+        </div>
+
+        <button onClick={() => setShowMath(!showMath)} style={{
+          padding: "6px 14px", borderRadius: 8, border: `1px solid ${color.main}`,
+          background: "transparent", color: color.main, fontFamily: "'Courier New', monospace",
+          fontSize: 12, cursor: "pointer", marginBottom: showMath ? 12 : 0
+        }}>
+          {showMath ? "▼ Hide" : "▶ Show"} Activation Trace
+        </button>
+
+        {showMath && (
+          <MathBox color={color}>{trace.join("\n")}</MathBox>
+        )}
+      </div>
+
+      <SectionTitle color={color}>🏛️ VGG-16 Full Architecture</SectionTitle>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        {layers.map((l, i) => {
+          const isPool = l.name.includes("Pool");
+          const isFC = l.name.includes("FC") || l.name.includes("Softmax");
+          const bg = isPool ? "rgba(100,116,139,0.1)" : isFC ? color.bg : "#0f172a";
+          const border = isPool ? "#475569" : isFC ? color.main : `${color.main}30`;
+          return (
+            <div key={i} style={{ display: "flex", gap: 12, alignItems: "center", background: bg, borderRadius: 8, padding: "10px 14px", border: `1px solid ${border}` }}>
+              <div style={{ color: isPool ? "#94a3b8" : color.main, fontFamily: "'Courier New', monospace", fontSize: 11, minWidth: 160 }}>{l.name}</div>
+              <div style={{ color: "#475569", fontFamily: "'Courier New', monospace", fontSize: 11, minWidth: 100 }}>{l.size}</div>
+              <div style={{ color: "#64748b", fontSize: 11 }}>{l.desc}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      <InfoCard color={color} title="Weight & Bias Details + Error Handling">
+        VGG has <strong style={{color:color.main}}>138 million parameters</strong> — mostly in FC layers. Training uses SGD with momentum (0.9) and weight decay (5×10⁻⁴). Error flows backward through all layers via chain rule. If gradients become tiny (vanishing gradient), we detect this by monitoring ‖∇L‖. Weight update: <code style={{color:color.main}}>v ← 0.9v − lr·∇L, w ← w + v</code> (momentum prevents oscillation and speeds convergence).
+      </InfoCard>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// RNN SECTION
+// ══════════════════════════════════════════════════════════════════════════════
+function RNNSection() {
+  const color = COLORS.rnn;
+  const [step, setStep] = useState(0);
+  const [sequence, setSequence] = useState([1, 2, 3, 4, 5]);
+  const [learningRate, setLearningRate] = useState(0.05);
+  const [trainedWeights, setTrainedWeights] = useState({ Wx: 0.5, Wh: 0.3, b: 0.1, Wy: 0.8, by: 0.05 });
+  const [trainLog, setTrainLog] = useState([]);
+
+  // Forward pass
+  const W = trainedWeights;
+  const hiddenSize = 1;
+  let h = 0;
+  const states = [];
+  const outputs = [];
+  for (let t = 0; t < sequence.length; t++) {
+    const x = sequence[t] / 10.0; // normalize
+    const hNew = tanh(W.Wx * x + W.Wh * h + W.b);
+    const y = W.Wy * hNew + W.by;
+    states.push({ t, x, h, hNew, y });
+    h = hNew;
+    outputs.push(y);
+  }
+
+  // Target: predict next in sequence (shifted by 1)
+  const targets = sequence.slice(1).map(v => v / 10.0);
+  const predictions = outputs.slice(0, -1);
+  const loss = predictions.reduce((s, p, i) => s + 0.5 * Math.pow(targets[i] - p, 2), 0);
+
+  const trainStep = () => {
+    const lr = learningRate;
+    const newW = { ...trainedWeights };
+    let grad_Wy = 0, grad_by = 0;
+    for (let t = 0; t < predictions.length; t++) {
+      const err = predictions[t] - targets[t];
+      grad_Wy += err * states[t].hNew;
+      grad_by += err;
+    }
+    newW.Wy -= lr * grad_Wy;
+    newW.by -= lr * grad_by;
+    newW.Wx += (Math.random() - 0.5) * lr * 0.1;
+    newW.Wh += (Math.random() - 0.5) * lr * 0.1;
+    setTrainedWeights(newW);
+    setTrainLog(l => [...l.slice(-4), `Loss: ${loss.toFixed(4)}, Wy: ${newW.Wy.toFixed(3)}, by: ${newW.by.toFixed(3)}`]);
+  };
+
+  const stepsDesc = [
+    { title: "Input Encoding", desc: "Each item in the sequence is fed one at a time. We normalize: divide each number by 10 to keep values in a manageable range for tanh activation." },
+    { title: "Hidden State Computation", desc: "h_t = tanh(Wx·x_t + Wh·h_{t-1} + b). The hidden state carries memory from all previous time steps. tanh squashes values to [-1, 1], preventing explosive growth." },
+    { title: "Output Computation", desc: "y_t = Wy·h_t + by. We compute a prediction at each step — here, predicting the next number in the sequence." },
+    { title: "BPTT — Backpropagation Through Time", desc: "Errors from all time steps are summed. Gradients flow backward through each time step. This is expensive: gradients must travel through the full sequence." },
+    { title: "Vanishing Gradient Problem", desc: "In long sequences, gradients are multiplied by Wh at each step. If |Wh| < 1, gradients shrink exponentially → early time steps learn nothing. This is why LSTM and GRU were invented." },
+  ];
+
+  return (
+    <div>
+      <InfoCard color={color} title="What is an RNN?">
+        A Recurrent Neural Network processes <strong style={{color:color.main}}>sequential data</strong> — text, audio, time series — by maintaining a <strong style={{color:color.main}}>hidden state</strong> that acts as memory. At each step, it reads the current input AND its own previous output, allowing it to understand context across time.
+      </InfoCard>
+      <InfoCard color={color} title="Why do we use it?">
+        Regular neural networks treat all inputs independently. But in a sentence, the word "bank" means different things depending on whether "river" appeared earlier. RNNs remember past context. They power language translation, speech recognition, and financial forecasting.
+      </InfoCard>
+
+      <SectionTitle color={color}>⏱ Unrolled RNN — Sequence Walkthrough</SectionTitle>
+      <div style={{ background: "#0f172a", borderRadius: 12, padding: 20, marginBottom: 16, border: `1px solid ${color.main}30` }}>
+        {/* Visual unrolled RNN */}
+        <div style={{ overflowX: "auto", paddingBottom: 8 }}>
+          <div style={{ display: "flex", gap: 0, alignItems: "center", minWidth: 600 }}>
+            {states.map((s, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center" }}>
+                <div style={{ textAlign: "center", minWidth: 100 }}>
+                  <div style={{ color: "#64748b", fontSize: 11, marginBottom: 4 }}>t={s.t}</div>
+                  <div style={{ background: "#1e293b", border: `1px solid ${color.main}40`, borderRadius: 4, padding: "2px 6px", color: "#94a3b8", fontSize: 11, marginBottom: 6 }}>x={s.x.toFixed(2)}</div>
+                  <div style={{
+                    background: color.bg, border: `2px solid ${color.main}`,
+                    borderRadius: 10, padding: "12px 8px", margin: "4px 0",
+                    color: color.main, fontFamily: "'Courier New', monospace", fontSize: 11
+                  }}>
+                    RNN<br />
+                    <span style={{ color: "#e2e8f0", fontSize: 10 }}>h={s.hNew.toFixed(2)}</span>
+                  </div>
+                  <div style={{ color: "#64748b", fontSize: 10, marginTop: 4 }}>y={s.y.toFixed(2)}</div>
+                </div>
+                {i < states.length-1 && (
+                  <div style={{ color: color.main, fontSize: 14, padding: "0 4px", marginTop: -16 }}>—→</div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{ color: "#64748b", fontSize: 11, marginTop: 8 }}>Arrow represents hidden state h flowing forward through time steps</div>
+      </div>
+
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+        {stepsDesc.map((s, i) => (
+          <button key={i} onClick={() => setStep(i)} style={{
+            padding: "5px 12px", borderRadius: 20, border: `1px solid ${color.main}`,
+            background: step === i ? color.main : "transparent",
+            color: step === i ? "#0f172a" : color.main,
+            fontFamily: "'Courier New', monospace", fontSize: 11, cursor: "pointer",
+          }}>Step {i+1}</button>
+        ))}
+      </div>
+
+      <div style={{ background: "#0f172a", borderRadius: 12, padding: 20, marginBottom: 16, border: `1px solid ${color.main}30` }}>
+        <div style={{ color: color.main, fontWeight: 700, marginBottom: 8 }}>{stepsDesc[step].title}</div>
+        <div style={{ color: "#94a3b8", fontSize: 13, lineHeight: 1.7, marginBottom: 12 }}>{stepsDesc[step].desc}</div>
+        {step === 1 && (
+          <MathBox color={color}>
+{`h_t = tanh(Wx·x_t + Wh·h_{t-1} + b)
+
+At t=1:
+  h_1 = tanh(${W.Wx.toFixed(3)} × ${states[1]?.x.toFixed(3) || "—"} + ${W.Wh.toFixed(3)} × ${states[0]?.hNew.toFixed(3) || "—"} + ${W.b.toFixed(3)})
+      = tanh(${((W.Wx*(states[1]?.x||0)) + W.Wh*(states[0]?.hNew||0) + W.b).toFixed(4)})
+      = ${states[1]?.hNew.toFixed(4) || "—"}
+
+Weights: Wx=${W.Wx.toFixed(3)}, Wh=${W.Wh.toFixed(3)}, b=${W.b.toFixed(3)}`}
+          </MathBox>
+        )}
+        {step === 3 && (
+          <MathBox color={color}>
+{`Loss = Σ 0.5×(target_t - y_t)²
+     = ${loss.toFixed(6)}
+
+Gradient of Wy:
+  ∂L/∂Wy = Σ (y_t - target_t) × h_t
+          = ${predictions.map((p, i) => `(${p.toFixed(2)}-${targets[i].toFixed(2)})`).join(" + ")}...
+
+Weight update:
+  Wy_new = Wy_old − lr × ∂L/∂Wy
+         = ${W.Wy.toFixed(3)} − ${learningRate} × (...)`}
+          </MathBox>
+        )}
+        {step === 4 && (
+          <MathBox color={color}>
+{`After T steps of BPTT, gradient of early step:
+  ∂L/∂h_0 ∝ (Wh)^T × (other terms)
+
+If Wh = 0.3 and T = 10:
+  0.3^10 = ${Math.pow(0.3, 10).toFixed(8)}  ← near zero!
+
+If Wh = 1.5 and T = 10:
+  1.5^10 = ${Math.pow(1.5, 10).toFixed(2)}  ← exploding!
+
+Solutions:
+  • Gradient clipping: if ‖∇‖ > threshold, scale down
+  • Use LSTM/GRU (learn what to remember/forget)
+  • Shorter sequences / truncated BPTT`}
+          </MathBox>
+        )}
+      </div>
+
+      <SectionTitle color={color}>🏋️ Training Simulator</SectionTitle>
+      <div style={{ background: "#0f172a", borderRadius: 12, padding: 20, border: `1px solid ${color.main}30` }}>
+        <div style={{ display: "flex", gap: 16, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
+          <label style={{ color: "#94a3b8", fontSize: 13 }}>
+            Learning rate: <strong style={{ color: color.main }}>{learningRate}</strong>
+            <input type="range" min="0.001" max="0.2" step="0.001" value={learningRate}
+              onChange={e => setLearningRate(+e.target.value)}
+              style={{ marginLeft: 8, accentColor: color.main, width: 120 }} />
+          </label>
+          <button onClick={trainStep} style={{
+            padding: "8px 20px", borderRadius: 8, border: "none",
+            background: color.main, color: "#0f172a", fontWeight: 700,
+            fontFamily: "'Courier New', monospace", fontSize: 13, cursor: "pointer"
+          }}>▶ Train Step</button>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
+          {[["Current Loss", loss.toFixed(4)],["Wy", W.Wy.toFixed(4)],["Wh", W.Wh.toFixed(4)]].map(([k,v]) => (
+            <div key={k} style={{ background: color.bg, borderRadius: 8, padding: 10, textAlign: "center" }}>
+              <div style={{ color: "#64748b", fontSize: 10, marginBottom: 3 }}>{k}</div>
+              <div style={{ color: color.main, fontSize: 16, fontFamily: "'Courier New', monospace", fontWeight: 700 }}>{v}</div>
+            </div>
+          ))}
+        </div>
+        {trainLog.length > 0 && (
+          <div style={{ background: "#020617", borderRadius: 8, padding: 10, fontFamily: "'Courier New', monospace", fontSize: 11, color: "#4ade80" }}>
+            {trainLog.map((l, i) => <div key={i}>{l}</div>)}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// LSTM SECTION
+// ══════════════════════════════════════════════════════════════════════════════
+function LSTMSection() {
+  const color = COLORS.lstm;
+  const [x, setX] = useState(0.8);
+  const [h_prev, setH_prev] = useState(0.3);
+  const [c_prev, setC_prev] = useState(0.5);
+  const [step, setStep] = useState(0);
+  const [showSequence, setShowSequence] = useState(false);
+
+  // LSTM weights (simplified: single unit)
+  const Wf = { x: 0.4, h: -0.3, b: 0.1 };
+  const Wi = { x: 0.5, h: 0.2,  b: -0.1 };
+  const Wo = { x: 0.3, h: 0.4,  b: 0.2 };
+  const Wg = { x: 0.6, h: -0.2, b: 0.0 };
+
+  const f_gate = sigmoid(Wf.x * x + Wf.h * h_prev + Wf.b);
+  const i_gate = sigmoid(Wi.x * x + Wi.h * h_prev + Wi.b);
+  const o_gate = sigmoid(Wo.x * x + Wo.h * h_prev + Wo.b);
+  const g_gate = tanh(Wg.x * x + Wg.h * h_prev + Wg.b);
+  const c_new = f_gate * c_prev + i_gate * g_gate;
+  const h_new = o_gate * tanh(c_new);
+
+  const gateSteps = [
+    {
+      id: "forget", label: "Forget Gate", symbol: "f", color: "#ef4444", gate: f_gate,
+      formula: `f = σ(Wf_x·x + Wf_h·h_prev + bf)`,
+      calc: `  = σ(${Wf.x}×${x} + ${Wf.h}×${h_prev} + ${Wf.b})`,
+      result: `  = σ(${(Wf.x*x + Wf.h*h_prev + Wf.b).toFixed(4)}) = ${f_gate.toFixed(4)}`,
+      desc: `Controls what to ERASE from cell state. f≈0 → forget everything; f≈1 → keep everything. Value ${f_gate.toFixed(3)} means we keep ${(f_gate*100).toFixed(0)}% of old memory.`
+    },
+    {
+      id: "input", label: "Input Gate", symbol: "i", color: "#22d3ee", gate: i_gate,
+      formula: `i = σ(Wi_x·x + Wi_h·h_prev + bi)`,
+      calc: `  = σ(${Wi.x}×${x} + ${Wi.h}×${h_prev} + ${Wi.b})`,
+      result: `  = σ(${(Wi.x*x + Wi.h*h_prev + Wi.b).toFixed(4)}) = ${i_gate.toFixed(4)}`,
+      desc: `Controls how much NEW information to write. Works with the candidate gate (g) to decide what new information to store.`
+    },
+    {
+      id: "candidate", label: "Candidate Gate", symbol: "g", color: "#a78bfa", gate: g_gate,
+      formula: `g = tanh(Wg_x·x + Wg_h·h_prev + bg)`,
+      calc: `  = tanh(${Wg.x}×${x} + ${Wg.h}×${h_prev} + ${Wg.b})`,
+      result: `  = tanh(${(Wg.x*x + Wg.h*h_prev + Wg.b).toFixed(4)}) = ${g_gate.toFixed(4)}`,
+      desc: `The proposed new content (in range [-1,1]). The input gate then scales this: only i×g actually gets written to memory.`
+    },
+    {
+      id: "cellupdate", label: "Cell State Update", symbol: "c", color: "#fbbf24", gate: c_new,
+      formula: `c_new = f × c_prev + i × g`,
+      calc: `       = ${f_gate.toFixed(3)} × ${c_prev} + ${i_gate.toFixed(3)} × ${g_gate.toFixed(3)}`,
+      result: `       = ${(f_gate*c_prev).toFixed(4)} + ${(i_gate*g_gate).toFixed(4)} = ${c_new.toFixed(4)}`,
+      desc: `The long-term memory (cell state) is updated. We forget the old (×f) and write new info (i×g). This is the LSTM's key contribution — an uninterrupted gradient highway.`
+    },
+    {
+      id: "output", label: "Output Gate", symbol: "o", color: "#4ade80", gate: o_gate,
+      formula: `o = σ(Wo_x·x + Wo_h·h_prev + bo)`,
+      calc: `  = σ(${Wo.x}×${x} + ${Wo.h}×${h_prev} + ${Wo.b})`,
+      result: `  = σ(${(Wo.x*x + Wo.h*h_prev + Wo.b).toFixed(4)}) = ${o_gate.toFixed(4)}`,
+      desc: `Controls what part of the updated cell state to expose as output (h_new). Filters the memory before passing it forward.`
+    },
+    {
+      id: "hidden", label: "New Hidden State", symbol: "h", color: color.main, gate: h_new,
+      formula: `h_new = o × tanh(c_new)`,
+      calc: `       = ${o_gate.toFixed(3)} × tanh(${c_new.toFixed(4)})`,
+      result: `       = ${o_gate.toFixed(3)} × ${tanh(c_new).toFixed(4)} = ${h_new.toFixed(4)}`,
+      desc: `The new hidden state output, passed to the next step AND used as prediction output. It's a filtered version of the cell memory.`
+    },
+  ];
+
+  return (
+    <div>
+      <InfoCard color={color} title="What is LSTM?">
+        Long Short-Term Memory (1997, Hochreiter & Schmidhuber) solves the RNN's vanishing gradient problem by introducing a <strong style={{color:color.main}}>cell state</strong> — a separate memory lane that information can flow through without repeated multiplication. Four gates (forget, input, candidate, output) control what gets stored, erased, and read.
+      </InfoCard>
+      <InfoCard color={color} title="Why do we use it?">
+        LSTMs can remember relevant information across <strong style={{color:color.main}}>hundreds of time steps</strong>. They power ChatGPT's predecessors, Google Translate, speech-to-text, and music generation. The gating mechanism learns when to remember and when to forget — entirely from data.
+      </InfoCard>
+
+      <SectionTitle color={color}>🔬 Gate-by-Gate Computation</SectionTitle>
+      <div style={{ background: "#0f172a", borderRadius: 12, padding: 20, marginBottom: 16, border: `1px solid ${color.main}30` }}>
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 20 }}>
+          {[["x (input)", x, setX],["h_prev", h_prev, setH_prev],["c_prev", c_prev, setC_prev]].map(([label, val, setter]) => (
+            <label key={label} style={{ color: "#94a3b8", fontSize: 13 }}>
+              {label}: <strong style={{ color: color.main }}>{val.toFixed(2)}</strong>
+              <input type="range" min={-1} max={1} step={0.01} value={val}
+                onChange={e => setter(+e.target.value)}
+                style={{ marginLeft: 8, accentColor: color.main, width: 100 }} />
+            </label>
+          ))}
+        </div>
+
+        {/* LSTM diagram */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+          {gateSteps.map((g, i) => (
+            <div key={g.id} onClick={() => setStep(i)} style={{
+              background: step === i ? `rgba(${g.color.replace("#","").match(/.{2}/g).map(h=>parseInt(h,16)).join(",")},0.15)` : "#1e293b",
+              border: `2px solid ${step === i ? g.color : g.color+"40"}`,
+              borderRadius: 10, padding: 14, cursor: "pointer",
+              transition: "all 0.2s"
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                <span style={{ color: g.color, fontWeight: 700, fontSize: 13 }}>{g.label}</span>
+                <span style={{ color: g.color, fontFamily: "'Courier New', monospace", fontSize: 14, fontWeight: 700 }}>{g.gate.toFixed(3)}</span>
+              </div>
+              <div style={{ background: "#0f172a", height: 6, borderRadius: 3, overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${Math.abs(g.gate)*100}%`, background: g.color, borderRadius: 3 }} />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ background: "#0f172a", borderRadius: 10, padding: 16, border: `1px solid ${gateSteps[step].color}40` }}>
+          <div style={{ color: gateSteps[step].color, fontWeight: 700, fontSize: 14, marginBottom: 8 }}>{gateSteps[step].label}</div>
+          <div style={{ color: "#94a3b8", fontSize: 13, lineHeight: 1.7, marginBottom: 10 }}>{gateSteps[step].desc}</div>
+          <MathBox color={{ main: gateSteps[step].color }}>
+{`${gateSteps[step].formula}
+${gateSteps[step].calc}
+${gateSteps[step].result}`}
+          </MathBox>
+        </div>
+      </div>
+
+      <InfoCard color={color} title="Why LSTM Solves Vanishing Gradients">
+        The cell state update <code style={{color:color.main}}>c_new = f·c_prev + i·g</code> is ADDITIVE — we add new info rather than multiplying repeatedly. This creates a "gradient highway": <code style={{color:color.main}}>∂c_new/∂c_prev = f</code> which is just one sigmoid gate, not a product of Wh matrices at every step. Gradients flow much further back in time.
+      </InfoCard>
+
+      <InfoCard color={color} title="Weight Update in LSTM">
+        There are 4 gates × 3 weight matrices (Wx, Wh, b) = 12 parameter groups per unit. All are updated via BPTT: <code style={{color:color.main}}>∂L/∂Wf = Σ_t (∂L/∂f_t · ∂f_t/∂Wf)</code>. The forget gate gradient is bounded by f(1-f) ≤ 0.25 per step, but the cell state path bypasses this multiplication.
+      </InfoCard>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// GRU SECTION
+// ══════════════════════════════════════════════════════════════════════════════
+function GRUSection() {
+  const color = COLORS.gru;
+  const [x, setX] = useState(0.6);
+  const [h_prev, setH_prev] = useState(0.4);
+  const [step, setStep] = useState(0);
+  const [comparison, setComparison] = useState(false);
+
+  const Wz = { x: 0.5, h: 0.3, b: -0.1 };
+  const Wr = { x: 0.4, h: -0.2, b: 0.2 };
+  const Wn = { x: 0.6, h: 0.4, b: 0.0 };
+
+  const z = sigmoid(Wz.x * x + Wz.h * h_prev + Wz.b);
+  const r = sigmoid(Wr.x * x + Wr.h * h_prev + Wr.b);
+  const n = tanh(Wn.x * x + Wn.h * (r * h_prev) + Wn.b);
+  const h_new = (1 - z) * n + z * h_prev;
+
+  const gateSteps = [
+    {
+      label: "Update Gate (z)", gate: z, col: "#fb923c",
+      formula: `z = σ(Wz_x·x + Wz_h·h_prev + bz)`,
+      desc: `Decides how much of the PREVIOUS hidden state to keep vs. replace with new info. z≈1 → keep old state (skip this input). z≈0 → fully update with new info. Combines forget+input gate from LSTM into one.`,
+      result: `z = ${z.toFixed(4)}`
+    },
+    {
+      label: "Reset Gate (r)", gate: r, col: "#fbbf24",
+      formula: `r = σ(Wr_x·x + Wr_h·h_prev + br)`,
+      desc: `Decides how much of the PAST hidden state is relevant for computing the new candidate. r≈0 → ignore history when computing new candidate. Allows the network to drop irrelevant past context selectively.`,
+      result: `r = ${r.toFixed(4)}`
+    },
+    {
+      label: "Candidate (ñ)", gate: n, col: "#a78bfa",
+      formula: `ñ = tanh(Wn_x·x + Wn_h·(r × h_prev) + bn)`,
+      desc: `New candidate hidden state. The reset gate r modulates how much old hidden state influences this. With r=0, the candidate is purely from the current input (complete reset).`,
+      result: `ñ = ${n.toFixed(4)}`
+    },
+    {
+      label: "New Hidden State (h)", gate: h_new, col: color.main,
+      formula: `h_new = (1 - z)·ñ + z·h_prev`,
+      desc: `The final output. A linear interpolation between the old state and the new candidate. If z=1, output = old state (update gate says "skip"). If z=0, output = new candidate (full update). Elegant and interpretable.`,
+      result: `h_new = (1-${z.toFixed(3)})×${n.toFixed(3)} + ${z.toFixed(3)}×${h_prev.toFixed(3)} = ${h_new.toFixed(4)}`
+    },
+  ];
+
+  return (
+    <div>
+      <InfoCard color={color} title="What is GRU?">
+        Gated Recurrent Unit (2014, Cho et al.) is a <strong style={{color:color.main}}>streamlined LSTM</strong>. It merges the forget and input gates into a single "update gate" and eliminates the separate cell state, achieving similar performance to LSTM with <strong style={{color:color.main}}>fewer parameters and faster training</strong>.
+      </InfoCard>
+      <InfoCard color={color} title="Why do we use it?">
+        When you don't need LSTM's full expressiveness, GRU trains faster and needs less data. It works well for medium-length sequences: video frame analysis, music generation, drug discovery, and sentiment analysis. GRU often matches or beats LSTM on many tasks with 25% fewer parameters.
+      </InfoCard>
+
+      <SectionTitle color={color}>⚙️ GRU Gate Computation</SectionTitle>
+      <div style={{ background: "#0f172a", borderRadius: 12, padding: 20, marginBottom: 16, border: `1px solid ${color.main}30` }}>
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 20 }}>
+          {[["x (input)", x, setX],["h_prev", h_prev, setH_prev]].map(([label, val, setter]) => (
+            <label key={label} style={{ color: "#94a3b8", fontSize: 13 }}>
+              {label}: <strong style={{ color: color.main }}>{val.toFixed(2)}</strong>
+              <input type="range" min={-1} max={1} step={0.01} value={val}
+                onChange={e => setter(+e.target.value)}
+                style={{ marginLeft: 8, accentColor: color.main, width: 100 }} />
+            </label>
+          ))}
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+          {gateSteps.map((g, i) => (
+            <div key={g.label} onClick={() => setStep(i)} style={{
+              background: step === i ? "rgba(251,146,60,0.1)" : "#1e293b",
+              border: `2px solid ${step === i ? g.col : g.col+"40"}`,
+              borderRadius: 10, padding: 14, cursor: "pointer"
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                <span style={{ color: g.col, fontWeight: 700, fontSize: 13 }}>{g.label}</span>
+                <span style={{ color: g.col, fontFamily: "'Courier New', monospace", fontSize: 14 }}>{g.gate.toFixed(3)}</span>
+              </div>
+              <div style={{ background: "#0f172a", height: 6, borderRadius: 3, overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${Math.abs(g.gate)*100}%`, background: g.col, borderRadius: 3 }} />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ background: "#0f172a", borderRadius: 10, padding: 16, border: `1px solid ${gateSteps[step].col}40` }}>
+          <div style={{ color: gateSteps[step].col, fontWeight: 700, fontSize: 14, marginBottom: 8 }}>{gateSteps[step].label}</div>
+          <div style={{ color: "#94a3b8", fontSize: 13, lineHeight: 1.7, marginBottom: 10 }}>{gateSteps[step].desc}</div>
+          <MathBox color={{ main: gateSteps[step].col }}>
+{`Formula: ${gateSteps[step].formula}
+Result:  ${gateSteps[step].result}`}
+          </MathBox>
+        </div>
+      </div>
+
+      <SectionTitle color={color}>⚖️ GRU vs LSTM Comparison</SectionTitle>
+      <div style={{ background: "#0f172a", borderRadius: 12, padding: 20, border: `1px solid ${color.main}30` }}>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr>
+                {["Property","RNN","LSTM","GRU"].map(h => (
+                  <th key={h} style={{
+                    padding: "10px 14px", textAlign: "left",
+                    color: h === "GRU" ? color.main : h === "LSTM" ? "#f472b6" : "#4ade80",
+                    fontFamily: "'Courier New', monospace", borderBottom: `1px solid #1e293b`,
+                    fontWeight: 700
+                  }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                ["Memory type","Hidden state only","Cell state + hidden","Hidden state only"],
+                ["# of gates","None","4 (f, i, o, g)","2 (z, r)"],
+                ["Parameters per unit","Small","Most","~75% of LSTM"],
+                ["Long-range memory","Poor","Excellent","Good"],
+                ["Training speed","Fast","Slowest","Faster than LSTM"],
+                ["Gradient flow","Vanishes","Highway (cell state)","Good (interpolation)"],
+                ["Best use case","Short sequences","Very long sequences","Medium sequences"],
+              ].map((row, ri) => (
+                <tr key={ri} style={{ background: ri % 2 === 0 ? "#0f172a" : "#080f1a" }}>
+                  {row.map((cell, ci) => (
+                    <td key={ci} style={{
+                      padding: "9px 14px",
+                      color: ci === 0 ? "#94a3b8" : ci === 3 ? color.main : "#64748b",
+                      borderBottom: "1px solid #1e293b10",
+                      fontFamily: ci > 0 ? "'Courier New', monospace" : "inherit",
+                      fontSize: ci === 0 ? 13 : 12
+                    }}>{cell}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <InfoCard color={color} title="Error Handling & Weight Update in GRU">
+        GRU has <strong style={{color:color.main}}>3 gate matrices</strong> (Wz, Wr, Wn each with Wx, Wh, b). Total: 3×3 = 9 parameter groups per unit. Gradients are computed via BPTT as with LSTM, but the linear interpolation <code style={{color:color.main}}>h = (1-z)·ñ + z·h_prev</code> provides a natural gradient flow: <code style={{color:color.main}}>∂h/∂h_prev ≥ z</code>, where z is bounded [0,1]. Weight updates use the same gradient descent: <code style={{color:color.main}}>W ← W − lr·∇L</code>, with Adam optimizer recommended for adaptive learning rates per weight.
+      </InfoCard>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MAIN COMPONENT
+// ══════════════════════════════════════════════════════════════════════════════
+function DeepLearningAcademy() {
+  const [activeTab, setActiveTab] = useState("lenet");
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
+  const color = COLORS[activeTab];
+
+  const sections = { lenet: LeNetSection, googlenet: GoogLeNetSection, vggnet: VGGNetSection, rnn: RNNSection, lstm: LSTMSection, gru: GRUSection };
+  const ActiveSection = sections[activeTab];
+
+  return (
+    <div style={{
+      minHeight: "100vh",
+      background: "#020617",
+      color: "#e2e8f0",
+      fontFamily: "'Segoe UI', 'Helvetica Neue', sans-serif",
+    }}>
+      {/* Animated background */}
+      <div style={{
+        position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0,
+        background: `radial-gradient(ellipse 60% 40% at 50% 0%, ${color.glow}, transparent 70%)`
+      }} />
+
+      <div style={{ position: "relative", zIndex: 1, maxWidth: 960, margin: "0 auto", padding: "24px 16px" }}>
+        {/* Header */}
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
+          <div style={{
+            fontFamily: "'Courier New', monospace", fontSize: 11, letterSpacing: 6,
+            color: "#475569", marginBottom: 8, textTransform: "uppercase"
+          }}>Deep Learning Architecture Academy</div>
+          <h1 style={{
+            fontSize: "clamp(24px, 5vw, 40px)", fontWeight: 800, margin: 0,
+            background: `linear-gradient(90deg, ${color.main}, #ffffff, ${color.main})`,
+            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+            backgroundClip: "text", letterSpacing: -1
+          }}>Neural Network Architectures</h1>
+          <p style={{ color: "#475569", fontSize: 14, marginTop: 8 }}>
+            Interactive in-class activity — LeNet · GoogLeNet · VGGNet · RNN · LSTM · GRU
+          </p>
+        </div>
+
+        {/* Tab Navigation */}
+        <div style={{
+          display: "flex", gap: 4, flexWrap: "wrap", justifyContent: "center",
+          marginBottom: 28, background: "#0f172a",
+          borderRadius: 16, padding: 6, border: "1px solid #1e293b"
+        }}>
+          {TABS.map(t => {
+            const c = COLORS[t.id];
+            const active = activeTab === t.id;
+            return (
+              <button key={t.id} onClick={() => setActiveTab(t.id)} style={{
+                padding: "8px 16px", borderRadius: 12,
+                border: active ? `1px solid ${c.main}` : "1px solid transparent",
+                background: active ? c.bg : "transparent",
+                color: active ? c.main : "#475569",
+                fontFamily: "'Courier New', monospace", fontSize: 13,
+                fontWeight: active ? 700 : 400, cursor: "pointer",
+                transition: "all 0.2s",
+                boxShadow: active ? `0 0 12px ${c.glow}` : "none"
+              }}>
+                {t.emoji} {t.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Content Area */}
+        <div style={{
+          background: "rgba(15,23,42,0.8)", borderRadius: 20,
+          border: `1px solid ${color.main}20`,
+          padding: "28px 24px",
+          boxShadow: `0 0 40px ${color.glow}`
+        }}>
+          {mounted && <ActiveSection key={activeTab} />}
+        </div>
+
+        {/* Footer */}
+        <div style={{ textAlign: "center", marginTop: 24, color: "#334155", fontSize: 11, fontFamily: "'Courier New', monospace" }}>
+          DEEP LEARNING ACADEMY · ALL COMPUTATIONS PERFORMED IN-BROWSER · NO EXTERNAL DEPENDENCIES
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+        const _container = document.getElementById('root');
+        const _root = ReactDOM.createRoot(_container);
+        _root.render(React.createElement(DeepLearningAcademy));
+        document.getElementById('loading').style.display = 'none';
+    </script>
+
+    <script>
+    try {
+        const src = document.getElementById('jsx-source').textContent;
+        const compiled = Babel.transform(src, {
+            presets: [['env', { targets: { esmodules: true } }], 'react'],
+            filename: 'DeepLearningClassroom.jsx'
+        });
+        // Use indirect eval so strict-mode globals (React, ReactDOM) are in scope
+        const fn = new Function('React', 'ReactDOM', 'showError', compiled.code);
+        fn(React, ReactDOM, showError);
+    } catch(e) {
+        showError('Babel / Compile Error:\n' + (e.message || String(e)) + (e.stack ? '\n\n' + e.stack : ''));
+    }
+    </script>
+</body>
+</html>

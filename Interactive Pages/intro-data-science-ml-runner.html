@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>intro-data-science-ml</title>
+    <!-- React + Babel with crossorigin so errors are not masked -->
+    <script crossorigin="anonymous" src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin="anonymous" src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script crossorigin="anonymous" src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Fraunces:ital,wght@0,300;0,600;0,700;1,300;1,400&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; padding: 0; background-color: #0c0f14; color: #c9d1e0; font-family: sans-serif; }
+        #root { min-height: 100vh; }
+        #error-overlay {
+            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.95); color: #ff6b6b; padding: 40px;
+            font-family: 'JetBrains Mono', monospace; z-index: 9999;
+            overflow: auto; white-space: pre-wrap;
+        }
+        #error-overlay h1 { color: #fff; margin-top: 0; margin-bottom: 16px; }
+        #loading {
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'Orbitron', sans-serif; font-size: 24px;
+            color: #00d4ff; text-shadow: 0 0 10px rgba(0,212,255,0.5);
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">INITIALIZING ENGINE...</div>
+    <div id="root"></div>
+    <div id="error-overlay"><h1>&#x26A0; Render Error</h1><div id="error-message"></div></div>
+
+    <script>
+    function showError(msg) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('error-overlay').style.display = 'block';
+        document.getElementById('error-message').textContent = msg;
+    }
+    window.onerror = function(msg, url, line, col, err) {
+        showError('Error: ' + msg + '\nURL: ' + url + '\nLine: ' + line + ', Col: ' + col + (err ? '\n\n' + err.stack : ''));
+        return true;
+    };
+    window.addEventListener('unhandledrejection', function(e) {
+        showError('Unhandled Promise: ' + (e.reason ? (e.reason.stack || String(e.reason)) : String(e)));
+    });
+    </script>
+
+    <!-- JSX source stored as plain text so backticks / special chars are safe -->
+    <script id="jsx-source" type="text/plain">
+        const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+        
+const IntroDataScienceML = () => {
+  const [activeTab, setActiveTab] = useState('lifecycle');
+  const [lifecycleStep, setLifecycleStep] = useState(0);
+  const [selectedFailure, setSelectedFailure] = useState(null);
+  const [quizAnswers, setQuizAnswers] = useState({});
+  const [showQuizResults, setShowQuizResults] = useState(false);
+
+  // Data Science Lifecycle
+  const lifecycleSteps = [
+    {
+      step: 1,
+      title: "Problem Definition",
+      description: "Understand the business problem and define objectives",
+      icon: Target,
+      activities: ["Stakeholder interviews", "Define success metrics", "Identify constraints"],
+      example: "Predict customer churn to reduce attrition by 15%"
+    },
+    {
+      step: 2,
+      title: "Data Collection",
+      description: "Gather relevant data from various sources",
+      icon: Database,
+      activities: ["Identify data sources", "Extract data", "Data acquisition planning"],
+      example: "Collect user activity logs, transaction history, support tickets"
+    },
+    {
+      step: 3,
+      title: "Data Cleaning & Preparation",
+      description: "Clean, transform, and prepare data for analysis",
+      icon: Zap,
+      activities: ["Handle missing values", "Remove duplicates", "Feature engineering"],
+      example: "Remove incomplete records, normalize scales, create engagement scores"
+    },
+    {
+      step: 4,
+      title: "Exploratory Data Analysis",
+      description: "Understand patterns, distributions, and relationships",
+      icon: BarChart3,
+      activities: ["Statistical summaries", "Visualizations", "Correlation analysis"],
+      example: "Discover that 70% of churners had no activity in last 30 days"
+    },
+    {
+      step: 5,
+      title: "Model Building",
+      description: "Select and train machine learning models",
+      icon: Brain,
+      activities: ["Algorithm selection", "Feature selection", "Model training"],
+      example: "Train Random Forest, XGBoost, and Logistic Regression models"
+    },
+    {
+      step: 6,
+      title: "Model Evaluation",
+      description: "Assess model performance and validate results",
+      icon: CheckCircle,
+      activities: ["Cross-validation", "Performance metrics", "Bias detection"],
+      example: "Achieve 87% accuracy, 0.82 F1-score on validation set"
+    },
+    {
+      step: 7,
+      title: "Deployment & Monitoring",
+      description: "Deploy model to production and monitor performance",
+      icon: TrendingUp,
+      activities: ["Model deployment", "A/B testing", "Performance monitoring"],
+      example: "Deploy API endpoint, monitor predictions, retrain quarterly"
+    }
+  ];
+
+  // ML vs AI vs Statistics
+  const conceptComparison = [
+    {
+      concept: "Artificial Intelligence (AI)",
+      definition: "Broad field focused on creating intelligent machines that can simulate human thinking",
+      scope: "Broadest - encompasses all intelligent systems",
+      examples: ["Expert systems", "Natural language processing", "Computer vision", "Robotics"],
+      goal: "Mimic human intelligence and decision-making"
+    },
+    {
+      concept: "Machine Learning (ML)",
+      definition: "Subset of AI that learns patterns from data without explicit programming",
+      scope: "Medium - specific approach within AI",
+      examples: ["Classification models", "Regression models", "Clustering", "Neural networks"],
+      goal: "Learn from data to make predictions or decisions"
+    },
+    {
+      concept: "Statistics",
+      definition: "Mathematical discipline for collecting, analyzing, and interpreting data",
+      scope: "Focused - mathematical foundation for ML",
+      examples: ["Hypothesis testing", "Confidence intervals", "Probability distributions", "Regression analysis"],
+      goal: "Make inferences about populations from samples"
+    }
+  ];
+
+  // Learning Types
+  const learningTypes = [
+    {
+      type: "Supervised Learning",
+      description: "Learning from labeled data (input-output pairs)",
+      icon: "📊",
+      characteristics: [
+        "Requires labeled training data",
+        "Goal: Predict output for new inputs",
+        "Has ground truth for evaluation"
+      ],
+      subtypes: [
+        {
+          name: "Classification",
+          task: "Predict discrete categories",
+          examples: ["Email spam detection", "Disease diagnosis", "Image recognition"]
+        },
+        {
+          name: "Regression",
+          task: "Predict continuous values",
+          examples: ["House price prediction", "Stock forecasting", "Temperature prediction"]
+        }
+      ],
+      algorithms: ["Linear Regression", "Logistic Regression", "Decision Trees", "Random Forest", "SVM", "Neural Networks"]
+    },
+    {
+      type: "Unsupervised Learning",
+      description: "Finding patterns in unlabeled data",
+      icon: "🔍",
+      characteristics: [
+        "No labeled training data",
+        "Goal: Discover hidden patterns",
+        "No predefined output"
+      ],
+      subtypes: [
+        {
+          name: "Clustering",
+          task: "Group similar data points",
+          examples: ["Customer segmentation", "Document grouping", "Anomaly detection"]
+        },
+        {
+          name: "Dimensionality Reduction",
+          task: "Reduce feature space",
+          examples: ["Data visualization", "Feature extraction", "Noise reduction"]
+        }
+      ],
+      algorithms: ["K-Means", "DBSCAN", "Hierarchical Clustering", "PCA", "t-SNE", "Autoencoders"]
+    }
+  ];
+
+  // Real-world ML Failures
+  const mlFailures = [
+    {
+      id: 1,
+      title: "Amazon's Biased Hiring AI (2018)",
+      company: "Amazon",
+      domain: "HR/Recruitment",
+      problem: "AI recruiting tool showed bias against women",
+      details: "Amazon's experimental hiring algorithm penalized resumes that included the word 'women's' or came from all-women's colleges. The model was trained on 10 years of resumes submitted to Amazon, predominantly from men.",
+      rootCause: "Historical bias in training data - tech industry gender imbalance was learned by the model",
+      impact: "Project scrapped; reputational damage; highlighted AI bias concerns",
+      lessons: [
+        "Training data reflects historical biases",
+        "Need diverse, representative datasets",
+        "Importance of fairness auditing",
+        "Human oversight is critical"
+      ]
+    },
+    {
+      id: 2,
+      title: "Healthcare Algorithm Racial Bias (2019)",
+      company: "Major US Healthcare System",
+      domain: "Healthcare",
+      problem: "Algorithm showed racial bias in care allocation",
+      details: "Algorithm used to identify patients needing extra medical care systematically discriminated against Black patients. At any given risk score, Black patients were considerably sicker than White patients.",
+      rootCause: "Used healthcare costs as proxy for health needs - Black patients had lower access to care, thus lower costs despite similar health conditions",
+      impact: "Affected millions of patients; reduced Black patient identification by >50%",
+      lessons: [
+        "Be careful with proxy variables",
+        "Understand social/systemic factors",
+        "Test for disparate impact",
+        "Consider historical inequities"
+      ]
+    },
+    {
+      id: 3,
+      title: "Knight Capital Trading Disaster (2012)",
+      company: "Knight Capital Group",
+      domain: "Finance/Trading",
+      problem: "Algorithmic trading software malfunction",
+      details: "Deployment error caused trading algorithm to execute millions of erroneous trades in 45 minutes. The algorithm bought high and sold low repeatedly.",
+      rootCause: "Incomplete software deployment - old code remained on one server, causing conflicting trading logic",
+      impact: "$440 million loss in 45 minutes; company nearly bankrupted",
+      lessons: [
+        "Rigorous deployment procedures",
+        "Kill switches and circuit breakers",
+        "Testing in production-like environments",
+        "Monitoring and anomaly detection"
+      ]
+    },
+    {
+      id: 4,
+      title: "Tesla Autopilot Fatal Crashes",
+      company: "Tesla",
+      domain: "Autonomous Vehicles",
+      problem: "Multiple fatal accidents involving Autopilot feature",
+      details: "Several crashes where Tesla vehicles on Autopilot failed to detect obstacles (trucks, barriers, stopped vehicles), resulting in fatal collisions.",
+      rootCause: "Over-reliance on camera vision; edge cases not covered in training; driver misunderstanding of capabilities",
+      impact: "Multiple fatalities; regulatory investigations; lawsuits",
+      lessons: [
+        "Safety-critical systems need redundancy",
+        "Clear communication of limitations",
+        "Extensive edge case testing",
+        "Human-in-the-loop for critical decisions"
+      ]
+    },
+    {
+      id: 5,
+      title: "IBM Watson for Oncology Issues (2018)",
+      company: "IBM",
+      domain: "Healthcare/Oncology",
+      problem: "AI system provided unsafe and incorrect treatment recommendations",
+      details: "Watson for Oncology recommended treatments that were sometimes 'unsafe and incorrect,' including suggestions that could lead to severe bleeding or death in cancer patients.",
+      rootCause: "Trained on synthetic cases and small datasets from single hospital; insufficient real-world validation",
+      impact: "Partnerships terminated; millions in losses; questioned AI in healthcare",
+      lessons: [
+        "Real-world validation is essential",
+        "Medical AI needs extensive clinical trials",
+        "Diverse training data sources required",
+        "Physician expertise cannot be replaced blindly"
+      ]
+    },
+    {
+      id: 6,
+      title: "Microsoft Tay Chatbot (2016)",
+      company: "Microsoft",
+      domain: "AI/Chatbot",
+      problem: "AI chatbot learned to post offensive content",
+      details: "Tay, an AI chatbot on Twitter, learned from user interactions and within 24 hours began posting racist, sexist, and offensive tweets.",
+      rootCause: "Coordinated trolling attack; no content filtering; learning from unfiltered user input",
+      impact: "Shut down within 16 hours; major PR embarrassment",
+      lessons: [
+        "Need content moderation systems",
+        "Adversarial attacks are real",
+        "Learning systems can be manipulated",
+        "Consider malicious actors in design"
+      ]
+    }
+  ];
+
+  // Python ML Ecosystem
+  const pythonEcosystem = {
+    dataManipulation: [
+      { name: "NumPy", purpose: "Numerical computing, array operations", use: "Foundation for numerical operations" },
+      { name: "Pandas", purpose: "Data manipulation and analysis", use: "DataFrames, data cleaning, preprocessing" },
+      { name: "Polars", purpose: "Fast DataFrame library", use: "Large-scale data processing" }
+    ],
+    visualization: [
+      { name: "Matplotlib", purpose: "2D plotting library", use: "Basic plots, customization" },
+      { name: "Seaborn", purpose: "Statistical visualization", use: "Beautiful statistical graphics" },
+      { name: "Plotly", purpose: "Interactive plots", use: "Dashboards, web visualizations" }
+    ],
+    mlFrameworks: [
+      { name: "Scikit-learn", purpose: "Classical ML algorithms", use: "Classification, regression, clustering" },
+      { name: "XGBoost", purpose: "Gradient boosting", use: "Competitions, structured data" },
+      { name: "LightGBM", purpose: "Fast gradient boosting", use: "Large datasets, speed-critical tasks" }
+    ],
+    deepLearning: [
+      { name: "TensorFlow", purpose: "Deep learning framework", use: "Production ML, neural networks" },
+      { name: "PyTorch", purpose: "Deep learning framework", use: "Research, dynamic neural networks" },
+      { name: "Keras", purpose: "High-level neural network API", use: "Quick prototyping, easy models" }
+    ],
+    specialized: [
+      { name: "NLTK", purpose: "Natural language processing", use: "Text processing, linguistics" },
+      { name: "spaCy", purpose: "Industrial NLP", use: "Production NLP pipelines" },
+      { name: "OpenCV", purpose: "Computer vision", use: "Image processing, video analysis" },
+      { name: "Statsmodels", purpose: "Statistical modeling", use: "Statistical tests, time series" }
+    ]
+  };
+
+  // Quiz Questions
+  const quizQuestions = [
+    {
+      id: 'q1',
+      question: "Which comes first in the data science lifecycle?",
+      options: ["Data Collection", "Problem Definition", "Model Building", "EDA"],
+      correct: "Problem Definition"
+    },
+    {
+      id: 'q2',
+      question: "What is the key difference between ML and traditional statistics?",
+      options: [
+        "ML focuses on prediction, statistics on inference",
+        "Statistics is newer than ML",
+        "ML doesn't use mathematics",
+        "They are exactly the same"
+      ],
+      correct: "ML focuses on prediction, statistics on inference"
+    },
+    {
+      id: 'q3',
+      question: "Email spam detection is an example of:",
+      options: [
+        "Supervised Classification",
+        "Unsupervised Clustering",
+        "Reinforcement Learning",
+        "Dimensionality Reduction"
+      ],
+      correct: "Supervised Classification"
+    },
+    {
+      id: 'q4',
+      question: "What was the main cause of Amazon's biased hiring AI?",
+      options: [
+        "Poor coding practices",
+        "Historical bias in training data",
+        "Insufficient computing power",
+        "Wrong algorithm selection"
+      ],
+      correct: "Historical bias in training data"
+    },
+    {
+      id: 'q5',
+      question: "Which library is best for classical ML algorithms in Python?",
+      options: ["TensorFlow", "Scikit-learn", "Matplotlib", "NumPy"],
+      correct: "Scikit-learn"
+    }
+  ];
+
+  const handleQuizAnswer = (questionId, answer) => {
+    setQuizAnswers({ ...quizAnswers, [questionId]: answer });
+  };
+
+  const submitQuiz = () => {
+    setShowQuizResults(true);
+  };
+
+  const getQuizScore = () => {
+    let correct = 0;
+    quizQuestions.forEach(q => {
+      if (quizAnswers[q.id] === q.correct) correct++;
+    });
+    return correct;
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="bg-white rounded-2xl shadow-xl p-8 mb-8">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-4 rounded-xl">
+              <Brain className="w-12 h-12 text-white" />
+            </div>
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900">
+                Introduction to Data Science & Machine Learning
+              </h1>
+              <p className="text-gray-600 mt-2">
+                A comprehensive guide to understanding the fundamentals of DS and ML
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation Tabs */}
+        <div className="bg-white rounded-xl shadow-lg p-2 mb-8">
+          <div className="flex gap-2 flex-wrap">
+            {[
+              { id: 'lifecycle', label: 'DS Lifecycle', icon: GitBranch },
+              { id: 'concepts', label: 'ML vs AI vs Stats', icon: Book },
+              { id: 'learning', label: 'Learning Types', icon: Brain },
+              { id: 'failures', label: 'ML Failures', icon: AlertTriangle },
+              { id: 'ecosystem', label: 'Python Ecosystem', icon: Code },
+              { id: 'quiz', label: 'Knowledge Check', icon: CheckCircle }
+            ].map(tab => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${
+                    activeTab === tab.id
+                      ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Data Science Lifecycle */}
+        {activeTab === 'lifecycle' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl shadow-lg p-8">
+              <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+                <GitBranch className="w-8 h-8 text-blue-600" />
+                Data Science Lifecycle
+              </h2>
+              <p className="text-gray-600 mb-8">
+                The data science lifecycle is an iterative process that guides projects from problem identification to deployment. Each step is crucial for success.
+              </p>
+
+              {/* Interactive Lifecycle Navigator */}
+              <div className="mb-8">
+                <div className="flex items-center justify-between mb-4">
+                  <button
+                    onClick={() => setLifecycleStep(Math.max(0, lifecycleStep - 1))}
+                    disabled={lifecycleStep === 0}
+                    className="px-4 py-2 bg-blue-500 text-white rounded-lg disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-gray-600 font-medium">
+                    Step {lifecycleStep + 1} of {lifecycleSteps.length}
+                  </span>
+                  <button
+                    onClick={() => setLifecycleStep(Math.min(lifecycleSteps.length - 1, lifecycleStep + 1))}
+                    disabled={lifecycleStep === lifecycleSteps.length - 1}
+                    className="px-4 py-2 bg-blue-500 text-white rounded-lg disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+
+                {/* Current Step Display */}
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-8 border-2 border-blue-200">
+                  <div className="flex items-start gap-6">
+                    <div className="bg-blue-500 p-4 rounded-xl">
+                      {React.createElement(lifecycleSteps[lifecycleStep].icon, { className: "w-8 h-8 text-white" })}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-3">
+                        <span className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-bold">
+                          Step {lifecycleSteps[lifecycleStep].step}
+                        </span>
+                        <h3 className="text-2xl font-bold text-gray-900">
+                          {lifecycleSteps[lifecycleStep].title}
+                        </h3>
+                      </div>
+                      <p className="text-gray-700 mb-4 text-lg">
+                        {lifecycleSteps[lifecycleStep].description}
+                      </p>
+                      
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div className="bg-white rounded-lg p-4">
+                          <h4 className="font-semibold text-gray-900 mb-2">Key Activities:</h4>
+                          <ul className="space-y-1">
+                            {lifecycleSteps[lifecycleStep].activities.map((activity, idx) => (
+                              <li key={idx} className="flex items-start gap-2 text-gray-600">
+                                <ChevronRight className="w-4 h-4 text-blue-500 mt-1 flex-shrink-0" />
+                                <span>{activity}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                        <div className="bg-white rounded-lg p-4">
+                          <h4 className="font-semibold text-gray-900 mb-2">Example:</h4>
+                          <p className="text-gray-600 italic">
+                            "{lifecycleSteps[lifecycleStep].example}"
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* All Steps Overview */}
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {lifecycleSteps.map((step, idx) => {
+                  const Icon = step.icon;
+                  return (
+                    <div
+                      key={idx}
+                      onClick={() => setLifecycleStep(idx)}
+                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                        idx === lifecycleStep
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 bg-white hover:border-blue-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 mb-2">
+                        <Icon className={`w-5 h-5 ${idx === lifecycleStep ? 'text-blue-600' : 'text-gray-400'}`} />
+                        <span className="font-semibold text-sm">{step.title}</span>
+                      </div>
+                      <p className="text-xs text-gray-600">{step.description}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ML vs AI vs Statistics */}
+        {activeTab === 'concepts' && (
+          <div className="bg-white rounded-xl shadow-lg p-8">
+            <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+              <Book className="w-8 h-8 text-blue-600" />
+              ML vs AI vs Statistics: Understanding the Differences
+            </h2>
+
+            <div className="mb-8">
+              <p className="text-gray-600 mb-4">
+                These terms are often used interchangeably, but they represent different concepts with distinct scopes and purposes.
+              </p>
+              
+              {/* Venn Diagram Representation */}
+              <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl p-8 mb-6">
+                <div className="text-center mb-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Conceptual Hierarchy</h3>
+                  <p className="text-gray-600">AI ⊃ ML ⊃ Statistical Methods</p>
+                </div>
+                <div className="flex justify-center items-center gap-4">
+                  <div className="text-center">
+                    <div className="w-48 h-48 rounded-full bg-purple-200 opacity-50 flex items-center justify-center">
+                      <span className="text-purple-900 font-bold text-lg">AI</span>
+                    </div>
+                    <p className="text-sm text-gray-600 mt-2">Broadest Scope</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="w-40 h-40 rounded-full bg-blue-200 opacity-60 flex items-center justify-center">
+                      <span className="text-blue-900 font-bold">ML</span>
+                    </div>
+                    <p className="text-sm text-gray-600 mt-2">Subset of AI</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="w-32 h-32 rounded-full bg-green-200 opacity-70 flex items-center justify-center">
+                      <span className="text-green-900 font-bold text-sm">Stats</span>
+                    </div>
+                    <p className="text-sm text-gray-600 mt-2">Foundation</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Detailed Comparison */}
+            <div className="space-y-6">
+              {conceptComparison.map((concept, idx) => (
+                <div key={idx} className="border-2 border-gray-200 rounded-xl p-6 hover:border-blue-400 transition-all">
+                  <h3 className="text-2xl font-bold text-gray-900 mb-3">{concept.concept}</h3>
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div className="space-y-3">
+                      <div>
+                        <h4 className="font-semibold text-gray-700 mb-1">Definition:</h4>
+                        <p className="text-gray-600">{concept.definition}</p>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-700 mb-1">Scope:</h4>
+                        <p className="text-gray-600">{concept.scope}</p>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-700 mb-1">Primary Goal:</h4>
+                        <p className="text-gray-600">{concept.goal}</p>
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-700 mb-2">Examples:</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {concept.examples.map((example, i) => (
+                          <span key={i} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
+                            {example}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Key Distinctions */}
+            <div className="mt-8 bg-yellow-50 border-2 border-yellow-200 rounded-xl p-6">
+              <h3 className="text-xl font-bold text-gray-900 mb-4">Key Distinctions:</h3>
+              <div className="space-y-2">
+                <div className="flex items-start gap-3">
+                  <ChevronRight className="w-5 h-5 text-yellow-600 mt-1" />
+                  <p className="text-gray-700"><strong>ML vs Statistics:</strong> ML emphasizes prediction accuracy on new data, while statistics focuses on understanding relationships and making inferences about populations.</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <ChevronRight className="w-5 h-5 text-yellow-600 mt-1" />
+                  <p className="text-gray-700"><strong>AI vs ML:</strong> AI includes rule-based systems and symbolic reasoning, while ML specifically learns patterns from data.</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <ChevronRight className="w-5 h-5 text-yellow-600 mt-1" />
+                  <p className="text-gray-700"><strong>Overlap:</strong> Many ML algorithms are built on statistical foundations, and ML is the dominant approach in modern AI systems.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Learning Types */}
+        {activeTab === 'learning' && (
+          <div className="space-y-6">
+            {learningTypes.map((type, idx) => (
+              <div key={idx} className="bg-white rounded-xl shadow-lg p-8">
+                <div className="flex items-center gap-4 mb-6">
+                  <span className="text-5xl">{type.icon}</span>
+                  <div>
+                    <h2 className="text-3xl font-bold text-gray-900">{type.type}</h2>
+                    <p className="text-gray-600 text-lg">{type.description}</p>
+                  </div>
+                </div>
+
+                {/* Characteristics */}
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 mb-6">
+                  <h3 className="font-bold text-gray-900 mb-3">Key Characteristics:</h3>
+                  <div className="grid md:grid-cols-3 gap-4">
+                    {type.characteristics.map((char, i) => (
+                      <div key={i} className="flex items-start gap-2">
+                        <CheckCircle className="w-5 h-5 text-green-500 mt-1 flex-shrink-0" />
+                        <span className="text-gray-700">{char}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Subtypes */}
+                <div className="grid md:grid-cols-2 gap-6 mb-6">
+                  {type.subtypes.map((subtype, i) => (
+                    <div key={i} className="border-2 border-gray-200 rounded-lg p-5">
+                      <h4 className="text-xl font-bold text-gray-900 mb-2">{subtype.name}</h4>
+                      <p className="text-gray-600 mb-3"><strong>Task:</strong> {subtype.task}</p>
+                      <div>
+                        <p className="font-semibold text-gray-700 mb-2">Real-world Examples:</p>
+                        <div className="space-y-1">
+                          {subtype.examples.map((example, j) => (
+                            <div key={j} className="flex items-start gap-2">
+                              <ChevronRight className="w-4 h-4 text-blue-500 mt-1" />
+                              <span className="text-gray-600">{example}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Common Algorithms */}
+                <div>
+                  <h3 className="font-bold text-gray-900 mb-3">Common Algorithms:</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {type.algorithms.map((algo, i) => (
+                      <span key={i} className="bg-indigo-100 text-indigo-800 px-4 py-2 rounded-lg font-medium">
+                        {algo}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {/* Quick Comparison */}
+            <div className="bg-white rounded-xl shadow-lg p-8">
+              <h3 className="text-2xl font-bold text-gray-900 mb-6">Quick Decision Guide</h3>
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="bg-green-50 border-2 border-green-200 rounded-lg p-6">
+                  <h4 className="font-bold text-green-900 mb-3 flex items-center gap-2">
+                    <CheckCircle className="w-5 h-5" />
+                    Use Supervised Learning When:
+                  </h4>
+                  <ul className="space-y-2 text-gray-700">
+                    <li>• You have labeled historical data</li>
+                    <li>• You want to predict specific outcomes</li>
+                    <li>• You can measure accuracy objectively</li>
+                    <li>• Examples: spam detection, fraud detection, price prediction</li>
+                  </ul>
+                </div>
+                <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-6">
+                  <h4 className="font-bold text-purple-900 mb-3 flex items-center gap-2">
+                    <Brain className="w-5 h-5" />
+                    Use Unsupervised Learning When:
+                  </h4>
+                  <ul className="space-y-2 text-gray-700">
+                    <li>• You don't have labeled data</li>
+                    <li>• You want to discover patterns</li>
+                    <li>• You're exploring data structure</li>
+                    <li>• Examples: customer segmentation, anomaly detection, data compression</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Real-world ML Failures */}
+        {activeTab === 'failures' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl shadow-lg p-8">
+              <h2 className="text-3xl font-bold text-gray-900 mb-4 flex items-center gap-3">
+                <AlertTriangle className="w-8 h-8 text-red-600" />
+                Real-world ML Failures: Learning from Mistakes
+              </h2>
+              <p className="text-gray-600 mb-6">
+                Understanding failures is crucial for building robust ML systems. These case studies highlight common pitfalls and important lessons.
+              </p>
+
+              {/* Failure Cards Grid */}
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                {mlFailures.map(failure => (
+                  <div
+                    key={failure.id}
+                    onClick={() => setSelectedFailure(failure.id)}
+                    className={`p-5 rounded-lg border-2 cursor-pointer transition-all ${
+                      selectedFailure === failure.id
+                        ? 'border-red-500 bg-red-50'
+                        : 'border-gray-200 bg-white hover:border-red-300'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <h3 className="font-bold text-gray-900 text-sm">{failure.title}</h3>
+                      <AlertTriangle className={`w-5 h-5 flex-shrink-0 ${
+                        selectedFailure === failure.id ? 'text-red-600' : 'text-gray-400'
+                      }`} />
+                    </div>
+                    <div className="space-y-2 text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-gray-700">Company:</span>
+                        <span className="text-gray-600">{failure.company}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-gray-700">Domain:</span>
+                        <span className="bg-gray-100 px-2 py-1 rounded text-gray-600">{failure.domain}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Detailed Failure View */}
+              {selectedFailure && (
+                <div className="bg-gradient-to-br from-red-50 to-orange-50 rounded-xl p-8 border-2 border-red-200">
+                  {(() => {
+                    const failure = mlFailures.find(f => f.id === selectedFailure);
+                    return (
+                      <div>
+                        <h3 className="text-2xl font-bold text-gray-900 mb-4">{failure.title}</h3>
+                        
+                        <div className="grid md:grid-cols-2 gap-6 mb-6">
+                          <div className="space-y-4">
+                            <div className="bg-white rounded-lg p-4">
+                              <h4 className="font-bold text-gray-900 mb-2">🚨 The Problem</h4>
+                              <p className="text-gray-700">{failure.problem}</p>
+                            </div>
+                            
+                            <div className="bg-white rounded-lg p-4">
+                              <h4 className="font-bold text-gray-900 mb-2">📋 Details</h4>
+                              <p className="text-gray-700">{failure.details}</p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-4">
+                            <div className="bg-white rounded-lg p-4">
+                              <h4 className="font-bold text-gray-900 mb-2">🔍 Root Cause</h4>
+                              <p className="text-gray-700">{failure.rootCause}</p>
+                            </div>
+                            
+                            <div className="bg-white rounded-lg p-4">
+                              <h4 className="font-bold text-gray-900 mb-2">💥 Impact</h4>
+                              <p className="text-gray-700">{failure.impact}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-white rounded-lg p-6">
+                          <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                            <CheckCircle className="w-5 h-5 text-green-600" />
+                            Key Lessons Learned
+                          </h4>
+                          <div className="grid md:grid-cols-2 gap-3">
+                            {failure.lessons.map((lesson, idx) => (
+                              <div key={idx} className="flex items-start gap-2">
+                                <ChevronRight className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                                <span className="text-gray-700">{lesson}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+
+            {/* Common Themes */}
+            <div className="bg-white rounded-xl shadow-lg p-8">
+              <h3 className="text-2xl font-bold text-gray-900 mb-6">Common Themes Across Failures</h3>
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="bg-red-50 border-2 border-red-200 rounded-lg p-6">
+                  <h4 className="font-bold text-red-900 mb-3">Data-Related Issues</h4>
+                  <ul className="space-y-2 text-gray-700">
+                    <li>• Historical bias in training data</li>
+                    <li>• Insufficient or unrepresentative datasets</li>
+                    <li>• Poor choice of proxy variables</li>
+                    <li>• Lack of diverse data sources</li>
+                  </ul>
+                </div>
+                <div className="bg-orange-50 border-2 border-orange-200 rounded-lg p-6">
+                  <h4 className="font-bold text-orange-900 mb-3">Process & Governance</h4>
+                  <ul className="space-y-2 text-gray-700">
+                    <li>• Inadequate testing and validation</li>
+                    <li>• Missing safety mechanisms</li>
+                    <li>• Poor deployment procedures</li>
+                    <li>• Lack of human oversight</li>
+                  </ul>
+                </div>
+                <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-6">
+                  <h4 className="font-bold text-yellow-900 mb-3">Technical Limitations</h4>
+                  <ul className="space-y-2 text-gray-700">
+                    <li>• Edge cases not covered</li>
+                    <li>• Overconfidence in model capabilities</li>
+                    <li>• Lack of robustness to adversarial attacks</li>
+                    <li>• Insufficient monitoring systems</li>
+                  </ul>
+                </div>
+                <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-6">
+                  <h4 className="font-bold text-purple-900 mb-3">Communication Issues</h4>
+                  <ul className="space-y-2 text-gray-700">
+                    <li>• Unclear capability limitations</li>
+                    <li>• Misaligned stakeholder expectations</li>
+                    <li>• Poor user education</li>
+                    <li>• Overpromising capabilities</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Python ML Ecosystem */}
+        {activeTab === 'ecosystem' && (
+          <div className="bg-white rounded-xl shadow-lg p-8">
+            <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+              <Code className="w-8 h-8 text-blue-600" />
+              Python Machine Learning Ecosystem
+            </h2>
+            <p className="text-gray-600 mb-8">
+              Python has become the de facto language for data science and machine learning, with a rich ecosystem of powerful libraries.
+            </p>
+
+            <div className="space-y-8">
+              {/* Data Manipulation */}
+              <div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                  <Database className="w-6 h-6 text-blue-600" />
+                  Data Manipulation & Analysis
+                </h3>
+                <div className="grid md:grid-cols-3 gap-4">
+                  {pythonEcosystem.dataManipulation.map((lib, idx) => (
+                    <div key={idx} className="border-2 border-blue-200 rounded-lg p-5 bg-blue-50">
+                      <h4 className="text-xl font-bold text-gray-900 mb-2">{lib.name}</h4>
+                      <p className="text-sm text-gray-600 mb-2"><strong>Purpose:</strong> {lib.purpose}</p>
+                      <p className="text-sm text-gray-700"><strong>Use case:</strong> {lib.use}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Visualization */}
+              <div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                  <BarChart3 className="w-6 h-6 text-green-600" />
+                  Data Visualization
+                </h3>
+                <div className="grid md:grid-cols-3 gap-4">
+                  {pythonEcosystem.visualization.map((lib, idx) => (
+                    <div key={idx} className="border-2 border-green-200 rounded-lg p-5 bg-green-50">
+                      <h4 className="text-xl font-bold text-gray-900 mb-2">{lib.name}</h4>
+                      <p className="text-sm text-gray-600 mb-2"><strong>Purpose:</strong> {lib.purpose}</p>
+                      <p className="text-sm text-gray-700"><strong>Use case:</strong> {lib.use}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* ML Frameworks */}
+              <div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                  <Brain className="w-6 h-6 text-purple-600" />
+                  Classical ML Frameworks
+                </h3>
+                <div className="grid md:grid-cols-3 gap-4">
+                  {pythonEcosystem.mlFrameworks.map((lib, idx) => (
+                    <div key={idx} className="border-2 border-purple-200 rounded-lg p-5 bg-purple-50">
+                      <h4 className="text-xl font-bold text-gray-900 mb-2">{lib.name}</h4>
+                      <p className="text-sm text-gray-600 mb-2"><strong>Purpose:</strong> {lib.purpose}</p>
+                      <p className="text-sm text-gray-700"><strong>Use case:</strong> {lib.use}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Deep Learning */}
+              <div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                  <Zap className="w-6 h-6 text-orange-600" />
+                  Deep Learning Frameworks
+                </h3>
+                <div className="grid md:grid-cols-3 gap-4">
+                  {pythonEcosystem.deepLearning.map((lib, idx) => (
+                    <div key={idx} className="border-2 border-orange-200 rounded-lg p-5 bg-orange-50">
+                      <h4 className="text-xl font-bold text-gray-900 mb-2">{lib.name}</h4>
+                      <p className="text-sm text-gray-600 mb-2"><strong>Purpose:</strong> {lib.purpose}</p>
+                      <p className="text-sm text-gray-700"><strong>Use case:</strong> {lib.use}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Specialized */}
+              <div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                  <Target className="w-6 h-6 text-red-600" />
+                  Specialized Libraries
+                </h3>
+                <div className="grid md:grid-cols-2 gap-4">
+                  {pythonEcosystem.specialized.map((lib, idx) => (
+                    <div key={idx} className="border-2 border-red-200 rounded-lg p-5 bg-red-50">
+                      <h4 className="text-xl font-bold text-gray-900 mb-2">{lib.name}</h4>
+                      <p className="text-sm text-gray-600 mb-2"><strong>Purpose:</strong> {lib.purpose}</p>
+                      <p className="text-sm text-gray-700"><strong>Use case:</strong> {lib.use}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Typical ML Project Stack */}
+            <div className="mt-8 bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-xl p-6">
+              <h3 className="text-xl font-bold text-gray-900 mb-4">Typical ML Project Stack</h3>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <span className="bg-indigo-500 text-white px-3 py-1 rounded font-semibold text-sm">Step 1</span>
+                  <span className="text-gray-700"><strong>Data Loading:</strong> Pandas, NumPy</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="bg-indigo-500 text-white px-3 py-1 rounded font-semibold text-sm">Step 2</span>
+                  <span className="text-gray-700"><strong>EDA & Visualization:</strong> Matplotlib, Seaborn, Plotly</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="bg-indigo-500 text-white px-3 py-1 rounded font-semibold text-sm">Step 3</span>
+                  <span className="text-gray-700"><strong>Preprocessing:</strong> Scikit-learn (preprocessing, feature engineering)</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="bg-indigo-500 text-white px-3 py-1 rounded font-semibold text-sm">Step 4</span>
+                  <span className="text-gray-700"><strong>Model Training:</strong> Scikit-learn, XGBoost, or TensorFlow/PyTorch</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="bg-indigo-500 text-white px-3 py-1 rounded font-semibold text-sm">Step 5</span>
+                  <span className="text-gray-700"><strong>Evaluation:</strong> Scikit-learn metrics</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="bg-indigo-500 text-white px-3 py-1 rounded font-semibold text-sm">Step 6</span>
+                  <span className="text-gray-700"><strong>Deployment:</strong> Flask/FastAPI, Docker</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Knowledge Check Quiz */}
+        {activeTab === 'quiz' && (
+          <div className="bg-white rounded-xl shadow-lg p-8">
+            <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+              <CheckCircle className="w-8 h-8 text-blue-600" />
+              Knowledge Check: Test Your Understanding
+            </h2>
+
+            <div className="space-y-6 mb-8">
+              {quizQuestions.map((q, idx) => (
+                <div key={q.id} className="border-2 border-gray-200 rounded-lg p-6">
+                  <h3 className="font-bold text-gray-900 mb-4">
+                    {idx + 1}. {q.question}
+                  </h3>
+                  <div className="space-y-2">
+                    {q.options.map((option, i) => {
+                      const isSelected = quizAnswers[q.id] === option;
+                      const isCorrect = option === q.correct;
+                      const showResult = showQuizResults;
+                      
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => !showQuizResults && handleQuizAnswer(q.id, option)}
+                          disabled={showQuizResults}
+                          className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
+                            showResult && isCorrect
+                              ? 'border-green-500 bg-green-50'
+                              : showResult && isSelected && !isCorrect
+                              ? 'border-red-500 bg-red-50'
+                              : isSelected
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-gray-200 bg-white hover:border-blue-300'
+                          } ${showQuizResults ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-700">{option}</span>
+                            {showResult && isCorrect && (
+                              <CheckCircle className="w-5 h-5 text-green-600" />
+                            )}
+                            {showResult && isSelected && !isCorrect && (
+                              <XCircle className="w-5 h-5 text-red-600" />
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {!showQuizResults ? (
+              <button
+                onClick={submitQuiz}
+                disabled={Object.keys(quizAnswers).length < quizQuestions.length}
+                className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white py-4 rounded-lg font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed hover:from-blue-600 hover:to-indigo-700 transition-all"
+              >
+                Submit Quiz
+              </button>
+            ) : (
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-8">
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">Quiz Results</h3>
+                <div className="text-center">
+                  <div className="text-6xl font-bold text-blue-600 mb-2">
+                    {getQuizScore()} / {quizQuestions.length}
+                  </div>
+                  <p className="text-gray-600 text-lg mb-4">
+                    {getQuizScore() === quizQuestions.length
+                      ? "Perfect score! 🎉 You've mastered the fundamentals!"
+                      : getQuizScore() >= quizQuestions.length * 0.8
+                      ? "Great job! 👏 You have a strong understanding!"
+                      : getQuizScore() >= quizQuestions.length * 0.6
+                      ? "Good effort! 📚 Review the material to improve."
+                      : "Keep learning! 💪 Review the content and try again."}
+                  </p>
+                  <button
+                    onClick={() => {
+                      setQuizAnswers({});
+                      setShowQuizResults(false);
+                    }}
+                    className="bg-blue-500 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-600 transition-all"
+                  >
+                    Retake Quiz
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="mt-8 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl shadow-lg p-8 text-white">
+          <h3 className="text-2xl font-bold mb-4">Ready to Apply Your Knowledge?</h3>
+          <p className="mb-6 opacity-90">
+            Now that you understand the fundamentals, you're ready to start your data science and machine learning journey. 
+            Practice with real datasets, experiment with different algorithms, and always keep learning!
+          </p>
+          <div className="grid md:grid-cols-3 gap-4">
+            <div className="bg-white bg-opacity-20 rounded-lg p-4">
+              <h4 className="font-bold mb-2">Next Steps</h4>
+              <p className="text-sm opacity-90">Start with simple projects, gradually increasing complexity</p>
+            </div>
+            <div className="bg-white bg-opacity-20 rounded-lg p-4">
+              <h4 className="font-bold mb-2">Best Practices</h4>
+              <p className="text-sm opacity-90">Always validate your models, monitor for bias, and document your work</p>
+            </div>
+            <div className="bg-white bg-opacity-20 rounded-lg p-4">
+              <h4 className="font-bold mb-2">Keep Learning</h4>
+              <p className="text-sm opacity-90">ML evolves rapidly - stay updated with latest research and techniques</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default IntroDataScienceML;
+
+
+        const _container = document.getElementById('root');
+        const _root = ReactDOM.createRoot(_container);
+        _root.render(React.createElement(App));
+        document.getElementById('loading').style.display = 'none';
+    </script>
+
+    <script>
+    try {
+        const src = document.getElementById('jsx-source').textContent;
+        const compiled = Babel.transform(src, {
+            presets: [['env', { targets: { esmodules: true } }], 'react'],
+            filename: 'DeepLearningClassroom.jsx'
+        });
+        // Use indirect eval so strict-mode globals (React, ReactDOM) are in scope
+        const fn = new Function('React', 'ReactDOM', 'showError', compiled.code);
+        fn(React, ReactDOM, showError);
+    } catch(e) {
+        showError('Babel / Compile Error:\n' + (e.message || String(e)) + (e.stack ? '\n\n' + e.stack : ''));
+    }
+    </script>
+</body>
+</html>

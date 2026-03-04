@@ -1,0 +1,1413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>error_handling_weights</title>
+    <!-- React + Babel with crossorigin so errors are not masked -->
+    <script crossorigin="anonymous" src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin="anonymous" src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script crossorigin="anonymous" src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Fraunces:ital,wght@0,300;0,600;0,700;1,300;1,400&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; padding: 0; background-color: #0c0f14; color: #c9d1e0; font-family: sans-serif; }
+        #root { min-height: 100vh; }
+        #error-overlay {
+            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.95); color: #ff6b6b; padding: 40px;
+            font-family: 'JetBrains Mono', monospace; z-index: 9999;
+            overflow: auto; white-space: pre-wrap;
+        }
+        #error-overlay h1 { color: #fff; margin-top: 0; margin-bottom: 16px; }
+        #loading {
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'Orbitron', sans-serif; font-size: 24px;
+            color: #00d4ff; text-shadow: 0 0 10px rgba(0,212,255,0.5);
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">INITIALIZING ENGINE...</div>
+    <div id="root"></div>
+    <div id="error-overlay"><h1>&#x26A0; Render Error</h1><div id="error-message"></div></div>
+
+    <script>
+    function showError(msg) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('error-overlay').style.display = 'block';
+        document.getElementById('error-message').textContent = msg;
+    }
+    window.onerror = function(msg, url, line, col, err) {
+        showError('Error: ' + msg + '\nURL: ' + url + '\nLine: ' + line + ', Col: ' + col + (err ? '\n\n' + err.stack : ''));
+        return true;
+    };
+    window.addEventListener('unhandledrejection', function(e) {
+        showError('Unhandled Promise: ' + (e.reason ? (e.reason.stack || String(e.reason)) : String(e)));
+    });
+    </script>
+
+    <!-- JSX source stored as plain text so backticks / special chars are safe -->
+    <script id="jsx-source" type="text/plain">
+        const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+        
+// ─── Math Core ────────────────────────────────────────────────────────────────
+const sigmoid = x => 1 / (1 + Math.exp(-Math.max(-500, Math.min(500, x))));
+const sigmoidPrime = x => { const s = sigmoid(x); return s * (1 - s); };
+const relu = x => Math.max(0, x);
+const reluPrime = x => x > 0 ? 1 : 0;
+const fmt = (n, d = 4) => (typeof n === "number" ? n.toFixed(d) : "—");
+const fmt2 = n => fmt(n, 2);
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+const mse = (preds, targets) =>
+  preds.reduce((s, p, i) => s + Math.pow(p - targets[i], 2), 0) / preds.length;
+const rmse = (preds, targets) => Math.sqrt(mse(preds, targets));
+const mae = (preds, targets) =>
+  preds.reduce((s, p, i) => s + Math.abs(p - targets[i]), 0) / preds.length;
+
+// ─── Tiny dataset: [study_hours, sleep_hours] → exam_score (normalized 0-1) ──
+const DATASET = [
+  { x: [0.2, 0.6], y: 0.35 },
+  { x: [0.4, 0.7], y: 0.52 },
+  { x: [0.6, 0.8], y: 0.67 },
+  { x: [0.8, 0.5], y: 0.71 },
+  { x: [0.9, 0.9], y: 0.88 },
+  { x: [0.3, 0.4], y: 0.38 },
+  { x: [0.7, 0.6], y: 0.74 },
+  { x: [0.5, 0.8], y: 0.60 },
+];
+const TRAIN_DATA = DATASET.slice(0, 6);
+const TEST_DATA  = DATASET.slice(6);
+
+// ─── Forward pass for 2→2→1 network ─────────────────────────────────────────
+function forwardPass(x, W1, b1, W2, b2) {
+  // Hidden layer
+  const z1 = [
+    W1[0][0] * x[0] + W1[0][1] * x[1] + b1[0],
+    W1[1][0] * x[0] + W1[1][1] * x[1] + b1[1],
+  ];
+  const h1 = z1.map(sigmoid);
+  // Output layer
+  const z2 = W2[0] * h1[0] + W2[1] * h1[1] + b2;
+  const out = sigmoid(z2);
+  return { z1, h1, z2, out };
+}
+
+// ─── Gradient computation (backprop for MSE + sigmoid) ───────────────────────
+function backprop(x, y, W1, b1, W2, b2) {
+  const { z1, h1, z2, out } = forwardPass(x, W1, b1, W2, b2);
+  // Output layer gradients
+  const dL_dout = out - y;                         // dMSE/dout (factor 2 absorbed)
+  const dout_dz2 = sigmoidPrime(z2);
+  const delta2 = dL_dout * dout_dz2;
+  const dW2 = h1.map(h => delta2 * h);
+  const db2 = delta2;
+  // Hidden layer gradients
+  const delta1 = [
+    delta2 * W2[0] * sigmoidPrime(z1[0]),
+    delta2 * W2[1] * sigmoidPrime(z1[1]),
+  ];
+  const dW1 = [
+    [delta1[0] * x[0], delta1[0] * x[1]],
+    [delta1[1] * x[0], delta1[1] * x[1]],
+  ];
+  const db1 = delta1;
+  return { dW1, db1, dW2, db2, out, z1, h1, z2 };
+}
+
+// ─── Design tokens ───────────────────────────────────────────────────────────
+const T = {
+  bg:       "#050c14",
+  panel:    "#080f1c",
+  border:   "#0d2040",
+  amber:    "#f59e0b",
+  green:    "#10b981",
+  cyan:     "#06b6d4",
+  red:      "#ef4444",
+  blue:     "#3b82f6",
+  dim:      "#94a3b8",
+  dimmer:   "#475569",
+  text:     "#e2e8f0",
+  mono:     "'Courier New', 'Lucida Console', monospace",
+  sans:     "'Georgia', 'Times New Roman', serif",
+};
+
+// ─── Reusable UI ─────────────────────────────────────────────────────────────
+const Panel = ({ children, style = {}, glow }) => (
+  <div style={{
+    background: T.panel,
+    border: `1px solid ${glow ? glow + "50" : T.border}`,
+    borderRadius: 12,
+    padding: "20px",
+    boxShadow: glow ? `0 0 24px ${glow}22, inset 0 0 32px ${glow}08` : "none",
+    ...style
+  }}>{children}</div>
+);
+
+const Label = ({ children, color = T.amber, size = 11 }) => (
+  <div style={{
+    fontFamily: T.mono, fontSize: size, letterSpacing: 3,
+    textTransform: "uppercase", color, marginBottom: 10, fontWeight: 700,
+  }}>{children}</div>
+);
+
+const Tag = ({ children, color = T.amber }) => (
+  <span style={{
+    background: color + "18", border: `1px solid ${color}50`,
+    borderRadius: 4, padding: "1px 6px", fontFamily: T.mono,
+    fontSize: 11, color, margin: "0 3px"
+  }}>{children}</span>
+);
+
+const Formula = ({ children, color = T.cyan }) => (
+  <div style={{
+    background: "#020a14", border: `1px solid ${color}40`,
+    borderRadius: 8, padding: "12px 16px", fontFamily: T.mono,
+    fontSize: 12.5, color, margin: "10px 0", lineHeight: 2,
+    whiteSpace: "pre-wrap", overflowX: "auto"
+  }}>{children}</div>
+);
+
+const Slider = ({ label, value, min, max, step = 0.01, onChange, color = T.amber }) => (
+  <div style={{ marginBottom: 10 }}>
+    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+      <span style={{ fontFamily: T.mono, fontSize: 11, color: T.dim }}>{label}</span>
+      <span style={{ fontFamily: T.mono, fontSize: 12, color, fontWeight: 700 }}>{value.toFixed(3)}</span>
+    </div>
+    <input type="range" min={min} max={max} step={step} value={value}
+      onChange={e => onChange(+e.target.value)}
+      style={{ width: "100%", accentColor: color, cursor: "pointer" }} />
+  </div>
+);
+
+const Btn = ({ children, onClick, color = T.amber, disabled = false, small = false }) => (
+  <button onClick={onClick} disabled={disabled} style={{
+    padding: small ? "5px 12px" : "9px 20px",
+    borderRadius: 8, border: `1px solid ${disabled ? T.dimmer : color}`,
+    background: disabled ? "transparent" : color + "18",
+    color: disabled ? T.dimmer : color,
+    fontFamily: T.mono, fontSize: small ? 11 : 13,
+    fontWeight: 700, cursor: disabled ? "default" : "pointer",
+    letterSpacing: 1, transition: "all 0.15s",
+  }}>{children}</button>
+);
+
+const ErrorBar = ({ label, value, max = 1, color = T.red }) => (
+  <div style={{ marginBottom: 8 }}>
+    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+      <span style={{ fontFamily: T.mono, fontSize: 11, color: T.dim }}>{label}</span>
+      <span style={{ fontFamily: T.mono, fontSize: 12, color, fontWeight: 700 }}>{fmt(value)}</span>
+    </div>
+    <div style={{ background: "#0d2040", borderRadius: 3, height: 8, overflow: "hidden" }}>
+      <div style={{
+        height: "100%", borderRadius: 3,
+        width: `${Math.min(100, (value / max) * 100)}%`,
+        background: `linear-gradient(90deg, ${color}88, ${color})`,
+        transition: "width 0.3s ease"
+      }} />
+    </div>
+  </div>
+);
+
+// ─── Oscilloscope-style loss curve ────────────────────────────────────────────
+const LossCurve = ({ history, color = T.amber, label = "Loss", height = 100 }) => {
+  const max = Math.max(...history, 0.01);
+  const min = Math.min(...history, 0);
+  const range = max - min || 0.01;
+  const w = 400, h = height;
+  const pts = history.map((v, i) => ({
+    x: (i / Math.max(history.length - 1, 1)) * w,
+    y: h - ((v - min) / range) * (h - 10) - 5
+  }));
+  const path = pts.length > 1
+    ? "M " + pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" L ")
+    : "";
+  return (
+    <div style={{ background: "#020a14", borderRadius: 8, padding: "10px 12px", border: `1px solid ${color}30`, overflow: "hidden" }}>
+      <div style={{ fontFamily: T.mono, fontSize: 10, color, letterSpacing: 2, marginBottom: 6 }}>{label} — {history.length} steps</div>
+      <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height: h, display: "block" }}>
+        {/* Grid lines */}
+        {[0.25, 0.5, 0.75].map(f => (
+          <line key={f} x1={0} y1={h * f} x2={w} y2={h * f}
+            stroke={color + "15"} strokeWidth={1} strokeDasharray="4 4" />
+        ))}
+        {pts.length > 1 && (
+          <>
+            <path d={path} fill="none" stroke={color + "50"} strokeWidth={3} />
+            <path d={path} fill="none" stroke={color} strokeWidth={1.5} />
+          </>
+        )}
+        {pts.length > 0 && (
+          <circle cx={pts[pts.length-1].x} cy={pts[pts.length-1].y}
+            r={4} fill={color} />
+        )}
+        <text x={4} y={12} fill={color + "80"} fontSize={9} fontFamily="monospace">{fmt(max, 4)}</text>
+        <text x={4} y={h - 2} fill={color + "80"} fontSize={9} fontFamily="monospace">{fmt(min, 4)}</text>
+      </svg>
+    </div>
+  );
+};
+
+// ─── Neural Network Diagram ───────────────────────────────────────────────────
+const NNDiagram = ({ x, h1, out, W1, W2, b1, b2, highlight = null }) => {
+  const nodes = {
+    i0: { cx: 60,  cy: 80,  label: `x₁\n${fmt2(x[0])}`,   color: T.blue },
+    i1: { cx: 60,  cy: 180, label: `x₂\n${fmt2(x[1])}`,   color: T.blue },
+    h0: { cx: 200, cy: 80,  label: `h₁\n${fmt2(h1[0])}`,  color: T.cyan },
+    h1: { cx: 200, cy: 180, label: `h₂\n${fmt2(h1[1])}`,  color: T.cyan },
+    o0: { cx: 340, cy: 130, label: `ŷ\n${fmt2(out)}`,      color: T.amber },
+  };
+  const edges = [
+    { from:"i0", to:"h0", w: W1[0][0], label:`w₁₁=${fmt2(W1[0][0])}` },
+    { from:"i0", to:"h1", w: W1[1][0], label:`w₂₁=${fmt2(W1[1][0])}` },
+    { from:"i1", to:"h0", w: W1[0][1], label:`w₁₂=${fmt2(W1[0][1])}` },
+    { from:"i1", to:"h1", w: W1[1][1], label:`w₂₂=${fmt2(W1[1][1])}` },
+    { from:"h0", to:"o0", w: W2[0],    label:`w₃₁=${fmt2(W2[0])}` },
+    { from:"h1", to:"o0", w: W2[1],    label:`w₃₂=${fmt2(W2[1])}` },
+  ];
+  return (
+    <svg viewBox="0 0 400 260" style={{ width: "100%", maxWidth: 400, display:"block" }}>
+      {/* Bias annotations */}
+      <text x={200} y={20} textAnchor="middle" fill={T.green + "bb"} fontSize={9} fontFamily="monospace">
+        b₁=[{fmt2(b1[0])},{fmt2(b1[1])}]
+      </text>
+      <text x={340} y={20} textAnchor="middle" fill={T.green + "bb"} fontSize={9} fontFamily="monospace">
+        b₂={fmt2(b2)}
+      </text>
+      {/* Edges */}
+      {edges.map((e, i) => {
+        const f = nodes[e.from], t = nodes[e.to];
+        const intensity = Math.min(1, Math.abs(e.w) * 1.5);
+        const stroke = e.w >= 0 ? T.cyan : T.red;
+        return (
+          <g key={i}>
+            <line x1={f.cx+18} y1={f.cy} x2={t.cx-18} y2={t.cy}
+              stroke={stroke} strokeWidth={1 + intensity * 1.5}
+              strokeOpacity={0.3 + intensity * 0.5} />
+            <text x={(f.cx+t.cx)/2} y={(f.cy+t.cy)/2 - 4}
+              textAnchor="middle" fill={stroke + "99"} fontSize={8} fontFamily="monospace">
+              {fmt2(e.w)}
+            </text>
+          </g>
+        );
+      })}
+      {/* Nodes */}
+      {Object.entries(nodes).map(([id, n]) => {
+        const lines = n.label.split("\n");
+        return (
+          <g key={id}>
+            <circle cx={n.cx} cy={n.cy} r={22}
+              fill={n.color + "18"} stroke={n.color} strokeWidth={2} />
+            {lines.map((l, li) => (
+              <text key={li} x={n.cx} y={n.cy + (li === 0 ? -5 : 9)}
+                textAnchor="middle" fill={n.color} fontSize={10} fontFamily="monospace" fontWeight={700}>
+                {l}
+              </text>
+            ))}
+          </g>
+        );
+      })}
+      {/* Layer labels */}
+      {[["Input", 60], ["Hidden", 200], ["Output", 340]].map(([l, cx]) => (
+        <text key={l} x={cx} y={240} textAnchor="middle"
+          fill={T.dimmer} fontSize={9} fontFamily="monospace" letterSpacing={2}>
+          {l.toUpperCase()}
+        </text>
+      ))}
+    </svg>
+  );
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SECTION 1 — What is Error?
+// ══════════════════════════════════════════════════════════════════════════════
+function WhatIsError() {
+  const [pred, setPred] = useState(0.6);
+  const [target] = useState(0.85);
+  const err = pred - target;
+  const se = err * err;
+
+  const preds = [0.35, 0.52, 0.65, 0.70, 0.82, 0.40];
+  const tgts  = [0.35, 0.52, 0.67, 0.71, 0.88, 0.38];
+  const mseVal  = mse(preds, tgts);
+  const rmseVal = rmse(preds, tgts);
+  const maeVal  = mae(preds, tgts);
+
+  return (
+    <div>
+      <Panel glow={T.amber} style={{ marginBottom: 18 }}>
+        <Label>What is Prediction Error?</Label>
+        <p style={{ color: T.text, fontSize: 14, lineHeight: 1.8, marginBottom: 12 }}>
+          When a neural network makes a prediction <Tag color={T.cyan}>ŷ</Tag> and the correct answer is <Tag color={T.green}>y</Tag>,
+          the <strong style={{ color: T.amber }}>error</strong> measures how far off the prediction was.
+          This error signal is the entire engine of learning — the network uses it to figure out
+          exactly how to adjust every weight and bias to do better next time.
+        </p>
+        <p style={{ color: T.dim, fontSize: 13, lineHeight: 1.7 }}>
+          Think of it like a navigation system. If you're supposed to arrive at latitude 40.7°N but you're at 40.3°N,
+          the error (0.4°) tells the system which direction to correct and by how much.
+          A neural network does the same thing — except it has thousands of parameters to correct simultaneously,
+          and the error must be distributed intelligently back through every layer.
+        </p>
+      </Panel>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 18 }}>
+        <Panel glow={T.cyan} style={{ gridColumn: "1 / -1" }}>
+          <Label color={T.cyan}>Interactive: Single Prediction Error</Label>
+          <p style={{ color: T.dim, fontSize: 13, marginBottom: 12 }}>
+            Drag the prediction slider. Watch how each error metric responds differently.
+            The target (correct answer) is fixed at <Tag color={T.green}>{target}</Tag>.
+          </p>
+          <Slider label="Prediction (ŷ)" value={pred} min={0} max={1} onChange={setPred} color={T.cyan} />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginTop: 14 }}>
+            {[
+              { label: "Raw Error  (ŷ - y)", val: err, color: err >= 0 ? T.red : T.blue, note: "Can be + or −" },
+              { label: "Squared Error  (ŷ-y)²", val: se, color: T.amber, note: "Always positive" },
+              { label: "Absolute Error  |ŷ-y|", val: Math.abs(err), color: T.green, note: "Always positive" },
+            ].map(({ label, val, color, note }) => (
+              <div key={label} style={{ background: "#020a14", borderRadius: 8, padding: 14, border: `1px solid ${color}30`, textAlign: "center" }}>
+                <div style={{ fontFamily: T.mono, fontSize: 10, color: T.dim, marginBottom: 8, letterSpacing: 1 }}>{label}</div>
+                <div style={{ fontFamily: T.mono, fontSize: 22, color, fontWeight: 700, marginBottom: 6 }}>{fmt(val)}</div>
+                <div style={{ background: "#0d2040", borderRadius: 3, height: 6, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${Math.min(100, Math.abs(val) * 100)}%`, background: color, borderRadius: 3 }} />
+                </div>
+                <div style={{ color: T.dimmer, fontSize: 10, marginTop: 6, fontFamily: T.mono }}>{note}</div>
+              </div>
+            ))}
+          </div>
+          <Formula color={T.cyan}>{`Raw Error    = ŷ − y          = ${fmt2(pred)} − ${target} = ${fmt(err)}
+Squared Err  = (ŷ − y)²      = (${fmt(err)})²          = ${fmt(se)}
+Absolute Err = |ŷ − y|       = |${fmt(err)}|           = ${fmt(Math.abs(err))}`}</Formula>
+        </Panel>
+      </div>
+
+      <Panel glow={T.red} style={{ marginBottom: 18 }}>
+        <Label color={T.red}>Why Can't We Just Use Raw Error?</Label>
+        <p style={{ color: T.dim, fontSize: 13, lineHeight: 1.75 }}>
+          If we average raw errors across many predictions, positive and negative errors cancel each other out.
+          A prediction of <Tag color={T.cyan}>0.9</Tag> for target <Tag color={T.green}>1.0</Tag> (error −0.1)
+          and a prediction of <Tag color={T.cyan}>0.1</Tag> for target <Tag color={T.green}>0.0</Tag> (error +0.1)
+          would average to <Tag color={T.red}>zero</Tag> — making it look like perfect performance even though both are wrong.
+          We need error metrics that are always positive and emphasize large mistakes.
+        </p>
+      </Panel>
+
+      <Panel glow={T.green}>
+        <Label color={T.green}>Batch Error Metrics (6 training samples)</Label>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: T.mono, fontSize: 12 }}>
+            <thead>
+              <tr>
+                {["Sample","Prediction (ŷ)","Target (y)","Error","Sq. Error","Abs. Error"].map(h => (
+                  <th key={h} style={{ padding: "8px 10px", color: T.dimmer, borderBottom: `1px solid ${T.border}`, textAlign: "left", fontSize: 10, letterSpacing: 1 }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {preds.map((p, i) => {
+                const e = p - tgts[i], sqe = e*e, abe = Math.abs(e);
+                return (
+                  <tr key={i} style={{ background: i%2===0 ? "#050c1499" : "transparent" }}>
+                    <td style={{ padding: "7px 10px", color: T.dimmer }}>{i+1}</td>
+                    <td style={{ padding: "7px 10px", color: T.cyan }}>{fmt(p)}</td>
+                    <td style={{ padding: "7px 10px", color: T.green }}>{fmt(tgts[i])}</td>
+                    <td style={{ padding: "7px 10px", color: e >= 0 ? T.red : T.blue }}>{fmt(e)}</td>
+                    <td style={{ padding: "7px 10px", color: T.amber }}>{fmt(sqe)}</td>
+                    <td style={{ padding: "7px 10px", color: T.green }}>{fmt(abe)}</td>
+                  </tr>
+                );
+              })}
+              <tr style={{ borderTop: `1px solid ${T.border}` }}>
+                <td colSpan={3} style={{ padding: "8px 10px", color: T.dimmer, fontWeight: 700 }}>AVERAGE →</td>
+                <td style={{ padding: "8px 10px", color: T.red, fontWeight: 700 }}>{fmt(preds.reduce((s,p,i)=>s+(p-tgts[i]),0)/preds.length)} ← cancels!</td>
+                <td style={{ padding: "8px 10px", color: T.amber, fontWeight: 700 }}>{fmt(mseVal)}</td>
+                <td style={{ padding: "8px 10px", color: T.green, fontWeight: 700 }}>{fmt(maeVal)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
+          {[
+            { metric: "MSE", value: mseVal, color: T.amber },
+            { metric: "RMSE", value: rmseVal, color: T.red },
+          ].map(({ metric, value, color }) => (
+            <div key={metric} style={{ background: "#020a14", borderRadius: 8, padding: 14, border: `1px solid ${color}40`, textAlign: "center" }}>
+              <div style={{ fontFamily: T.mono, fontSize: 11, color: T.dim, marginBottom: 6, letterSpacing: 2 }}>{metric}</div>
+              <div style={{ fontFamily: T.mono, fontSize: 26, color, fontWeight: 700 }}>{fmt(value)}</div>
+            </div>
+          ))}
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SECTION 2 — MSE & RMSE Deep Dive
+// ══════════════════════════════════════════════════════════════════════════════
+function MseRmseSection() {
+  const [n, setN] = useState(4);
+  const [preds, setPreds] = useState([0.6, 0.4, 0.8, 0.3]);
+  const targets = [0.85, 0.35, 0.70, 0.50];
+
+  const mseVal  = mse(preds.slice(0,n), targets.slice(0,n));
+  const rmseVal = rmse(preds.slice(0,n), targets.slice(0,n));
+
+  const updatePred = (i, v) => {
+    const copy = [...preds]; copy[i] = v; setPreds(copy);
+  };
+
+  return (
+    <div>
+      <Panel glow={T.amber} style={{ marginBottom: 18 }}>
+        <Label>MSE — Mean Squared Error</Label>
+        <Formula color={T.amber}>{`        1   n
+MSE = ─── × Σ (ŷᵢ − yᵢ)²
+        n   i=1
+
+where:
+  n      = number of samples
+  ŷᵢ     = the network's prediction for sample i
+  yᵢ     = the true (correct) answer for sample i
+  (ŷ−y)² = squaring makes all errors positive
+           AND penalizes large errors MORE`}</Formula>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <div>
+            <p style={{ color: T.text, fontSize: 13, lineHeight: 1.75, marginBottom: 10 }}>
+              <strong style={{ color: T.amber }}>Why squaring?</strong> Three reasons:
+            </p>
+            {[
+              ["Always positive", "Squaring any number (positive or negative) gives a positive result. −0.3 and +0.3 both become 0.09."],
+              ["Penalizes large errors harder", "An error of 0.1 becomes 0.01. An error of 0.5 becomes 0.25 — 25× larger even though the error is only 5× bigger."],
+              ["Mathematically smooth", "Squaring makes the error function differentiable everywhere — essential for computing gradients in backpropagation."],
+            ].map(([title, desc]) => (
+              <div key={title} style={{ marginBottom: 10, display: "flex", gap: 10 }}>
+                <div style={{ color: T.amber, fontFamily: T.mono, fontSize: 16, marginTop: 1, flexShrink: 0 }}>▸</div>
+                <div>
+                  <span style={{ color: T.amber, fontSize: 13, fontWeight: 700 }}>{title}: </span>
+                  <span style={{ color: T.dim, fontSize: 13 }}>{desc}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div>
+            <p style={{ color: T.text, fontSize: 13, lineHeight: 1.75, marginBottom: 10 }}>
+              <strong style={{ color: T.red }}>Limitations of MSE:</strong>
+            </p>
+            {[
+              ["Units are squared", "If your output is in dollars, MSE is in dollars². It's hard to interpret directly."],
+              ["Sensitive to outliers", "One extreme prediction explodes the MSE much more than many small errors."],
+              ["Scale dependent", "MSE for a network predicting house prices (0–500k) is not comparable to one predicting probabilities (0–1)."],
+            ].map(([title, desc]) => (
+              <div key={title} style={{ marginBottom: 10, display: "flex", gap: 10 }}>
+                <div style={{ color: T.red, fontFamily: T.mono, fontSize: 16, marginTop: 1, flexShrink: 0 }}>▸</div>
+                <div>
+                  <span style={{ color: T.red, fontSize: 13, fontWeight: 700 }}>{title}: </span>
+                  <span style={{ color: T.dim, fontSize: 13 }}>{desc}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Panel>
+
+      <Panel glow={T.red} style={{ marginBottom: 18 }}>
+        <Label color={T.red}>RMSE — Root Mean Squared Error</Label>
+        <Formula color={T.red}>{`RMSE = √MSE = √( (1/n) × Σ(ŷᵢ − yᵢ)² )
+
+Taking the square root:
+  • Returns error to the SAME UNITS as the original output
+  • RMSE = 0.05 means "on average, predictions are off by 0.05 units"
+  • Easier to interpret than MSE
+  • Still penalizes large errors more than small ones`}</Formula>
+        <p style={{ color: T.dim, fontSize: 13, lineHeight: 1.75 }}>
+          RMSE is the "practical" version of MSE. If your network predicts exam scores between 0 and 1,
+          and RMSE = 0.08, it means your predictions are typically about 0.08 off — which corresponds
+          to 8 percentage points on a 0–100 scale. This is immediately meaningful.
+        </p>
+      </Panel>
+
+      <Panel glow={T.cyan}>
+        <Label color={T.cyan}>Live MSE & RMSE Calculator</Label>
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ color: T.dim, fontSize: 12, fontFamily: T.mono }}>
+            Number of samples: <strong style={{ color: T.cyan }}>{n}</strong>
+            <input type="range" min={1} max={4} step={1} value={n}
+              onChange={e => setN(+e.target.value)}
+              style={{ marginLeft: 10, accentColor: T.cyan, width: 120 }} />
+          </label>
+        </div>
+        {Array.from({ length: n }, (_, i) => (
+          <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 10, marginBottom: 8, alignItems: "center" }}>
+            <Slider label={`Sample ${i+1}: ŷ = ${fmt2(preds[i])}, y = ${fmt2(targets[i])}`}
+              value={preds[i]} min={0} max={1} onChange={v => updatePred(i, v)} color={T.cyan} />
+            <div style={{ textAlign: "center" }}>
+              <div style={{ color: T.dim, fontSize: 10, fontFamily: T.mono }}>ERROR</div>
+              <div style={{ color: T.red, fontFamily: T.mono, fontSize: 13, fontWeight: 700 }}>{fmt(preds[i]-targets[i])}</div>
+            </div>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ color: T.dim, fontSize: 10, fontFamily: T.mono }}>SQ. ERR</div>
+              <div style={{ color: T.amber, fontFamily: T.mono, fontSize: 13, fontWeight: 700 }}>{fmt(Math.pow(preds[i]-targets[i],2))}</div>
+            </div>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ color: T.dim, fontSize: 10, fontFamily: T.mono }}>|ERR|</div>
+              <div style={{ color: T.green, fontFamily: T.mono, fontSize: 13, fontWeight: 700 }}>{fmt(Math.abs(preds[i]-targets[i]))}</div>
+            </div>
+          </div>
+        ))}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
+          {[
+            { label: "MSE", val: mseVal, color: T.amber, formula: `(${Array.from({length:n},(_,i)=>`${fmt2(Math.pow(preds[i]-targets[i],2))}`).join("+")})\n÷ ${n} = ${fmt(mseVal)}` },
+            { label: "RMSE", val: rmseVal, color: T.red, formula: `√${fmt(mseVal)} = ${fmt(rmseVal)}` },
+          ].map(({ label, val, color, formula }) => (
+            <div key={label} style={{ background: "#020a14", borderRadius: 8, padding: 16, border: `1px solid ${color}40` }}>
+              <div style={{ fontFamily: T.mono, fontSize: 11, color: T.dim, letterSpacing: 2, marginBottom: 8 }}>{label}</div>
+              <div style={{ fontFamily: T.mono, fontSize: 28, color, fontWeight: 700, marginBottom: 8 }}>{fmt(val)}</div>
+              <div style={{ fontFamily: T.mono, fontSize: 11, color: color + "80", whiteSpace: "pre-wrap" }}>{formula}</div>
+            </div>
+          ))}
+        </div>
+        <Formula color={T.green}>{`Interpretation:
+  MSE  = ${fmt(mseVal)}  → average squared error across ${n} samples
+  RMSE = ${fmt(rmseVal)}  → typical prediction is off by ≈${(rmseVal*100).toFixed(1)}% of the full output range`}</Formula>
+      </Panel>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SECTION 3 — Network Forward Pass Step by Step
+// ══════════════════════════════════════════════════════════════════════════════
+function ForwardPassSection() {
+  const [stepIdx, setStepIdx] = useState(0);
+  const [sampleIdx, setSampleIdx] = useState(0);
+  const sample = TRAIN_DATA[sampleIdx];
+
+  // Fixed weights for walkthrough
+  const W1 = [[0.5, -0.3], [0.2, 0.8]];
+  const b1 = [0.1, -0.1];
+  const W2 = [0.6, 0.4];
+  const b2 = 0.05;
+
+  const x = sample.x;
+  const z1_0 = W1[0][0]*x[0] + W1[0][1]*x[1] + b1[0];
+  const z1_1 = W1[1][0]*x[0] + W1[1][1]*x[1] + b1[1];
+  const h1_0 = sigmoid(z1_0), h1_1 = sigmoid(z1_1);
+  const z2 = W2[0]*h1_0 + W2[1]*h1_1 + b2;
+  const out = sigmoid(z2);
+  const err = out - sample.y;
+  const loss = 0.5 * err * err;
+
+  const steps = [
+    {
+      title: "Input Layer — Raw Features Enter the Network",
+      color: T.blue,
+      content: (
+        <div>
+          <p style={{ color: T.dim, fontSize: 13, lineHeight: 1.75, marginBottom: 12 }}>
+            Two input values flow into the network. Each is a normalized feature value between 0 and 1.
+            The input layer performs <strong style={{ color: T.blue }}>no computation</strong> — it simply
+            holds the data and passes it to every neuron in the hidden layer through connections called weights.
+          </p>
+          <Formula color={T.blue}>{`Input vector x = [x₁, x₂]
+x₁ = ${x[0]} (feature 1: normalized study hours)
+x₂ = ${x[1]} (feature 2: normalized sleep hours)
+
+Each input connects to EVERY hidden neuron.
+2 inputs × 2 hidden neurons = 4 weight connections.`}</Formula>
+        </div>
+      )
+    },
+    {
+      title: "Hidden Layer — Weighted Sum + Bias",
+      color: T.cyan,
+      content: (
+        <div>
+          <p style={{ color: T.dim, fontSize: 13, lineHeight: 1.75, marginBottom: 12 }}>
+            Each hidden neuron computes a <strong style={{ color: T.cyan }}>weighted sum</strong> of all inputs,
+            then adds a bias. The <strong style={{ color: T.green }}>bias</strong> is like a knob that shifts
+            the neuron's activation threshold — it lets the network fire even when inputs are zero.
+          </p>
+          <Formula color={T.cyan}>{`Hidden neuron 1 (pre-activation z₁):
+  z₁ = w₁₁·x₁ + w₁₂·x₂ + b₁
+     = ${W1[0][0]}×${x[0]} + ${W1[0][1]}×${x[1]} + ${b1[0]}
+     = ${(W1[0][0]*x[0]).toFixed(4)} + ${(W1[0][1]*x[1]).toFixed(4)} + ${b1[0]}
+     = ${z1_0.toFixed(4)}
+
+Hidden neuron 2 (pre-activation z₂):
+  z₂ = w₂₁·x₁ + w₂₂·x₂ + b₂
+     = ${W1[1][0]}×${x[0]} + ${W1[1][1]}×${x[1]} + ${b1[1]}
+     = ${(W1[1][0]*x[0]).toFixed(4)} + ${(W1[1][1]*x[1]).toFixed(4)} + ${b1[1]}
+     = ${z1_1.toFixed(4)}`}</Formula>
+        </div>
+      )
+    },
+    {
+      title: "Hidden Layer — Activation Function (sigmoid)",
+      color: T.cyan,
+      content: (
+        <div>
+          <p style={{ color: T.dim, fontSize: 13, lineHeight: 1.75, marginBottom: 12 }}>
+            The <strong style={{ color: T.cyan }}>activation function</strong> introduces non-linearity.
+            Without it, stacking layers is mathematically identical to having just one layer.
+            Sigmoid maps any real number to (0, 1) — perfect for probabilities.
+          </p>
+          <Formula color={T.cyan}>{`sigmoid(z) = 1 / (1 + e^(−z))
+
+h₁ = sigmoid(z₁) = sigmoid(${z1_0.toFixed(4)})
+   = 1 / (1 + e^(−${z1_0.toFixed(4)}))
+   = ${h1_0.toFixed(6)}
+
+h₂ = sigmoid(z₂) = sigmoid(${z1_1.toFixed(4)})
+   = 1 / (1 + e^(−${z1_1.toFixed(4)}))
+   = ${h1_1.toFixed(6)}
+
+These hidden activations [${fmt2(h1_0)}, ${fmt2(h1_1)}] are the
+"learned representation" passed to the output layer.`}</Formula>
+        </div>
+      )
+    },
+    {
+      title: "Output Layer — Final Prediction",
+      color: T.amber,
+      content: (
+        <div>
+          <p style={{ color: T.dim, fontSize: 13, lineHeight: 1.75, marginBottom: 12 }}>
+            The output neuron combines the hidden activations using its own weights and bias,
+            then applies sigmoid to produce a final prediction between 0 and 1.
+          </p>
+          <Formula color={T.amber}>{`Output (pre-activation z_out):
+  z_out = w₃₁·h₁ + w₃₂·h₂ + b_out
+        = ${W2[0]}×${h1_0.toFixed(4)} + ${W2[1]}×${h1_1.toFixed(4)} + ${b2}
+        = ${(W2[0]*h1_0).toFixed(4)} + ${(W2[1]*h1_1).toFixed(4)} + ${b2}
+        = ${z2.toFixed(4)}
+
+Prediction ŷ = sigmoid(${z2.toFixed(4)}) = ${out.toFixed(6)}
+
+True target y = ${sample.y}
+         ŷ  = ${fmt(out)}
+         
+This single forward pass is complete. Now we compute the loss.`}</Formula>
+        </div>
+      )
+    },
+    {
+      title: "Loss Computation — How Wrong Were We?",
+      color: T.red,
+      content: (
+        <div>
+          <p style={{ color: T.dim, fontSize: 13, lineHeight: 1.75, marginBottom: 12 }}>
+            We compute the <strong style={{ color: T.red }}>MSE loss</strong> for this single sample.
+            (For a full batch, we'd average across all samples.) This single number summarizes
+            exactly how wrong the prediction was.
+          </p>
+          <Formula color={T.red}>{`Single-sample MSE:
+  L = 0.5 × (ŷ − y)²  ← the 0.5 simplifies the derivative
+    = 0.5 × (${fmt(out)} − ${sample.y})²
+    = 0.5 × (${fmt(err)})²
+    = 0.5 × ${fmt(err*err)}
+    = ${fmt(loss)}
+
+RMSE across training set = √(average of all sample losses × 2)
+
+The loss L is the quantity every weight update aims to MINIMIZE.
+Smaller L → better predictions → more useful network.`}</Formula>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginTop: 10 }}>
+            {[
+              { label: "Prediction ŷ", val: out, color: T.cyan },
+              { label: "Target y", val: sample.y, color: T.green },
+              { label: "Loss L", val: loss, color: T.red },
+            ].map(({ label, val, color }) => (
+              <div key={label} style={{ background: "#020a14", borderRadius: 8, padding: 12, border: `1px solid ${color}30`, textAlign: "center" }}>
+                <div style={{ color: T.dim, fontSize: 10, fontFamily: T.mono, marginBottom: 4 }}>{label}</div>
+                <div style={{ color, fontFamily: T.mono, fontSize: 20, fontWeight: 700 }}>{fmt(val)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )
+    },
+  ];
+
+  return (
+    <div>
+      <Panel glow={T.blue} style={{ marginBottom: 18 }}>
+        <Label color={T.blue}>Network Architecture: 2 → 2 → 1</Label>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
+          <div>
+            <p style={{ color: T.dim, fontSize: 13, lineHeight: 1.75, marginBottom: 12 }}>
+              We use a small network to predict exam scores from study hours and sleep hours.
+              Select a training sample and walk through each step of the forward pass below.
+            </p>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ color: T.dim, fontSize: 12, fontFamily: T.mono }}>
+                Training sample: <strong style={{ color: T.blue }}>{sampleIdx + 1}</strong>
+                <input type="range" min={0} max={TRAIN_DATA.length-1} step={1} value={sampleIdx}
+                  onChange={e => setSampleIdx(+e.target.value)}
+                  style={{ marginLeft: 10, accentColor: T.blue, width: 120 }} />
+              </label>
+            </div>
+            <Formula color={T.blue}>{`x = [${x[0]}, ${x[1]}]  →  y = ${sample.y}
+Weights W1: [[${W1[0]}],[${W1[1]}]]
+Biases  b1: [${b1}]
+Weights W2: [${W2}]
+Bias    b2:  ${b2}`}</Formula>
+          </div>
+          <NNDiagram x={x} h1={[h1_0,h1_1]} out={out} W1={W1} W2={W2} b1={b1} b2={b2} />
+        </div>
+      </Panel>
+
+      <Panel glow={steps[stepIdx].color}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+          {steps.map((s, i) => (
+            <button key={i} onClick={() => setStepIdx(i)} style={{
+              padding: "6px 14px", borderRadius: 20,
+              border: `1px solid ${s.color}`,
+              background: stepIdx === i ? s.color + "25" : "transparent",
+              color: stepIdx === i ? s.color : T.dimmer,
+              fontFamily: T.mono, fontSize: 11, cursor: "pointer",
+              fontWeight: stepIdx === i ? 700 : 400
+            }}>Step {i+1}</button>
+          ))}
+        </div>
+        <Label color={steps[stepIdx].color}>{steps[stepIdx].title}</Label>
+        {steps[stepIdx].content}
+        <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+          <Btn onClick={() => setStepIdx(i => Math.max(0, i-1))} disabled={stepIdx===0} color={steps[stepIdx].color} small>◀ Previous</Btn>
+          <Btn onClick={() => setStepIdx(i => Math.min(steps.length-1, i+1))} disabled={stepIdx===steps.length-1} color={steps[stepIdx].color} small>Next ▶</Btn>
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SECTION 4 — Backpropagation & Weight Adjustment
+// ══════════════════════════════════════════════════════════════════════════════
+function BackpropSection() {
+  const [lr, setLr] = useState(0.5);
+  const [W1, setW1] = useState([[0.5, -0.3], [0.2, 0.8]]);
+  const [b1, setB1] = useState([0.1, -0.1]);
+  const [W2, setW2] = useState([0.6, 0.4]);
+  const [b2, setB2] = useState(0.05);
+  const [sample] = useState(TRAIN_DATA[0]);
+  const [history, setHistory] = useState([]);
+  const [step, setStep] = useState(0);
+
+  const { dW1, db1, dW2, db2: db2g, out, z1, h1, z2 } = backprop(sample.x, sample.y, W1, b1, W2, b2);
+  const err = out - sample.y;
+  const loss = 0.5 * err * err;
+
+  const updateWeights = () => {
+    const newW1 = W1.map((row, i) => row.map((w, j) => w - lr * dW1[i][j]));
+    const newB1 = b1.map((b, i) => b - lr * db1[i]);
+    const newW2 = W2.map((w, i) => w - lr * dW2[i]);
+    const newB2 = b2 - lr * db2g;
+    setW1(newW1); setB1(newB1); setW2(newW2); setB2(newB2);
+    setHistory(h => [...h.slice(-49), loss]);
+  };
+
+  const reset = () => {
+    setW1([[0.5,-0.3],[0.2,0.8]]); setB1([0.1,-0.1]);
+    setW2([0.6,0.4]); setB2(0.05); setHistory([]); setStep(0);
+  };
+
+  const gradSteps = [
+    {
+      title: "Step 1: Output Layer Gradient (δ_out)",
+      color: T.red,
+      desc: "The gradient of the loss with respect to the output neuron's pre-activation value. This is the starting point — every other gradient depends on this.",
+      formula: `δ_out = ∂L/∂z_out = (ŷ − y) × sigmoid'(z_out)
+         = (ŷ − y) × ŷ×(1−ŷ)
+         = (${fmt(out)} − ${sample.y}) × ${fmt(out)} × ${fmt(1-out)}
+         = ${fmt(err)} × ${fmt(out*(1-out))}
+         = ${fmt(err * out * (1-out))}`
+    },
+    {
+      title: "Step 2: Output Weight Gradients (∂L/∂W2)",
+      color: T.amber,
+      desc: "How much does each output weight contribute to the error? The gradient is the output delta × the hidden activation that connects to it. Larger hidden activation = larger influence = larger gradient.",
+      formula: `∂L/∂w₃₁ = δ_out × h₁ = ${fmt(err*out*(1-out))} × ${fmt(h1[0])} = ${fmt(err*out*(1-out)*h1[0])}
+∂L/∂w₃₂ = δ_out × h₂ = ${fmt(err*out*(1-out))} × ${fmt(h1[1])} = ${fmt(err*out*(1-out)*h1[1])}
+∂L/∂b₂  = δ_out       = ${fmt(err*out*(1-out))}
+
+Weight update rule:  new_w = old_w − lr × gradient
+w₃₁: ${fmt(W2[0])} − ${lr} × ${fmt(dW2[0])} = ${fmt(W2[0] - lr*dW2[0])}
+w₃₂: ${fmt(W2[1])} − ${lr} × ${fmt(dW2[1])} = ${fmt(W2[1] - lr*dW2[1])}`
+    },
+    {
+      title: "Step 3: Hidden Layer Gradients (δ_h)",
+      color: T.cyan,
+      desc: "We propagate the error backward through the output weights. Each hidden neuron's gradient is the output delta × the connecting weight × the hidden neuron's own derivative. This is the 'chain rule' — derivatives multiply across layers.",
+      formula: `δ_h1 = δ_out × w₃₁ × sigmoid'(z_h1)
+       = ${fmt(err*out*(1-out))} × ${fmt(W2[0])} × ${fmt(h1[0]*(1-h1[0]))}
+       = ${fmt(db1[0])}
+
+δ_h2 = δ_out × w₃₂ × sigmoid'(z_h2)
+       = ${fmt(err*out*(1-out))} × ${fmt(W2[1])} × ${fmt(h1[1]*(1-h1[1]))}
+       = ${fmt(db1[1])}`
+    },
+    {
+      title: "Step 4: Input Weight Gradients (∂L/∂W1)",
+      color: T.green,
+      desc: "The gradients for the first-layer weights follow the same pattern: hidden delta × the input that fed into it. These small gradients adjust the very first set of connections — the network's eyes that first perceive the raw input.",
+      formula: `∂L/∂w₁₁ = δ_h1 × x₁ = ${fmt(db1[0])} × ${sample.x[0]} = ${fmt(dW1[0][0])}
+∂L/∂w₁₂ = δ_h1 × x₂ = ${fmt(db1[0])} × ${sample.x[1]} = ${fmt(dW1[0][1])}
+∂L/∂w₂₁ = δ_h2 × x₁ = ${fmt(db1[1])} × ${sample.x[0]} = ${fmt(dW1[1][0])}
+∂L/∂w₂₂ = δ_h2 × x₂ = ${fmt(db1[1])} × ${sample.x[1]} = ${fmt(dW1[1][1])}
+
+w₁₁: ${fmt(W1[0][0])} − ${lr}×${fmt(dW1[0][0])} = ${fmt(W1[0][0]-lr*dW1[0][0])}
+w₁₂: ${fmt(W1[0][1])} − ${lr}×${fmt(dW1[0][1])} = ${fmt(W1[0][1]-lr*dW1[0][1])}`
+    },
+    {
+      title: "Step 5: Bias Gradients & Full Update",
+      color: T.blue,
+      desc: "Biases have no incoming connection — their gradient is simply the delta of their neuron. After computing all gradients, we apply every update simultaneously. The loss should decrease after this step.",
+      formula: `∂L/∂b₁ = δ_h1 = ${fmt(db1[0])}
+∂L/∂b₂ = δ_h2 = ${fmt(db1[1])}
+
+After update:
+  Loss before: ${fmt(loss)}
+  Predicted:   ${fmt(out)}  →  Target: ${sample.y}
+
+Press "Apply Update" to apply all gradients and watch the loss decrease.`
+    },
+  ];
+
+  return (
+    <div>
+      <Panel glow={T.amber} style={{ marginBottom: 18 }}>
+        <Label>The Chain Rule — How Error Travels Backward</Label>
+        <p style={{ color: T.dim, fontSize: 13, lineHeight: 1.8, marginBottom: 12 }}>
+          Backpropagation uses the <strong style={{ color: T.amber }}>chain rule from calculus</strong> to
+          compute how much each weight contributed to the error. The key insight:
+          the total effect of a weight deep in the network is the product of all the partial
+          effects along the path from that weight to the loss.
+        </p>
+        <Formula color={T.amber}>{`∂L     ∂L    ∂ŷ    ∂z_out
+──── = ──── × ─── × ──────  ← Chain rule: multiply derivatives along the path
+∂w₃₁   ∂ŷ    ∂z   ∂w₃₁
+
+Each ∂/∂w term tells us:
+"If this weight increases by a tiny amount ε, how much does the loss change?"
+A large gradient → big influence → needs a big adjustment.
+A small gradient → small influence → small adjustment.`}</Formula>
+      </Panel>
+
+      <Panel glow={gradSteps[step].color} style={{ marginBottom: 18 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+          {gradSteps.map((s, i) => (
+            <button key={i} onClick={() => setStep(i)} style={{
+              padding: "5px 12px", borderRadius: 20,
+              border: `1px solid ${s.color}`,
+              background: step === i ? s.color + "25" : "transparent",
+              color: step === i ? s.color : T.dimmer,
+              fontFamily: T.mono, fontSize: 11, cursor: "pointer", fontWeight: step===i?700:400
+            }}>Step {i+1}</button>
+          ))}
+        </div>
+        <Label color={gradSteps[step].color}>{gradSteps[step].title}</Label>
+        <p style={{ color: T.dim, fontSize: 13, lineHeight: 1.75, marginBottom: 10 }}>{gradSteps[step].desc}</p>
+        <Formula color={gradSteps[step].color}>{gradSteps[step].formula}</Formula>
+      </Panel>
+
+      <Panel glow={T.green}>
+        <Label color={T.green}>Live Weight Update Lab</Label>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
+          <div>
+            <Slider label="Learning Rate (lr)" value={lr} min={0.01} max={2.0} step={0.01} onChange={setLr} color={T.green} />
+            <p style={{ color: T.dim, fontSize: 12, lineHeight: 1.7, marginBottom: 12 }}>
+              <strong style={{ color: T.green }}>Learning rate</strong> controls how big a step we take in the direction the gradient points.
+              Too large → overshoot, oscillate, diverge. Too small → convergence is painfully slow.
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
+              {[
+                { label: "Loss", val: loss, color: T.red },
+                { label: "Prediction ŷ", val: out, color: T.cyan },
+                { label: "Target y", val: sample.y, color: T.green },
+                { label: "Error (ŷ−y)", val: err, color: T.amber },
+              ].map(({ label, val, color }) => (
+                <div key={label} style={{ background: "#020a14", borderRadius: 8, padding: 10, border: `1px solid ${color}30` }}>
+                  <div style={{ color: T.dim, fontSize: 9, fontFamily: T.mono, letterSpacing: 1, marginBottom: 3 }}>{label}</div>
+                  <div style={{ color, fontFamily: T.mono, fontSize: 16, fontWeight: 700 }}>{fmt(val)}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <Btn onClick={updateWeights} color={T.green}>▶ Apply Update</Btn>
+              <Btn onClick={() => { for(let i=0;i<20;i++) updateWeights(); }} color={T.amber} small>▶▶ 20 Steps</Btn>
+              <Btn onClick={reset} color={T.dim} small>↺ Reset</Btn>
+            </div>
+            {history.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <div style={{ fontFamily: T.mono, fontSize: 10, color: T.green, marginBottom: 4 }}>
+                  Updates applied: {history.length} | Best loss: {fmt(Math.min(...history))}
+                </div>
+              </div>
+            )}
+          </div>
+          <div>
+            {history.length > 1 ? (
+              <LossCurve history={history} color={T.green} label="Training Loss" height={120} />
+            ) : (
+              <div style={{ background: "#020a14", borderRadius: 8, padding: 24, border: `1px solid ${T.border}`, textAlign: "center" }}>
+                <div style={{ color: T.dimmer, fontFamily: T.mono, fontSize: 12 }}>Apply updates to see loss curve</div>
+              </div>
+            )}
+            <div style={{ marginTop: 12 }}>
+              <Label color={T.amber} size={10}>Current Weights W1</Label>
+              <Formula color={T.amber}>{W1.map((r,i)=>`[${r.map(fmt2).join(", ")}]`).join("\n")}</Formula>
+              <Label color={T.cyan} size={10}>Current Weights W2 & Biases</Label>
+              <Formula color={T.cyan}>{`W2 = [${W2.map(fmt2).join(", ")}]  b2 = ${fmt2(b2)}\nb1 = [${b1.map(fmt2).join(", ")}]`}</Formula>
+            </div>
+          </div>
+        </div>
+        <div style={{ marginTop: 10, padding: "10px 14px", background: "#020a14", borderRadius: 8, border: `1px solid ${T.green}20` }}>
+          <span style={{ color: T.green, fontFamily: T.mono, fontSize: 11, fontWeight: 700 }}>Learning rate guidance: </span>
+          <span style={{ color: T.dim, fontSize: 12 }}>
+            Try lr=0.01 (slow, stable) → lr=0.5 (fast) → lr=2.0 (unstable, watch the loss spike).
+            The optimal rate is typically found with learning rate schedules or adaptive optimizers like Adam.
+          </span>
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SECTION 5 — Training vs. Testing & Overfitting
+// ══════════════════════════════════════════════════════════════════════════════
+function TrainTestSection() {
+  const [epochs, setEpochs] = useState(0);
+  const [W1, setW1] = useState([[0.5,-0.3],[0.2,0.8]]);
+  const [b1, setB1] = useState([0.1,-0.1]);
+  const [W2, setW2] = useState([0.6,0.4]);
+  const [b2, setB2] = useState(0.05);
+  const [trainLoss, setTrainLoss] = useState([]);
+  const [testLoss, setTestLoss] = useState([]);
+  const [running, setRunning] = useState(false);
+  const intervalRef = useRef(null);
+
+  const computeLoss = (data, cW1, cb1, cW2, cb2) => {
+    const preds = data.map(s => forwardPass(s.x, cW1, cb1, cW2, cb2).out);
+    const tgts = data.map(s => s.y);
+    return rmse(preds, tgts);
+  };
+
+  const trainOneEpoch = useCallback((cW1, cb1, cW2, cb2) => {
+    let nW1 = cW1.map(r=>[...r]), nb1=[...cb1], nW2=[...cW2], nb2=cb2;
+    const lr = 0.3;
+    for (const s of TRAIN_DATA) {
+      const { dW1, db1, dW2, db2 } = backprop(s.x, s.y, nW1, nb1, nW2, nb2);
+      nW1 = nW1.map((r,i) => r.map((w,j) => w - lr*dW1[i][j]/TRAIN_DATA.length));
+      nb1 = nb1.map((b,i) => b - lr*db1[i]/TRAIN_DATA.length);
+      nW2 = nW2.map((w,i) => w - lr*dW2[i]/TRAIN_DATA.length);
+      nb2 = nb2 - lr*db2/TRAIN_DATA.length;
+    }
+    return { nW1, nb1, nW2, nb2 };
+  }, []);
+
+  const runEpochs = (n) => {
+    let cW1=W1, cb1=b1, cW2=W2, cb2=b2;
+    const tl=[...trainLoss], tel=[...testLoss];
+    for (let i=0; i<n; i++) {
+      const { nW1, nb1, nW2, nb2 } = trainOneEpoch(cW1, cb1, cW2, cb2);
+      tl.push(computeLoss(TRAIN_DATA, nW1, nb1, nW2, nb2));
+      tel.push(computeLoss(TEST_DATA, nW1, nb1, nW2, nb2));
+      cW1=nW1; cb1=nb1; cW2=nW2; cb2=nb2;
+    }
+    setW1(cW1); setB1(cb1); setW2(cW2); setB2(cb2);
+    setTrainLoss(tl); setTestLoss(tel); setEpochs(e => e+n);
+  };
+
+  const reset = () => {
+    setW1([[0.5,-0.3],[0.2,0.8]]); setB1([0.1,-0.1]);
+    setW2([0.6,0.4]); setB2(0.05);
+    setTrainLoss([]); setTestLoss([]); setEpochs(0);
+  };
+
+  const curTrainRMSE = computeLoss(TRAIN_DATA, W1, b1, W2, b2);
+  const curTestRMSE  = computeLoss(TEST_DATA, W1, b1, W2, b2);
+
+  return (
+    <div>
+      <Panel glow={T.blue} style={{ marginBottom: 18 }}>
+        <Label color={T.blue}>Training Error vs. Testing Error</Label>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+          <div>
+            <p style={{ color: T.text, fontSize: 13, lineHeight: 1.8, marginBottom: 10 }}>
+              <strong style={{ color: T.green }}>Training error</strong> measures performance on
+              the data used to adjust weights. It should decrease as training continues.
+            </p>
+            <p style={{ color: T.text, fontSize: 13, lineHeight: 1.8, marginBottom: 10 }}>
+              <strong style={{ color: T.amber }}>Testing error</strong> measures performance on
+              data the network has <em>never seen</em>. This is the true measure of whether
+              the network learned general patterns, not just memorized the training data.
+            </p>
+            <p style={{ color: T.dim, fontSize: 13, lineHeight: 1.75 }}>
+              We split data: <Tag color={T.green}>6 training samples</Tag> and <Tag color={T.amber}>2 test samples</Tag>.
+              We train only on the 6 samples, then evaluate on the 2 held-out samples.
+            </p>
+          </div>
+          <div>
+            {[
+              { label: "Overfitting", color: T.red, desc: "Train error → low, Test error → rises. The network memorized training data noise rather than learning general patterns. Fix: more data, dropout, regularization, early stopping." },
+              { label: "Underfitting", color: T.amber, desc: "Both errors remain high. The network is too simple or hasn't trained long enough. Fix: more layers, more neurons, more training epochs." },
+              { label: "Good Fit", color: T.green, desc: "Both errors decrease together and stabilize. The network learned transferable patterns. Test error slightly above train error is normal and expected." },
+            ].map(({ label, color, desc }) => (
+              <div key={label} style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+                <div style={{ width: 10, height: 10, borderRadius: "50%", background: color, flexShrink: 0, marginTop: 4 }} />
+                <div>
+                  <span style={{ color, fontSize: 13, fontWeight: 700 }}>{label}: </span>
+                  <span style={{ color: T.dim, fontSize: 12 }}>{desc}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Panel>
+
+      <Panel glow={T.green} style={{ marginBottom: 18 }}>
+        <Label color={T.green}>Training Simulator — Watch Both Curves</Label>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16, alignItems: "center" }}>
+          <Btn onClick={() => runEpochs(1)} color={T.green}>▶ 1 Epoch</Btn>
+          <Btn onClick={() => runEpochs(10)} color={T.cyan} small>▶▶ 10 Epochs</Btn>
+          <Btn onClick={() => runEpochs(50)} color={T.amber} small>▶▶▶ 50 Epochs</Btn>
+          <Btn onClick={reset} color={T.dim} small>↺ Reset</Btn>
+          <span style={{ fontFamily: T.mono, fontSize: 12, color: T.dim }}>Epoch: <strong style={{ color: T.text }}>{epochs}</strong></span>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+          <div>
+            <ErrorBar label="Train RMSE (6 samples)" value={curTrainRMSE} max={0.4} color={T.green} />
+            <ErrorBar label="Test RMSE  (2 samples)" value={curTestRMSE} max={0.4} color={T.amber} />
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            {[
+              { label: "Train RMSE", val: curTrainRMSE, color: T.green },
+              { label: "Test RMSE", val: curTestRMSE, color: T.amber },
+              { label: "Gap (overfit indicator)", val: Math.abs(curTestRMSE - curTrainRMSE), color: curTestRMSE-curTrainRMSE > 0.05 ? T.red : T.green },
+              { label: "Epochs", val: epochs, color: T.blue },
+            ].map(({ label, val, color }) => (
+              <div key={label} style={{ background: "#020a14", borderRadius: 8, padding: 10, border: `1px solid ${color}30` }}>
+                <div style={{ color: T.dim, fontSize: 9, fontFamily: T.mono, marginBottom: 3, letterSpacing: 1 }}>{label}</div>
+                <div style={{ color, fontFamily: T.mono, fontSize: 17, fontWeight: 700 }}>{typeof val === "number" && val < 100 ? fmt(val) : val}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        {trainLoss.length > 1 && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <LossCurve history={trainLoss} color={T.green} label="TRAIN RMSE" height={90} />
+            <LossCurve history={testLoss} color={T.amber} label="TEST RMSE" height={90} />
+          </div>
+        )}
+        {trainLoss.length === 0 && (
+          <div style={{ background: "#020a14", borderRadius: 8, padding: 20, textAlign: "center", border: `1px solid ${T.border}` }}>
+            <div style={{ color: T.dimmer, fontFamily: T.mono, fontSize: 13 }}>Run epochs to see training progress</div>
+          </div>
+        )}
+      </Panel>
+
+      <Panel glow={T.red}>
+        <Label color={T.red}>Error Handling Strategies in Training</Label>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          {[
+            {
+              title: "Gradient Clipping",
+              color: T.red,
+              desc: "If gradients grow too large (gradient explosion), cap them at a maximum value. This prevents weight updates from becoming catastrophically large, which would destroy all learned patterns.",
+              formula: "if ‖∇‖ > clip_value:\n  ∇ = ∇ × (clip_value / ‖∇‖)"
+            },
+            {
+              title: "Early Stopping",
+              color: T.amber,
+              desc: "Monitor validation (test) loss. When it stops decreasing and starts increasing, stop training immediately. This is the most effective technique against overfitting.",
+              formula: "if test_loss[epoch] > test_loss[epoch−k]\n  for k consecutive epochs: STOP"
+            },
+            {
+              title: "Learning Rate Scheduling",
+              color: T.cyan,
+              desc: "Start with a large learning rate for fast initial progress, then reduce it as training progresses. This allows fine-grained refinement near the optimal weights.",
+              formula: "lr(t) = lr₀ × decay^(t/step)\nOR: reduce when plateau detected"
+            },
+            {
+              title: "Weight Initialization",
+              color: T.green,
+              desc: "Bad initial weights cause vanishing/exploding gradients from epoch 1. Xavier/He initialization sets weights proportional to layer size, ensuring healthy gradient magnitudes from the start.",
+              formula: "Xavier: w ~ U(-√(6/(n_in+n_out)),\n              +√(6/(n_in+n_out)))"
+            },
+          ].map(({ title, color, desc, formula }) => (
+            <div key={title} style={{ background: "#020a14", borderRadius: 10, padding: 16, border: `1px solid ${color}30` }}>
+              <div style={{ color, fontFamily: T.mono, fontSize: 12, fontWeight: 700, marginBottom: 8, letterSpacing: 1 }}>{title}</div>
+              <p style={{ color: T.dim, fontSize: 12, lineHeight: 1.7, marginBottom: 10 }}>{desc}</p>
+              <div style={{ background: T.panel, borderRadius: 6, padding: "8px 12px", fontFamily: T.mono, fontSize: 11, color: color + "cc", whiteSpace: "pre-wrap" }}>{formula}</div>
+            </div>
+          ))}
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SECTION 6 — Full Training Lab (all samples)
+// ══════════════════════════════════════════════════════════════════════════════
+function FullLab() {
+  const initW = { W1: [[0.5,-0.3],[0.2,0.8]], b1:[0.1,-0.1], W2:[0.6,0.4], b2:0.05 };
+  const [W, setW] = useState(initW);
+  const [lr, setLr] = useState(0.3);
+  const [epochs, setEpochs] = useState(0);
+  const [history, setHistory] = useState({ train: [], test: [], mse: [], rmse: [] });
+  const [running, setRunning] = useState(false);
+  const ref = useRef({ W: initW, lr: 0.3, running: false });
+
+  useEffect(() => { ref.current.W = W; }, [W]);
+  useEffect(() => { ref.current.lr = lr; }, [lr]);
+
+  const step = () => {
+    const { W: cW, lr: cLr } = ref.current;
+    let { W1, b1, W2, b2 } = cW;
+    for (const s of DATASET) {
+      const { dW1, db1, dW2, db2 } = backprop(s.x, s.y, W1, b1, W2, b2);
+      const lr_ = cLr / DATASET.length;
+      W1 = W1.map((r,i)=>r.map((w,j)=>w-lr_*dW1[i][j]));
+      b1 = b1.map((b,i)=>b-lr_*db1[i]);
+      W2 = W2.map((w,i)=>w-lr_*dW2[i]);
+      b2 = b2 - lr_*db2;
+    }
+    const newW = { W1, b1, W2, b2 };
+    const preds = DATASET.map(s=>forwardPass(s.x,newW.W1,newW.b1,newW.W2,newW.b2).out);
+    const tgts = DATASET.map(s=>s.y);
+    const mseV = mse(preds,tgts), rmseV = rmse(preds,tgts);
+    const trainP = TRAIN_DATA.map(s=>forwardPass(s.x,newW.W1,newW.b1,newW.W2,newW.b2).out);
+    const testP  = TEST_DATA.map(s=>forwardPass(s.x,newW.W1,newW.b1,newW.W2,newW.b2).out);
+    ref.current.W = newW;
+    setW(newW);
+    setEpochs(e=>e+1);
+    setHistory(h=>({
+      train: [...h.train.slice(-79), rmse(trainP,TRAIN_DATA.map(s=>s.y))],
+      test:  [...h.test.slice(-79),  rmse(testP,TEST_DATA.map(s=>s.y))],
+      mse:   [...h.mse.slice(-79),   mseV],
+      rmse:  [...h.rmse.slice(-79),  rmseV],
+    }));
+  };
+
+  const runContinuous = () => {
+    if (ref.current.running) { ref.current.running = false; setRunning(false); return; }
+    ref.current.running = true; setRunning(true);
+    const loop = () => {
+      if (!ref.current.running) return;
+      step();
+      setTimeout(loop, 50);
+    };
+    loop();
+  };
+
+  const reset = () => {
+    ref.current.running = false; setRunning(false);
+    setW(initW); ref.current.W = initW; setEpochs(0);
+    setHistory({ train:[], test:[], mse:[], rmse:[] });
+  };
+
+  const curPreds = DATASET.map(s => forwardPass(s.x, W.W1, W.b1, W.W2, W.b2).out);
+  const curMse = mse(curPreds, DATASET.map(s=>s.y));
+  const curRmse = rmse(curPreds, DATASET.map(s=>s.y));
+
+  return (
+    <div>
+      <Panel glow={T.amber} style={{ marginBottom: 18 }}>
+        <Label>Full 8-Sample Training Lab</Label>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 16 }}>
+          <Slider label="Learning Rate" value={lr} min={0.01} max={2.0} step={0.01} onChange={setLr} color={T.amber} />
+        </div>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
+          <Btn onClick={step} color={T.green} small>▶ 1 Epoch</Btn>
+          <Btn onClick={() => { for(let i=0;i<10;i++) step(); }} color={T.cyan} small>▶▶ 10</Btn>
+          <Btn onClick={runContinuous} color={running ? T.red : T.amber}>{running ? "⏹ Stop" : "▶▶▶ Auto Train"}</Btn>
+          <Btn onClick={reset} color={T.dim} small>↺ Reset</Btn>
+          <span style={{ fontFamily: T.mono, fontSize: 12, color: T.dim }}>Epoch <strong style={{ color: T.text }}>{epochs}</strong></span>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10, marginBottom: 16 }}>
+          {[
+            { label: "MSE", val: curMse, color: T.amber },
+            { label: "RMSE", val: curRmse, color: T.red },
+            { label: "Train RMSE", val: history.train.slice(-1)[0] || 0, color: T.green },
+            { label: "Test RMSE", val: history.test.slice(-1)[0] || 0, color: T.cyan },
+          ].map(({ label, val, color }) => (
+            <div key={label} style={{ background: "#020a14", borderRadius: 8, padding: 12, border: `1px solid ${color}40`, textAlign: "center" }}>
+              <div style={{ color: T.dim, fontSize: 9, fontFamily: T.mono, letterSpacing: 1, marginBottom: 4 }}>{label}</div>
+              <div style={{ color, fontFamily: T.mono, fontSize: 20, fontWeight: 700 }}>{fmt(val)}</div>
+            </div>
+          ))}
+        </div>
+        {history.rmse.length > 1 ? (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+            <LossCurve history={history.mse} color={T.amber} label="MSE over epochs" height={100} />
+            <LossCurve history={history.rmse} color={T.red} label="RMSE over epochs" height={100} />
+          </div>
+        ) : (
+          <div style={{ background: "#020a14", borderRadius: 8, padding: 20, textAlign: "center", border: `1px solid ${T.border}`, marginBottom: 16 }}>
+            <div style={{ color: T.dimmer, fontFamily: T.mono, fontSize: 13 }}>Train the network to see MSE and RMSE curves</div>
+          </div>
+        )}
+      </Panel>
+
+      <Panel glow={T.cyan}>
+        <Label color={T.cyan}>Prediction Table — All 8 Samples</Label>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: T.mono, fontSize: 12 }}>
+            <thead>
+              <tr>
+                {["#","x₁","x₂","Target y","Pred ŷ","Error","Sq. Err","Split"].map(h => (
+                  <th key={h} style={{ padding: "8px 10px", color: T.dimmer, borderBottom: `1px solid ${T.border}`, textAlign: "left", fontSize: 10, letterSpacing: 1 }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {DATASET.map((s, i) => {
+                const pred = curPreds[i];
+                const err = pred - s.y;
+                const isTrain = i < 6;
+                return (
+                  <tr key={i} style={{ background: i%2===0 ? "#050c1499" : "transparent" }}>
+                    <td style={{ padding: "7px 10px", color: T.dimmer }}>{i+1}</td>
+                    <td style={{ padding: "7px 10px", color: T.blue }}>{s.x[0]}</td>
+                    <td style={{ padding: "7px 10px", color: T.blue }}>{s.x[1]}</td>
+                    <td style={{ padding: "7px 10px", color: T.green }}>{fmt2(s.y)}</td>
+                    <td style={{ padding: "7px 10px", color: T.cyan }}>{fmt(pred)}</td>
+                    <td style={{ padding: "7px 10px", color: Math.abs(err)<0.05?T.green:Math.abs(err)<0.1?T.amber:T.red }}>{fmt(err)}</td>
+                    <td style={{ padding: "7px 10px", color: T.amber }}>{fmt(err*err)}</td>
+                    <td style={{ padding: "7px 10px" }}>
+                      <span style={{ background: isTrain ? T.green+"20" : T.amber+"20", color: isTrain ? T.green : T.amber, border: `1px solid ${isTrain?T.green:T.amber}50`, borderRadius: 4, padding: "2px 8px", fontSize: 10 }}>
+                        {isTrain ? "TRAIN" : "TEST"}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <Formula color={T.cyan}>{`MSE  = (${DATASET.map((_,i)=>fmt2(Math.pow(curPreds[i]-DATASET[i].y,2))).join(" + ")}) / 8
+     = ${fmt(curMse)}
+
+RMSE = √${fmt(curMse)} = ${fmt(curRmse)}`}</Formula>
+      </Panel>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ROOT COMPONENT
+// ══════════════════════════════════════════════════════════════════════════════
+const SECTIONS = [
+  { id: "error",    label: "01 · Error Basics",       emoji: "📡", color: T.amber,  Component: WhatIsError },
+  { id: "metrics",  label: "02 · MSE & RMSE",          emoji: "📐", color: T.red,    Component: MseRmseSection },
+  { id: "forward",  label: "03 · Forward Pass",         emoji: "🔬", color: T.blue,   Component: ForwardPassSection },
+  { id: "backprop", label: "04 · Backprop & Weights",   emoji: "⚙️", color: T.green,  Component: BackpropSection },
+  { id: "traintest",label: "05 · Train vs. Test",       emoji: "🧪", color: T.cyan,   Component: TrainTestSection },
+  { id: "lab",      label: "06 · Full Training Lab",    emoji: "🚀", color: T.amber,  Component: FullLab },
+];
+
+function ErrorHandlingAcademy() {
+  const [active, setActive] = useState("error");
+  const sec = SECTIONS.find(s => s.id === active);
+  const { Component, color } = sec;
+
+  return (
+    <div style={{ minHeight: "100vh", background: T.bg, color: T.text, fontFamily: T.sans }}>
+      {/* Scanline overlay */}
+      <div style={{
+        position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0,
+        backgroundImage: `repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px)`,
+      }} />
+      {/* Ambient glow */}
+      <div style={{
+        position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0,
+        background: `radial-gradient(ellipse 70% 50% at 50% 0%, ${color}12, transparent 65%)`
+      }} />
+
+      <div style={{ position: "relative", zIndex: 1, maxWidth: 1000, margin: "0 auto", padding: "28px 16px" }}>
+        {/* Header */}
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
+          <div style={{ fontFamily: T.mono, fontSize: 10, letterSpacing: 8, color: T.dimmer, marginBottom: 8 }}>
+            NEURAL NETWORK ERROR ANALYSIS SYSTEM
+          </div>
+          <h1 style={{
+            margin: 0, fontFamily: T.mono, fontWeight: 900, letterSpacing: -1,
+            fontSize: "clamp(22px, 4.5vw, 38px)",
+            background: `linear-gradient(90deg, ${T.amber}, ${T.red}, ${T.cyan})`,
+            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
+          }}>
+            Error, Weights & Gradient Descent
+          </h1>
+          <p style={{ color: T.dimmer, fontSize: 13, marginTop: 8, fontFamily: T.mono }}>
+            MSE · RMSE · Backpropagation · Weight Adjustment · Training vs. Testing
+          </p>
+        </div>
+
+        {/* Nav */}
+        <div style={{
+          display: "flex", gap: 4, flexWrap: "wrap", justifyContent: "center",
+          marginBottom: 28, background: T.panel,
+          borderRadius: 14, padding: 6, border: `1px solid ${T.border}`
+        }}>
+          {SECTIONS.map(s => (
+            <button key={s.id} onClick={() => setActive(s.id)} style={{
+              padding: "7px 14px", borderRadius: 10,
+              border: `1px solid ${active===s.id ? s.color : "transparent"}`,
+              background: active===s.id ? s.color+"18" : "transparent",
+              color: active===s.id ? s.color : T.dimmer,
+              fontFamily: T.mono, fontSize: 11, cursor: "pointer",
+              fontWeight: active===s.id ? 700 : 400,
+              transition: "all 0.15s",
+              boxShadow: active===s.id ? `0 0 14px ${s.color}22` : "none"
+            }}>
+              {s.emoji} {s.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Content */}
+        <div style={{
+          background: T.panel+"cc", borderRadius: 18,
+          border: `1px solid ${color}25`,
+          padding: "26px 22px",
+          boxShadow: `0 0 50px ${color}15`
+        }}>
+          <Component key={active} />
+        </div>
+
+        <div style={{ textAlign: "center", marginTop: 20, color: T.dimmer, fontFamily: T.mono, fontSize: 10, letterSpacing: 2 }}>
+          NEURAL NETWORK ERROR HANDLING LABORATORY · ALL COMPUTATIONS IN-BROWSER
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+        const _container = document.getElementById('root');
+        const _root = ReactDOM.createRoot(_container);
+        _root.render(React.createElement(ErrorHandlingAcademy));
+        document.getElementById('loading').style.display = 'none';
+    </script>
+
+    <script>
+    try {
+        const src = document.getElementById('jsx-source').textContent;
+        const compiled = Babel.transform(src, {
+            presets: [['env', { targets: { esmodules: true } }], 'react'],
+            filename: 'DeepLearningClassroom.jsx'
+        });
+        // Use indirect eval so strict-mode globals (React, ReactDOM) are in scope
+        const fn = new Function('React', 'ReactDOM', 'showError', compiled.code);
+        fn(React, ReactDOM, showError);
+    } catch(e) {
+        showError('Babel / Compile Error:\n' + (e.message || String(e)) + (e.stack ? '\n\n' + e.stack : ''));
+    }
+    </script>
+</body>
+</html>
