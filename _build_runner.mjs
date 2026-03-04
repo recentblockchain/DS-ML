@@ -6,10 +6,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const jsxArg = process.argv[2] || '1. DeepLearningClassroom.jsx';
 const jsx = fs.readFileSync(path.join(__dirname, jsxArg), 'utf8');
 
-// Strip import lines and convert export default function → function
+// Strip import lines, convert export default function → function,
+// and remove standalone "export default Foo;" lines
 const body = jsx
   .replace(/^import\s[\s\S]*?from\s['"].*?['"];?\r?\n/gm, '')
-  .replace(/export\s+default\s+function\b/, 'function');
+  .replace(/export\s+default\s+function\b/, 'function')
+  .replace(/^\s*export\s+default\s+\w+\s*;?\s*$/gm, '');
 
 const baseName = path.basename(jsxArg, path.extname(jsxArg));
 const compMatch = jsx.match(/export\s+default\s+function\s+(\w+)/);
