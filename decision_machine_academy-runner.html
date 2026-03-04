@@ -1,0 +1,1609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>decision_machine_academy</title>
+    <!-- React + Babel with crossorigin so errors are not masked -->
+    <script crossorigin="anonymous" src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin="anonymous" src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script crossorigin="anonymous" src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Fraunces:ital,wght@0,300;0,600;0,700;1,300;1,400&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; padding: 0; background-color: #0c0f14; color: #c9d1e0; font-family: sans-serif; }
+        #root { min-height: 100vh; }
+        #error-overlay {
+            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.95); color: #ff6b6b; padding: 40px;
+            font-family: 'JetBrains Mono', monospace; z-index: 9999;
+            overflow: auto; white-space: pre-wrap;
+        }
+        #error-overlay h1 { color: #fff; margin-top: 0; margin-bottom: 16px; }
+        #loading {
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'Orbitron', sans-serif; font-size: 24px;
+            color: #00d4ff; text-shadow: 0 0 10px rgba(0,212,255,0.5);
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">INITIALIZING ENGINE...</div>
+    <div id="root"></div>
+    <div id="error-overlay"><h1>&#x26A0; Render Error</h1><div id="error-message"></div></div>
+
+    <script>
+    function showError(msg) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('error-overlay').style.display = 'block';
+        document.getElementById('error-message').textContent = msg;
+    }
+    window.onerror = function(msg, url, line, col, err) {
+        showError('Error: ' + msg + '\nURL: ' + url + '\nLine: ' + line + ', Col: ' + col + (err ? '\n\n' + err.stack : ''));
+        return true;
+    };
+    window.addEventListener('unhandledrejection', function(e) {
+        showError('Unhandled Promise: ' + (e.reason ? (e.reason.stack || String(e.reason)) : String(e)));
+    });
+    </script>
+
+    <!-- JSX source stored as plain text so backticks / special chars are safe -->
+    <script id="jsx-source" type="text/plain">
+        const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+        
+// ═══════════════════════════════════════════════════════════════════════════════
+// MATH ENGINE
+// ═══════════════════════════════════════════════════════════════════════════════
+const sig = x => 1 / (1 + Math.exp(-Math.max(-20, Math.min(20, x))));
+const fwd = (xs, ws, b) => {
+  const z = xs.reduce((s, x, i) => s + x * ws[i], b);
+  const raw = sig(z);
+  return { z, raw, pred: raw >= 0.5 ? 1 : 0 };
+};
+const nudge = (ws, b, xs, target, raw, lr = 0.4) => {
+  const δ = raw - target;
+  const newWs = ws.map((w, i) => Math.round((w - lr * δ * xs[i]) * 1000) / 1000);
+  const newB  = Math.round((b - lr * δ) * 1000) / 1000;
+  return { newWs, newB, δ, diffs: ws.map((_, i) => -lr * δ * xs[i]) };
+};
+const f2 = n => typeof n === "number" ? n.toFixed(2) : "–";
+const f3 = n => typeof n === "number" ? n.toFixed(3) : "–";
+const sgn = n => (n >= 0 ? "+" : "") + f3(n);
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════════════════════════════
+const SPAM_INPUTS = [
+  { key: "free",    label: "Has word FREE",    icon: "💰" },
+  { key: "link",    label: "Has a link",       icon: "🔗" },
+  { key: "unknown", label: "Sender unknown",   icon: "👤" },
+];
+const SPAM_EX = [
+  { id:1, xs:[1,1,1], y:1, name:"CLAIM YOUR PRIZE!!!",  note:"All 3 red flags — classic spam" },
+  { id:2, xs:[0,0,0], y:0, name:"Team meeting notes",   note:"Nothing suspicious at all" },
+  { id:3, xs:[1,0,0], y:0, name:"FREE weekend event",   note:"FREE word but from known sender" },
+  { id:4, xs:[0,1,1], y:1, name:"Click here now",       note:"Suspicious link from unknown sender" },
+  { id:5, xs:[1,1,0], y:1, name:"FREE gift inside!",    note:"FREE + link = likely spam" },
+  { id:6, xs:[0,1,0], y:0, name:"Newsletter digest",    note:"Link but trusted sender" },
+];
+
+const MOVIE_INPUTS = [
+  { key: "actor",   label: "Has favourite actor", icon: "⭐" },
+  { key: "comedy",  label: "Is a comedy",         icon: "😂" },
+  { key: "long",    label: "Over 2 hours long",   icon: "⏳" },
+];
+const MOVIE_EX = [
+  { id:1, xs:[1,1,0], y:1, name:"The Funny Star",   note:"Your fav actor + short comedy" },
+  { id:2, xs:[0,0,1], y:0, name:"Epic Marathon",    note:"No fav actor, drama, 3 hrs" },
+  { id:3, xs:[1,0,0], y:1, name:"Action Hero",      note:"Your fav actor, short action" },
+  { id:4, xs:[0,1,0], y:1, name:"Quick Laughs",     note:"Comedy without fav actor" },
+  { id:5, xs:[1,1,1], y:1, name:"Epic Comedy",      note:"Fav + comedy but very long" },
+  { id:6, xs:[0,0,0], y:0, name:"Random Film",      note:"Nothing special going for it" },
+];
+
+const DETECTIVE_CASES = [
+  {
+    title: "Case 1 — Missed Spam 🚨",
+    scenario: "The network saw an email with ALL THREE spam signals but still said 'not spam'.",
+    xs: [1,1,1], y: 1, ws: [0.1, 0.1, 0.1], b: -0.5,
+    inputLabels: SPAM_INPUTS,
+    hint: "All inputs were 1, so all weights contributed to the prediction. Since we under-predicted, every active weight needs to go UP. The bias also needs to go UP.",
+    fix: "increase",
+  },
+  {
+    title: "Case 2 — False Alarm 📧",
+    scenario: "A legit email with the word FREE was wrongly flagged as spam — only because the FREE weight was too powerful.",
+    xs: [1,0,0], y: 0, ws: [0.9, 0.2, 0.2], b: 0.0,
+    inputLabels: SPAM_INPUTS,
+    hint: "Only x₁ (FREE) was active. We over-predicted spam. The weight for FREE should go DOWN. The other weights didn't fire so they don't change much.",
+    fix: "w0_down",
+  },
+  {
+    title: "Case 3 — Bias Too Eager 🎚️",
+    scenario: "Even with NO spam signals at all, the network still says 'spam'. The bias is tilted too far positive.",
+    xs: [0,0,0], y: 0, ws: [0.4, 0.4, 0.4], b: 1.2,
+    inputLabels: SPAM_INPUTS,
+    hint: "No inputs were active, so the weights didn't contribute. The entire false prediction came from the bias alone. Bias needs to go DOWN.",
+    fix: "bias_down",
+  },
+];
+
+const WORKSHEET_ROWS = [
+  { id:"A", xs:[1,0,1], ws:[0.6,-0.2,0.8], b:-0.3, label:1 },
+  { id:"B", xs:[0,1,0], ws:[0.5, 0.9,0.3], b: 0.1, label:1 },
+  { id:"C", xs:[1,1,0], ws:[0.4, 0.2,0.7], b:-0.6, label:0 },
+  { id:"D", xs:[0,0,1], ws:[0.3, 0.5,0.2], b: 0.0, label:0 },
+];
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DESIGN SYSTEM
+// ═══════════════════════════════════════════════════════════════════════════════
+const C = {
+  bg:     "#06080c",
+  panel:  "#0c1018",
+  panel2: "#111820",
+  steel:  "#1a2436",
+  amber:  "#f0a030",
+  gold:   "#d4840a",
+  cream:  "#e8d8b0",
+  dim:    "#6880a0",
+  dimmer: "#304060",
+  green:  "#40c870",
+  red:    "#e84040",
+  blue:   "#40a0e0",
+  teal:   "#20c0b0",
+  border: "#1a2840",
+  mono:   "'Courier New', 'Lucida Console', monospace",
+  serif:  "'Georgia', serif",
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// UI PRIMITIVES
+// ═══════════════════════════════════════════════════════════════════════════════
+const Panel = ({ ch, glow, style = {}, children }) => (
+  <div style={{
+    background: C.panel, borderRadius: 12,
+    border: `1px solid ${glow ? glow + "55" : C.border}`,
+    boxShadow: glow ? `0 0 30px ${glow}18, inset 0 0 40px ${glow}06` : "none",
+    padding: ch ? 0 : 20, overflow: ch ? "hidden" : "visible",
+    ...style
+  }}>{children}</div>
+);
+
+const SectionLabel = ({ children, color = C.amber, sub }) => (
+  <div style={{ marginBottom: 14 }}>
+    <div style={{ fontFamily: C.mono, fontSize: 10, letterSpacing: 4, textTransform: "uppercase", color, fontWeight: 700 }}>
+      {children}
+    </div>
+    {sub && <div style={{ fontFamily: C.serif, fontSize: 13, color: C.dim, marginTop: 3 }}>{sub}</div>}
+  </div>
+);
+
+const Tag = ({ children, color = C.amber }) => (
+  <span style={{
+    background: color + "1a", border: `1px solid ${color}50`,
+    borderRadius: 4, padding: "1px 7px", fontFamily: C.mono,
+    fontSize: 11, color, margin: "0 2px"
+  }}>{children}</span>
+);
+
+const Code = ({ children, color = C.teal }) => (
+  <div style={{
+    background: "#050a10", border: `1px solid ${color}35`,
+    borderRadius: 7, padding: "11px 16px", fontFamily: C.mono,
+    fontSize: 12.5, color, margin: "8px 0", lineHeight: 2,
+    whiteSpace: "pre-wrap", overflowX: "auto",
+    borderLeft: `3px solid ${color}60`,
+  }}>{children}</div>
+);
+
+const Btn = ({ children, onClick, color = C.amber, disabled, small, full }) => (
+  <button onClick={onClick} disabled={disabled} style={{
+    padding: small ? "5px 14px" : "9px 22px",
+    borderRadius: 8, border: `1px solid ${disabled ? C.dimmer : color}`,
+    background: disabled ? "transparent" : color + "15",
+    color: disabled ? C.dimmer : color,
+    fontFamily: C.mono, fontSize: small ? 11 : 13, fontWeight: 700,
+    cursor: disabled ? "default" : "pointer", letterSpacing: 1,
+    transition: "all 0.15s", width: full ? "100%" : "auto",
+  }}>{children}</button>
+);
+
+const Readout = ({ label, value, color = C.amber, size = 20 }) => (
+  <div style={{ background: "#050a10", borderRadius: 7, padding: "10px 14px", border: `1px solid ${color}30`, textAlign: "center" }}>
+    <div style={{ color: C.dim, fontSize: 9, fontFamily: C.mono, letterSpacing: 2, marginBottom: 4, textTransform: "uppercase" }}>{label}</div>
+    <div style={{ color, fontFamily: C.mono, fontSize: size, fontWeight: 700 }}>{value}</div>
+  </div>
+);
+
+// ─── Dial Knob ────────────────────────────────────────────────────────────────
+const DialKnob = ({ value, min = -2, max = 2, onChange, color = C.amber, label, size = 72 }) => {
+  const pct   = (value - min) / (max - min);
+  const cx    = size / 2, cy = size / 2;
+  const R     = size * 0.38;
+  const rInner= R * 0.55;
+  const toRad = deg => (deg - 90) * Math.PI / 180;
+
+  const arcPath = (startDeg, endDeg, r) => {
+    const large = Math.abs(endDeg - startDeg) > 180 ? 1 : 0;
+    const sx = cx + r * Math.cos(toRad(startDeg));
+    const sy = cy + r * Math.sin(toRad(startDeg));
+    const ex = cx + r * Math.cos(toRad(endDeg));
+    const ey = cy + r * Math.sin(toRad(endDeg));
+    return `M ${sx.toFixed(2)} ${sy.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${ex.toFixed(2)} ${ey.toFixed(2)}`;
+  };
+
+  const trackStart = -225, trackEnd = 45;
+  const valEnd = trackStart + pct * 270;
+  const indAngle = valEnd;
+  const indX = cx + rInner * Math.cos(toRad(indAngle));
+  const indY = cy + rInner * Math.sin(toRad(indAngle));
+  const dotX = cx + R * 0.85 * Math.cos(toRad(indAngle));
+  const dotY = cy + R * 0.85 * Math.sin(toRad(indAngle));
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+      <div style={{ position: "relative", width: size, height: size }}>
+        <svg width={size} height={size} style={{ display: "block" }}>
+          <defs>
+            <radialGradient id={`kg-${label}`} cx="40%" cy="35%" r="65%">
+              <stop offset="0%" stopColor={C.steel} />
+              <stop offset="100%" stopColor="#080c14" />
+            </radialGradient>
+          </defs>
+          {/* Track background arc */}
+          <path d={arcPath(trackStart, trackEnd, R)} fill="none" stroke={color + "22"} strokeWidth={5} strokeLinecap="round" />
+          {/* Value arc */}
+          {pct > 0.001 && <path d={arcPath(trackStart, valEnd, R)} fill="none" stroke={color} strokeWidth={5} strokeLinecap="round" />}
+          {/* Knob body */}
+          <circle cx={cx} cy={cy} r={rInner} fill={`url(#kg-${label})`} stroke={color + "50"} strokeWidth={1.5} />
+          {/* Indicator line */}
+          <line x1={cx.toFixed(2)} y1={cy.toFixed(2)} x2={indX.toFixed(2)} y2={indY.toFixed(2)}
+            stroke={color} strokeWidth={2} strokeLinecap="round" />
+          {/* Indicator dot */}
+          <circle cx={dotX.toFixed(2)} cy={dotY.toFixed(2)} r={3} fill={color} />
+          {/* Zero tick */}
+          {(() => {
+            const zeroPct = (0 - min) / (max - min);
+            const zeroAngle = trackStart + zeroPct * 270;
+            const tx = cx + (R + 4) * Math.cos(toRad(zeroAngle));
+            const ty = cy + (R + 4) * Math.sin(toRad(zeroAngle));
+            return <circle cx={tx.toFixed(2)} cy={ty.toFixed(2)} r={2} fill={C.dimmer} />;
+          })()}
+        </svg>
+        <input type="range" min={min} max={max} step={0.05} value={value}
+          onChange={e => onChange(+e.target.value)}
+          style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }} />
+      </div>
+      <div style={{ fontFamily: C.mono, fontSize: 14, color, fontWeight: 700 }}>{f2(value)}</div>
+      {label && <div style={{ fontFamily: C.mono, fontSize: 9, color: C.dim, letterSpacing: 2, textTransform: "uppercase", textAlign: "center", maxWidth: 80, lineHeight: 1.3 }}>{label}</div>}
+    </div>
+  );
+};
+
+// ─── Toggle Switch ────────────────────────────────────────────────────────────
+const Toggle = ({ value, onChange, label, icon }) => (
+  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, cursor: "pointer" }}
+    onClick={() => onChange(value === 1 ? 0 : 1)}>
+    <div style={{ fontSize: 20 }}>{icon}</div>
+    <div style={{
+      width: 44, height: 24, borderRadius: 12,
+      background: value ? C.green + "30" : C.dimmer + "30",
+      border: `2px solid ${value ? C.green : C.dimmer}`,
+      position: "relative", transition: "all 0.2s",
+    }}>
+      <div style={{
+        width: 16, height: 16, borderRadius: "50%",
+        background: value ? C.green : C.dimmer,
+        position: "absolute", top: 2,
+        left: value ? 22 : 2, transition: "all 0.2s",
+      }} />
+    </div>
+    <div style={{ fontFamily: C.mono, fontSize: 10, color: value ? C.green : C.dim, letterSpacing: 1, textAlign: "center", maxWidth: 80, lineHeight: 1.3, textTransform: "uppercase" }}>
+      {label}
+    </div>
+    <div style={{ fontFamily: C.mono, fontSize: 16, color: value ? C.green : C.dim, fontWeight: 700 }}>
+      {value}
+    </div>
+  </div>
+);
+
+// ─── Threshold Meter ──────────────────────────────────────────────────────────
+const ThreshMeter = ({ raw, size = 160 }) => {
+  const pct = clamp(raw, 0, 1);
+  const w = size, h = size * 0.55;
+  const cx = w / 2, cy = h * 0.95;
+  const R  = h * 0.85;
+  const angle = -180 + pct * 180;
+  const toRad = d => d * Math.PI / 180;
+  const nx = cx + R * Math.cos(toRad(angle));
+  const ny = cy + R * Math.sin(toRad(angle));
+  const color = pct >= 0.5 ? C.green : C.red;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+      <svg width={w} height={h + 20} style={{ display: "block" }}>
+        {/* Background arc */}
+        <path d={`M ${cx - R} ${cy} A ${R} ${R} 0 0 1 ${cx + R} ${cy}`}
+          fill="none" stroke={C.dimmer + "50"} strokeWidth={10} strokeLinecap="round" />
+        {/* Red zone 0-0.5 */}
+        {(() => {
+          const ex = cx + R * Math.cos(toRad(-90));
+          const ey = cy + R * Math.sin(toRad(-90));
+          return <path d={`M ${cx - R} ${cy} A ${R} ${R} 0 0 1 ${ex.toFixed(1)} ${ey.toFixed(1)}`}
+            fill="none" stroke={C.red + "50"} strokeWidth={10} strokeLinecap="round" />;
+        })()}
+        {/* Green zone 0.5-1 */}
+        {(() => {
+          const sx = cx + R * Math.cos(toRad(-90));
+          const sy = cy + R * Math.sin(toRad(-90));
+          return <path d={`M ${sx.toFixed(1)} ${sy.toFixed(1)} A ${R} ${R} 0 0 1 ${cx + R} ${cy}`}
+            fill="none" stroke={C.green + "50"} strokeWidth={10} strokeLinecap="round" />;
+        })()}
+        {/* Threshold tick at 0.5 */}
+        <line x1={cx} y1={cy - R * 0.7} x2={cx} y2={cy - R * 1.05}
+          stroke={C.amber} strokeWidth={2} />
+        <text x={cx} y={cy - R * 1.15} textAnchor="middle" fill={C.amber} fontSize={9} fontFamily="monospace">0.5</text>
+        {/* Needle */}
+        <line x1={cx.toFixed(1)} y1={cy.toFixed(1)} x2={nx.toFixed(1)} y2={ny.toFixed(1)}
+          stroke={color} strokeWidth={3} strokeLinecap="round" />
+        <circle cx={cx} cy={cy} r={6} fill={C.panel} stroke={color} strokeWidth={2} />
+        {/* Value */}
+        <text x={cx} y={cy + 20} textAnchor="middle" fill={color} fontSize={13} fontFamily="monospace" fontWeight="bold">
+          {f3(raw)}
+        </text>
+        <text x={cx} y={cy + 34} textAnchor="middle" fill={color} fontSize={11} fontFamily="monospace">
+          {pct >= 0.5 ? "→ YES (1)" : "→ NO (0)"}
+        </text>
+        {/* Labels */}
+        <text x={cx - R - 4} y={cy + 6} textAnchor="end" fill={C.red} fontSize={9} fontFamily="monospace">0</text>
+        <text x={cx + R + 4} y={cy + 6} textAnchor="start" fill={C.green} fontSize={9} fontFamily="monospace">1</text>
+      </svg>
+    </div>
+  );
+};
+
+// ─── Single Neuron SVG Diagram ────────────────────────────────────────────────
+const NeuronDiagram = ({ xs, ws, b, z, raw, pred, inputLabels, size = "100%" }) => {
+  const W = 440, H = 240;
+  const inputs = inputLabels || xs.map((_, i) => ({ label: `x${i+1}` }));
+  const cy = H / 2;
+  const inputYs = xs.length === 2 ? [H*0.3, H*0.7] : xs.length === 3 ? [H*0.2, H*0.5, H*0.8] : [H*0.15, H*0.38, H*0.62, H*0.85];
+  const outputY = cy;
+  const inputX = 55, neuronX = 240, outputX = 385;
+
+  const colors = xs.map((x, i) => {
+    if (x === 0) return C.dimmer;
+    return ws[i] > 0 ? C.green : ws[i] < 0 ? C.red : C.amber;
+  });
+  const predColor = pred === 1 ? C.green : C.red;
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: size, display: "block" }}>
+      {/* Connection lines */}
+      {xs.map((x, i) => {
+        const iy = inputYs[i];
+        const thick = x === 0 ? 0.5 : 1 + Math.abs(ws[i]) * 2.5;
+        return (
+          <g key={i}>
+            <line x1={inputX + 22} y1={iy} x2={neuronX - 28} y2={outputY}
+              stroke={colors[i]} strokeWidth={thick} strokeOpacity={x === 0 ? 0.3 : 0.7} />
+            {/* Weight label mid-line */}
+            <rect x={(inputX+neuronX)/2 - 20} y={(iy+outputY)/2 - 10} width={40} height={16} rx={3}
+              fill="#050a14" stroke={colors[i] + "50"} />
+            <text x={(inputX+neuronX)/2} y={(iy+outputY)/2 + 3} textAnchor="middle"
+              fill={colors[i]} fontSize={9} fontFamily="monospace">{`w=${f2(ws[i])}`}</text>
+          </g>
+        );
+      })}
+      {/* Neuron body */}
+      <circle cx={neuronX} cy={outputY} r={28} fill={C.panel2} stroke={C.amber + "80"} strokeWidth={2} />
+      <text x={neuronX} y={outputY - 7} textAnchor="middle" fill={C.amber} fontSize={9} fontFamily="monospace">Σ + b</text>
+      <text x={neuronX} y={outputY + 5} textAnchor="middle" fill={C.teal} fontSize={9} fontFamily="monospace">z={f2(z)}</text>
+      <text x={neuronX} y={outputY + 16} textAnchor="middle" fill={C.dim} fontSize={8} fontFamily="monospace">σ(z)</text>
+      {/* Bias label */}
+      <rect x={neuronX - 22} y={outputY + 32} width={44} height={16} rx={3} fill="#050a14" stroke={C.gold+"60"} />
+      <text x={neuronX} y={outputY + 44} textAnchor="middle" fill={C.gold} fontSize={9} fontFamily="monospace">{`b=${f2(b)}`}</text>
+      {/* Output line */}
+      <line x1={neuronX + 28} y1={outputY} x2={outputX - 22} y2={outputY}
+        stroke={predColor} strokeWidth={2.5} />
+      {/* Output node */}
+      <circle cx={outputX} cy={outputY} r={22} fill={predColor + "20"} stroke={predColor} strokeWidth={2} />
+      <text x={outputX} y={outputY - 6} textAnchor="middle" fill={predColor} fontSize={10} fontFamily="monospace" fontWeight="bold">{f2(raw)}</text>
+      <text x={outputX} y={outputY + 8} textAnchor="middle" fill={predColor} fontSize={13} fontFamily="monospace" fontWeight="bold">{pred === 1 ? "YES" : "NO"}</text>
+      {/* Input nodes */}
+      {xs.map((x, i) => {
+        const iy = inputYs[i];
+        return (
+          <g key={i}>
+            <circle cx={inputX} cy={iy} r={22} fill={x ? colors[i] + "25" : C.panel2}
+              stroke={x ? colors[i] : C.dimmer} strokeWidth={x ? 2 : 1} />
+            <text x={inputX} y={iy - 6} textAnchor="middle" fill={x ? colors[i] : C.dimmer} fontSize={9} fontFamily="monospace">{inputs[i]?.icon || `x${i+1}`}</text>
+            <text x={inputX} y={iy + 7} textAnchor="middle" fill={x ? colors[i] : C.dimmer} fontSize={12} fontFamily="monospace" fontWeight="bold">{x}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION 0: INTRODUCTION — THE 6 STEPS
+// ═══════════════════════════════════════════════════════════════════════════════
+function IntroSection() {
+  const [activeStep, setActiveStep] = useState(0);
+  const steps = [
+    {
+      num: 1, emoji: "📥", color: C.blue,
+      title: "Gather the Clues (Inputs × Weights)",
+      body: "The network reads each input and multiplies it by a weight. The weight says how much to trust that clue. A weight of 0.9 means 'this matters a lot.' A weight of 0.1 means 'barely relevant.' A weight of −0.5 means 'this clue actually pushes against the answer.'",
+      math: `For each input x_i and its weight w_i:
+  contribution_i = x_i × w_i
+
+Example (spam detector):
+  "has FREE" × 0.7 = 0.7  (active, contributes)
+  "has link"  × 0.6 = 0.6  (active, contributes)
+  "unknown"   × 0.4 = 0.4  (active, contributes)`,
+    },
+    {
+      num: 2, emoji: "➕", color: C.amber,
+      title: "Add Everything Up + Bias",
+      body: "Sum all the weighted contributions, then add the bias. Think of bias as a head-start or default lean. A positive bias means 'lean towards YES even without much evidence.' A negative bias means 'you need strong evidence before saying YES.'",
+      math: `z = (x₁×w₁) + (x₂×w₂) + (x₃×w₃) + bias
+
+Example:
+  z = 0.7 + 0.6 + 0.4 + (−0.5)
+    = 1.7 − 0.5
+    = 1.2
+
+This number z is called the "pre-activation" or "weighted sum."`,
+    },
+    {
+      num: 3, emoji: "🎚️", color: C.teal,
+      title: "Apply the Activation (Make a Decision)",
+      body: "Run z through a sigmoid function: σ(z) = 1/(1+e^(-z)). This squashes any number into the range (0, 1). We then interpret values ≥ 0.5 as YES and < 0.5 as NO. The sigmoid is like a smooth on/off switch.",
+      math: `raw_output = σ(z) = 1 / (1 + e^(−z))
+
+σ(1.2) = 1 / (1 + e^(−1.2)) = 0.769
+
+Since 0.769 ≥ 0.5 → prediction = YES / SPAM ✓
+
+Key sigmoid properties:
+  σ(0)   = 0.500  ← perfectly uncertain
+  σ(2)   = 0.880  ← fairly confident YES
+  σ(−2)  = 0.119  ← fairly confident NO`,
+    },
+    {
+      num: 4, emoji: "❌", color: C.red,
+      title: "Calculate the Error",
+      body: "Compare the prediction to the real answer. The difference is the error. This single number is the feedback signal that drives all learning. A bigger error means a bigger correction is needed.",
+      math: `error (δ) = raw_output − true_label
+
+If prediction = 0.769 and label = 1 (really is spam):
+  δ = 0.769 − 1.0 = −0.231
+
+Negative δ: we under-predicted → need to push outputs UP
+Positive δ: we over-predicted → need to push outputs DOWN
+
+Loss = 0.5 × δ²  (measures total badness, always positive)`,
+    },
+    {
+      num: 5, emoji: "🔧", color: C.green,
+      title: "Adjust Weights and Bias",
+      body: "Now we nudge each weight and the bias by a tiny amount called the learning rate (lr). The direction of the nudge is determined by: (a) how big the error was, (b) how active the input was, and (c) a small learning rate to avoid overcorrecting.",
+      math: `Weight update rule:
+  new_weight_i = old_weight_i − lr × δ × x_i
+
+Bias update rule:
+  new_bias = old_bias − lr × δ
+
+Example with lr = 0.4, δ = −0.231:
+  Δw₁ = −0.4 × (−0.231) × 1 = +0.092  → weight INCREASES ↑
+  Δw₂ = −0.4 × (−0.231) × 1 = +0.092  → weight INCREASES ↑
+  Δw₃ = −0.4 × (−0.231) × 1 = +0.092  → weight INCREASES ↑
+  Δb  = −0.4 × (−0.231)      = +0.092  → bias INCREASES ↑`,
+    },
+    {
+      num: 6, emoji: "🔁", color: C.amber,
+      title: "Repeat Until Good",
+      body: "This cycle — forward pass → compute error → update weights — is called one training step. Run it hundreds or thousands of times on all your training examples. Each pass, the weights and bias inch closer to values that minimize the total error across all examples.",
+      math: `Training loop (pseudocode):
+  for each epoch:
+    for each example (x, y):
+      z   = x₁w₁ + x₂w₂ + x₃w₃ + b
+      ŷ   = σ(z)
+      δ   = ŷ − y
+      w_i = w_i − lr × δ × x_i  (for each i)
+      b   = b − lr × δ
+    print("Loss:", average error for this epoch)
+
+Convergence: when the loss stops decreasing significantly,
+the network has learned the pattern as well as it can.`,
+    },
+  ];
+
+  const st = steps[activeStep];
+
+  return (
+    <div>
+      <Panel glow={C.blue} style={{ marginBottom: 20 }}>
+        <SectionLabel color={C.blue} sub="A neural network learns by making predictions, measuring mistakes, and updating its internal settings.">
+          🧠 The Decision Machine — How It Learns
+        </SectionLabel>
+        <p style={{ fontFamily: C.serif, fontSize: 14, color: C.cream, lineHeight: 1.9, marginBottom: 16 }}>
+          Imagine you're building a small machine that learns to answer yes/no questions — like
+          <Tag color={C.red}>"Is this email spam?"</Tag> or
+          <Tag color={C.teal}>"Will I enjoy this movie?"</Tag>.
+          Inside the machine are two kinds of adjustable settings:
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 16 }}>
+          {[
+            { icon: "🎛️", term: "Weights", color: C.amber, def: "A number attached to each input clue. It says 'how much should I trust this clue?' Weights can be positive (this supports the answer), negative (this contradicts the answer), or near zero (this clue barely matters)." },
+            { icon: "⬆️", term: "Bias", color: C.gold, def: "A single built-in nudge added to every calculation. It represents the neuron's natural lean — how likely it is to fire even without strong input signals. A high positive bias means 'assume YES unless convinced otherwise.'" },
+          ].map(({ icon, term, color, def }) => (
+            <div key={term} style={{ background: "#050a14", borderRadius: 9, padding: 14, border: `1px solid ${color}35` }}>
+              <div style={{ fontFamily: C.mono, fontSize: 13, color, marginBottom: 7, fontWeight: 700 }}>{icon} {term}</div>
+              <p style={{ fontFamily: C.serif, fontSize: 13, color: C.dim, lineHeight: 1.7, margin: 0 }}>{def}</p>
+            </div>
+          ))}
+        </div>
+        <p style={{ fontFamily: C.serif, fontSize: 13, color: C.dim, lineHeight: 1.7 }}>
+          The network doesn't start with good weights — it starts with guesses and improves through 6 repeating steps. Click each step below to explore exactly what happens.
+        </p>
+      </Panel>
+
+      {/* Step selector */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16 }}>
+        {steps.map((s, i) => (
+          <button key={i} onClick={() => setActiveStep(i)} style={{
+            padding: "10px 8px", borderRadius: 10, cursor: "pointer",
+            border: `2px solid ${activeStep === i ? s.color : C.border}`,
+            background: activeStep === i ? s.color + "18" : C.panel,
+            textAlign: "left",
+          }}>
+            <div style={{ fontFamily: C.mono, fontSize: 11, color: s.color, fontWeight: 700, marginBottom: 3 }}>
+              Step {s.num} {s.emoji}
+            </div>
+            <div style={{ fontFamily: C.serif, fontSize: 12, color: C.dim, lineHeight: 1.4 }}>{s.title}</div>
+          </button>
+        ))}
+      </div>
+
+      {/* Active step detail */}
+      <Panel glow={st.color}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+          <div style={{ width: 36, height: 36, borderRadius: "50%", background: st.color + "20", border: `2px solid ${st.color}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>
+            {st.emoji}
+          </div>
+          <div>
+            <div style={{ fontFamily: C.mono, fontSize: 10, color: st.color, letterSpacing: 3, textTransform: "uppercase" }}>Step {st.num}</div>
+            <div style={{ fontFamily: C.serif, fontSize: 16, color: C.cream, fontWeight: 700 }}>{st.title}</div>
+          </div>
+        </div>
+        <p style={{ fontFamily: C.serif, fontSize: 14, color: C.cream, lineHeight: 1.85, marginBottom: 14 }}>{st.body}</p>
+        <Code color={st.color}>{st.math}</Code>
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>
+          <Btn onClick={() => setActiveStep(i => Math.max(0, i-1))} disabled={activeStep===0} color={st.color} small>◀ Previous</Btn>
+          <Btn onClick={() => setActiveStep(i => Math.min(5, i+1))} disabled={activeStep===5} color={st.color} small>Next ▶</Btn>
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION 1: SPAM DETECTOR LIVE DEMO
+// ═══════════════════════════════════════════════════════════════════════════════
+function SpamDemo() {
+  const [ws, setWs] = useState([0.5, 0.5, 0.4]);
+  const [b, setB] = useState(-0.6);
+  const [xs, setXs] = useState([0, 0, 0]);
+  const [showCalc, setShowCalc] = useState(false);
+  const [exIdx, setExIdx] = useState(null);
+  const [trainLog, setTrainLog] = useState([]);
+  const [trainStep, setTrainStep] = useState(0);
+
+  const { z, raw, pred } = fwd(xs, ws, b);
+  const contributions = xs.map((x, i) => ({ val: x * ws[i], input: x, w: ws[i] }));
+
+  const setExample = (ex) => {
+    setXs([...ex.xs]);
+    setExIdx(ex.id);
+    setShowCalc(true);
+  };
+
+  const doTrain = (ex) => {
+    const { raw: r } = fwd(ex.xs, ws, b);
+    const { newWs, newB, δ, diffs } = nudge(ws, b, ex.xs, ex.y, r);
+    setTrainLog(l => [...l.slice(-4), {
+      ex, oldWs: [...ws], oldB: b, newWs, newB, δ, diffs, r
+    }]);
+    setWs(newWs); setB(newB);
+    setTrainStep(t => t + 1);
+  };
+
+  return (
+    <div>
+      <Panel glow={C.red} style={{ marginBottom: 16 }}>
+        <SectionLabel color={C.red} sub="Set the three input toggles, adjust the knobs, and see how the network decides.">
+          📧 Spam Detector — Live Demo
+        </SectionLabel>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
+          <div>
+            {/* Input toggles */}
+            <div style={{ fontFamily: C.mono, fontSize: 10, color: C.dim, letterSpacing: 3, marginBottom: 12, textTransform: "uppercase" }}>Inputs (clues)</div>
+            <div style={{ display: "flex", gap: 24, marginBottom: 20 }}>
+              {SPAM_INPUTS.map((inp, i) => (
+                <Toggle key={i} value={xs[i]} onChange={v => setXs(xs.map((x, j) => j===i?v:x))} label={inp.label} icon={inp.icon} />
+              ))}
+            </div>
+            {/* Weight knobs */}
+            <div style={{ fontFamily: C.mono, fontSize: 10, color: C.dim, letterSpacing: 3, marginBottom: 12, textTransform: "uppercase" }}>Weights (importance)</div>
+            <div style={{ display: "flex", gap: 20, marginBottom: 20 }}>
+              {SPAM_INPUTS.map((inp, i) => (
+                <DialKnob key={i} value={ws[i]} min={-2} max={2} onChange={v => setWs(ws.map((w, j) => j===i?v:w))} color={C.amber} label={inp.label} />
+              ))}
+            </div>
+            {/* Bias */}
+            <div style={{ fontFamily: C.mono, fontSize: 10, color: C.dim, letterSpacing: 3, marginBottom: 12, textTransform: "uppercase" }}>Bias (default lean)</div>
+            <div style={{ display: "flex", gap: 20 }}>
+              <DialKnob value={b} min={-2} max={2} onChange={setB} color={C.gold} label="bias b" size={80} />
+              <div style={{ fontFamily: C.serif, fontSize: 13, color: C.dim, lineHeight: 1.8 }}>
+                <strong style={{ color: C.gold }}>Positive bias</strong>: the neuron already leans toward saying "spam"<br/>
+                <strong style={{ color: C.gold }}>Negative bias</strong>: needs strong evidence before calling spam
+              </div>
+            </div>
+          </div>
+          <div>
+            {/* Prediction output */}
+            <div style={{ fontFamily: C.mono, fontSize: 10, color: C.dim, letterSpacing: 3, marginBottom: 10, textTransform: "uppercase" }}>Output Meter</div>
+            <ThreshMeter raw={raw} size={180} />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 12 }}>
+              <Readout label="Weighted sum (z)" value={f3(z)} color={C.teal} />
+              <Readout label="After sigmoid" value={f3(raw)} color={raw >= 0.5 ? C.green : C.red} />
+            </div>
+            <div style={{ marginTop: 10, padding: "12px", background: (pred===1 ? C.red : C.green)+"15", borderRadius: 8, border:`1px solid ${pred===1?C.red:C.green}50`, textAlign: "center" }}>
+              <div style={{ fontFamily: C.mono, fontSize: 22, fontWeight: 700, color: pred===1 ? C.red : C.green }}>
+                {pred===1 ? "🚨 SPAM" : "✅ NOT SPAM"}
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* Step-by-step calculation */}
+        <div style={{ marginTop: 16 }}>
+          <button onClick={() => setShowCalc(!showCalc)} style={{
+            background: "none", border: `1px solid ${C.border}`, borderRadius: 6,
+            color: C.dim, fontFamily: C.mono, fontSize: 11, padding: "5px 12px", cursor: "pointer"
+          }}>
+            {showCalc ? "▼ Hide" : "▶ Show"} step-by-step calculation
+          </button>
+          {showCalc && (
+            <Code color={C.teal}>{
+`Step 1 — Multiply each input by its weight:
+${SPAM_INPUTS.map((inp, i) => `  ${inp.label.padEnd(18)} : x${i+1}(${xs[i]}) × w${i+1}(${f2(ws[i])}) = ${f3(xs[i]*ws[i])}`).join("\n")}
+
+Step 2 — Sum all contributions + add bias:
+  z = ${contributions.map(c=>f3(c.val)).join(" + ")} + ${f3(b)}
+    = ${f3(contributions.reduce((s,c)=>s+c.val,0))} + ${f3(b)}
+    = ${f3(z)}
+
+Step 3 — Apply sigmoid activation:
+  σ(z) = 1 / (1 + e^(−${f3(z)})) = ${f3(raw)}
+
+Step 4 — Threshold at 0.5:
+  ${f3(raw)} ${raw>=0.5?"≥":"<"} 0.5  →  prediction = ${pred} (${pred===1?"SPAM":"NOT SPAM"})`
+            }</Code>
+          )}
+        </div>
+      </Panel>
+
+      {/* Training examples */}
+      <Panel glow={C.amber} style={{ marginBottom: 16 }}>
+        <SectionLabel color={C.amber} sub="Click an example to load it, then see if the current weights predict it correctly. Use 'Train' to update weights automatically.">
+          🏋️ Training Examples — Test & Learn
+        </SectionLabel>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 14 }}>
+          {SPAM_EX.map(ex => {
+            const { pred: p } = fwd(ex.xs, ws, b);
+            const correct = p === ex.y;
+            return (
+              <div key={ex.id} style={{
+                background: "#050a14", borderRadius: 9, padding: 12,
+                border: `1px solid ${exIdx===ex.id ? C.amber : correct ? C.green+"40" : C.red+"40"}`,
+                cursor: "pointer"
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                  <span style={{ fontFamily: C.serif, fontSize: 12, color: C.cream, fontWeight: 700 }}>{ex.name}</span>
+                  <span style={{ fontFamily: C.mono, fontSize: 10, color: correct?C.green:C.red }}>
+                    {correct ? "✓ correct" : "✗ wrong"}
+                  </span>
+                </div>
+                <div style={{ fontFamily: C.mono, fontSize: 10, color: C.dim, marginBottom: 8 }}>
+                  x=[{ex.xs.join(",")}] true={ex.y} pred={p}
+                </div>
+                <p style={{ fontFamily: C.serif, fontSize: 11, color: C.dim, margin: "0 0 10px 0" }}>{ex.note}</p>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <Btn onClick={() => setExample(ex)} color={C.amber} small>Load</Btn>
+                  <Btn onClick={() => doTrain(ex)} color={C.green} small>Train ▶</Btn>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {trainLog.length > 0 && (
+          <div style={{ background: "#050a14", borderRadius: 8, padding: 12, border: `1px solid ${C.amber}30` }}>
+            <div style={{ fontFamily: C.mono, fontSize: 10, color: C.dim, letterSpacing: 3, marginBottom: 8, textTransform: "uppercase" }}>Training log (last {trainLog.length} steps)</div>
+            {trainLog.slice().reverse().map((log, i) => (
+              <div key={i} style={{ fontFamily: C.mono, fontSize: 11, color: i===0?C.amber:C.dimmer, marginBottom: 4, lineHeight: 1.6 }}>
+                Step {trainStep-i}: "{log.ex.name}" δ={f3(log.δ)}
+                {log.diffs.map((d, j) => ` Δw${j+1}=${sgn(d)}`).join("")}
+                {" "}Δb={sgn(-0.4*log.δ)}
+              </div>
+            ))}
+          </div>
+        )}
+      </Panel>
+
+      {/* Neuron diagram */}
+      <Panel glow={C.teal}>
+        <SectionLabel color={C.teal}>🔬 Neuron Architecture Diagram</SectionLabel>
+        <NeuronDiagram xs={xs} ws={ws} b={b} z={z} raw={raw} pred={pred} inputLabels={SPAM_INPUTS} size="100%" />
+        <p style={{ fontFamily: C.serif, fontSize: 12, color: C.dim, lineHeight: 1.7, marginTop: 8 }}>
+          Line thickness shows weight magnitude. <span style={{color:C.green}}>Green lines</span> are positive weights (support the prediction),
+          <span style={{color:C.red}}> red lines</span> are negative weights (oppose it). Dimmed lines mean that input was 0 (inactive).
+        </p>
+      </Panel>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION 2: MOVIE PREDICTOR
+// ═══════════════════════════════════════════════════════════════════════════════
+function MoviePredictor() {
+  const [ws, setWs] = useState([0.8, 0.4, -0.3]);
+  const [b, setB] = useState(0.1);
+  const [xs, setXs] = useState([1, 0, 0]);
+  const [trainHistory, setTrainHistory] = useState([]);
+
+  const { z, raw, pred } = fwd(xs, ws, b);
+
+  const trainAll = () => {
+    let cWs = [...ws], cB = b;
+    let h = [];
+    MOVIE_EX.forEach(ex => {
+      const { raw: r } = fwd(ex.xs, cWs, cB);
+      const { newWs, newB, δ } = nudge(cWs, cB, ex.xs, ex.y, r, 0.3);
+      h.push({ ex, before: r, δ, after: sig(ex.xs.reduce((s,x,i)=>s+x*newWs[i],newB)) });
+      cWs = newWs; cB = newB;
+    });
+    setWs(cWs); setB(cB);
+    setTrainHistory(h);
+  };
+
+  return (
+    <div>
+      <Panel glow={C.teal} style={{ marginBottom: 16 }}>
+        <SectionLabel color={C.teal} sub="A network learning your movie tastes from three clues.">
+          🎬 Movie Enjoyment Predictor
+        </SectionLabel>
+        <p style={{ fontFamily: C.serif, fontSize: 14, color: C.cream, lineHeight: 1.8, marginBottom: 14 }}>
+          The three inputs are: does it have <Tag color={C.amber}>your favourite actor</Tag>,
+          is it a <Tag color={C.teal}>comedy</Tag>, and is it <Tag color={C.dim}>over 2 hours long</Tag>.
+          Notice how <strong style={{color:C.amber}}>w₁</strong> (favourite actor) matters most,
+          <strong style={{color:C.teal}}> w₂</strong> (comedy) matters some, and
+          <strong style={{color:C.dim}}> w₃</strong> (long movie) is typically negative — long films can be a dealbreaker.
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
+          <div>
+            <div style={{ display: "flex", gap: 20, marginBottom: 20 }}>
+              {MOVIE_INPUTS.map((inp, i) => (
+                <Toggle key={i} value={xs[i]} onChange={v => setXs(xs.map((x,j)=>j===i?v:x))} label={inp.label} icon={inp.icon} />
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 16, marginBottom: 16 }}>
+              {MOVIE_INPUTS.map((inp, i) => (
+                <DialKnob key={i} value={ws[i]} min={-2} max={2} onChange={v => setWs(ws.map((w,j)=>j===i?v:w))} color={i===2?C.red:C.amber} label={inp.label} />
+              ))}
+            </div>
+            <DialKnob value={b} min={-2} max={2} onChange={setB} color={C.gold} label="bias (mood)" size={72} />
+            <div style={{ marginTop: 10, fontFamily: C.serif, fontSize: 12, color: C.dim, lineHeight: 1.7 }}>
+              The <strong style={{color:C.gold}}>bias</strong> here represents your general mood or how open you are to watching any movie. A high positive bias means you enjoy most movies regardless.
+            </div>
+          </div>
+          <div>
+            <ThreshMeter raw={raw} size={180} />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>
+              <Readout label="z (weighted sum)" value={f3(z)} color={C.teal} />
+              <Readout label="Confidence" value={f3(raw)} color={raw >= 0.5 ? C.green : C.red} />
+            </div>
+          </div>
+        </div>
+        <Code color={C.teal}>{
+`Interpretation of weights:
+  w₁ (fav actor) = ${f2(ws[0])}  → ${ws[0]>0?"Positive: this pushes strongly toward YES":"Negative: this actually pushes toward NO?!"}
+  w₂ (comedy)   = ${f2(ws[1])}  → ${ws[1]>0?"Positive: comedies more enjoyable":"Negative: prefer serious films?"}
+  w₃ (long film) = ${f2(ws[2])}  → ${ws[2]<0?"Negative: long movies reduce enjoyment":"Positive: long movies preferred?"}
+  bias           = ${f2(b)}   → ${b>0?"You enjoy most movies (optimistic)":b<-0.3?"You're selective (need good reasons)":"Neutral baseline"}`
+        }</Code>
+      </Panel>
+
+      <Panel glow={C.green}>
+        <SectionLabel color={C.green}>📽️ Movie Examples — Run One Training Pass</SectionLabel>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 14 }}>
+          {MOVIE_EX.map(ex => {
+            const { pred: p, raw: r } = fwd(ex.xs, ws, b);
+            const ok = p === ex.y;
+            return (
+              <div key={ex.id} style={{ background: "#050a14", borderRadius: 9, padding: 12, border: `1px solid ${ok?C.green+"40":C.red+"40"}` }}>
+                <div style={{ fontFamily: C.serif, fontSize: 13, color: C.cream, fontWeight: 700, marginBottom: 4 }}>🎬 {ex.name}</div>
+                <div style={{ fontFamily: C.mono, fontSize: 10, color: C.dim, marginBottom: 6 }}>
+                  {MOVIE_INPUTS.map((inp,i)=>`${inp.icon}${ex.xs[i]}`).join(" ")} → label: {ex.y===1?"ENJOY ✓":"SKIP ✗"}
+                </div>
+                <div style={{ fontFamily: C.mono, fontSize: 11, color: ok?C.green:C.red, marginBottom: 6 }}>
+                  pred: {f2(r)} ({ok?"✓ correct":"✗ wrong"})
+                </div>
+                <div style={{ fontFamily: C.serif, fontSize: 11, color: C.dim }}>{ex.note}</div>
+              </div>
+            );
+          })}
+        </div>
+        <Btn onClick={trainAll} color={C.green}>▶▶ Run 1 Full Training Pass Over All 6 Movies</Btn>
+        {trainHistory.length > 0 && (
+          <Code color={C.green}>{
+            trainHistory.map((h,i) =>
+              `Movie ${i+1} "${h.ex.name}": pred=${f3(h.before)} target=${h.ex.y} δ=${f3(h.δ)} → pred_after=${f3(h.after)}`
+            ).join("\n")
+          }</Code>
+        )}
+      </Panel>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ACTIVITY 1: HUMAN NEURON GAME
+// ═══════════════════════════════════════════════════════════════════════════════
+function Activity1() {
+  const [ws, setWs] = useState([0.3, 0.3, 0.3]);
+  const [b, setB] = useState(0.0);
+  const [round, setRound] = useState(0);
+  const [score, setScore] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [roundDone, setRoundDone] = useState(false);
+  const [updateApplied, setUpdateApplied] = useState(false);
+  const [roundHistory, setRoundHistory] = useState([]);
+
+  const ex = SPAM_EX[round % SPAM_EX.length];
+  const { z, raw, pred } = fwd(ex.xs, ws, b);
+  const correct = pred === ex.y;
+
+  const applyUpdate = () => {
+    const { newWs, newB, δ, diffs } = nudge(ws, b, ex.xs, ex.y, raw);
+    setRoundHistory(h => [...h, { ex, ws:[...ws], b, newWs, newB, δ, diffs, pred, correct }]);
+    setWs(newWs); setB(newB);
+    setUpdateApplied(true);
+  };
+
+  const nextRound = () => {
+    if (!updateApplied) applyUpdate();
+    setScore(s => s + (correct ? 1 : 0));
+    setTotal(t => t + 1);
+    setRound(r => r + 1);
+    setRoundDone(false);
+    setUpdateApplied(false);
+  };
+
+  return (
+    <div>
+      <Panel glow={C.amber} style={{ marginBottom: 16 }}>
+        <SectionLabel color={C.amber}>
+          🎮 Activity 1 — Human Neuron Game
+        </SectionLabel>
+        <p style={{ fontFamily: C.serif, fontSize: 14, color: C.cream, lineHeight: 1.85, marginBottom: 14 }}>
+          <strong style={{color:C.amber}}>How to play:</strong> You are the neuron! The email clues are shown below. Adjust the weight knobs to set how much you trust each clue, set your bias, and the network will compute the prediction automatically.
+          Check if you got it right, then click <Tag color={C.green}>"Update Weights"</Tag> to apply the mathematically correct adjustment. Repeat for each email!
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
+          <Readout label="Round" value={`${round + 1} / ${SPAM_EX.length}`} color={C.blue} />
+          <Readout label="Score" value={`${score} / ${total}`} color={C.green} />
+          <Readout label="Accuracy" value={total>0?`${Math.round(score/total*100)}%`:"—"} color={C.amber} />
+        </div>
+      </Panel>
+
+      {/* Current email */}
+      <Panel glow={ex.y===1?C.red:C.green} style={{ marginBottom: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+          <div>
+            <div style={{ fontFamily: C.mono, fontSize: 10, color: C.dim, letterSpacing: 3, marginBottom: 4 }}>EMAIL {round+1}</div>
+            <div style={{ fontFamily: C.serif, fontSize: 18, color: C.cream, fontWeight: 700 }}>{ex.name}</div>
+            <div style={{ fontFamily: C.serif, fontSize: 13, color: C.dim, marginTop: 4 }}>{ex.note}</div>
+          </div>
+          <div style={{ background: (ex.y===1?C.red:C.green)+"20", border:`1px solid ${ex.y===1?C.red:C.green}50`, borderRadius: 8, padding: "8px 16px", textAlign: "center" }}>
+            <div style={{ fontFamily: C.mono, fontSize: 9, color: C.dim }}>TRUE LABEL</div>
+            <div style={{ fontFamily: C.mono, fontSize: 16, fontWeight: 700, color: ex.y===1?C.red:C.green }}>
+              {ex.y===1?"SPAM":"NOT SPAM"}
+            </div>
+          </div>
+        </div>
+
+        {/* Input signals */}
+        <div style={{ display: "flex", gap: 16, marginBottom: 20 }}>
+          {SPAM_INPUTS.map((inp, i) => (
+            <div key={i} style={{
+              flex: 1, background: ex.xs[i]?C.amber+"15":"#050a14",
+              border: `2px solid ${ex.xs[i]?C.amber:C.dimmer}`,
+              borderRadius: 10, padding: "12px", textAlign: "center"
+            }}>
+              <div style={{ fontSize: 24, marginBottom: 4 }}>{inp.icon}</div>
+              <div style={{ fontFamily: C.mono, fontSize: 10, color: C.dim, marginBottom: 6 }}>{inp.label}</div>
+              <div style={{ fontFamily: C.mono, fontSize: 24, fontWeight: 700, color: ex.xs[i]?C.amber:C.dimmer }}>
+                {ex.xs[i]}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Weight controls */}
+        <div style={{ fontFamily: C.mono, fontSize: 10, color: C.dim, letterSpacing: 3, marginBottom: 12, textTransform: "uppercase" }}>
+          Your weights — drag to adjust:
+        </div>
+        <div style={{ display: "flex", gap: 24, marginBottom: 16 }}>
+          {SPAM_INPUTS.map((inp, i) => (
+            <DialKnob key={i} value={ws[i]} min={-2} max={2}
+              onChange={v => setWs(ws.map((w,j)=>j===i?v:w))} color={C.amber} label={inp.label} />
+          ))}
+          <DialKnob value={b} min={-2} max={2} onChange={setB} color={C.gold} label="bias" />
+        </div>
+
+        {/* Prediction */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "center" }}>
+          <div>
+            <Code color={C.teal}>{
+`z = ${ex.xs.map((x,i)=>`${x}×${f2(ws[i])}`).join(" + ")} + ${f2(b)}
+  = ${f2(z)}
+σ(${f2(z)}) = ${f3(raw)}
+Prediction: ${pred} (${pred===1?"SPAM":"NOT SPAM"})`
+            }</Code>
+          </div>
+          <div>
+            <ThreshMeter raw={raw} size={160} />
+          </div>
+        </div>
+
+        <div style={{ padding: "12px 16px", background: (correct?C.green:C.red)+"15", borderRadius: 9, border:`1px solid ${correct?C.green:C.red}50`, margin: "12px 0", textAlign: "center" }}>
+          <div style={{ fontFamily: C.mono, fontSize: 16, fontWeight: 700, color: correct?C.green:C.red }}>
+            {correct ? "✅ Correct! Well done." : "❌ Wrong prediction — let's update the weights."}
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 10 }}>
+          {!updateApplied && (
+            <Btn onClick={applyUpdate} color={C.green}>⚙️ Apply Weight Update (Backprop)</Btn>
+          )}
+          {updateApplied && (
+            <div style={{ fontFamily: C.mono, fontSize: 12, color: C.green, alignSelf: "center" }}>
+              ✓ Weights updated
+            </div>
+          )}
+          <Btn onClick={nextRound} color={C.blue} disabled={round >= SPAM_EX.length - 1}>Next Email ▶</Btn>
+        </div>
+
+        {updateApplied && roundHistory.length > 0 && (() => {
+          const last = roundHistory[roundHistory.length-1];
+          return (
+            <Code color={C.green}>{
+`Weight update applied (learning rate = 0.4):
+  δ = prediction − label = ${f3(last.pred===1?raw:raw)} − ${last.ex.y} ≈ ${f3(last.δ)}
+
+${SPAM_INPUTS.map((inp,i)=>`  w${i+1} (${inp.label}): ${f3(last.ws[i])} ${sgn(last.diffs[i])} → ${f3(last.newWs[i])}  ${last.diffs[i]>0?"↑ increased":"↓ decreased"}`).join("\n")}
+  bias: ${f3(last.b)} ${sgn(-0.4*last.δ)} → ${f3(last.newB)}`
+            }</Code>
+          );
+        })()}
+      </Panel>
+
+      {/* Game history */}
+      {roundHistory.length > 0 && (
+        <Panel glow={C.dimmer}>
+          <SectionLabel color={C.dim}>📋 Game History</SectionLabel>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: C.mono, fontSize: 11 }}>
+              <thead>
+                <tr>
+                  {["Round","Email","Inputs","Prediction","Truth","Result"].map(h=>(
+                    <th key={h} style={{ padding:"7px 10px", color:C.dim, borderBottom:`1px solid ${C.border}`, textAlign:"left", fontSize:9, letterSpacing:2 }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {roundHistory.map((r,i)=>(
+                  <tr key={i} style={{ background: i%2===0?"#050a1499":"transparent" }}>
+                    <td style={{ padding:"7px 10px", color:C.dim }}>{i+1}</td>
+                    <td style={{ padding:"7px 10px", color:C.cream }}>{r.ex.name}</td>
+                    <td style={{ padding:"7px 10px", color:C.amber }}>[{r.ex.xs.join(",")}]</td>
+                    <td style={{ padding:"7px 10px", color:C.teal }}>{r.pred}</td>
+                    <td style={{ padding:"7px 10px", color:C.dim }}>{r.ex.y}</td>
+                    <td style={{ padding:"7px 10px", color:r.correct?C.green:C.red }}>{r.correct?"✓":"✗"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ACTIVITY 2: BIAS AS A TILT
+// ═══════════════════════════════════════════════════════════════════════════════
+function Activity2() {
+  const [bias, setBias] = useState(0.0);
+  const FIXED_WS = [0.6, 0.5, 0.4];
+
+  const results = SPAM_EX.map(ex => {
+    const { raw, pred } = fwd(ex.xs, FIXED_WS, bias);
+    return { ...ex, raw, pred };
+  });
+
+  const yesCount = results.filter(r => r.pred === 1).length;
+  const avgConf  = results.reduce((s,r)=>s+r.raw,0)/results.length;
+
+  return (
+    <div>
+      <Panel glow={C.gold} style={{ marginBottom: 16 }}>
+        <SectionLabel color={C.gold}>
+          ⚖️ Activity 2 — Bias as a Tilt
+        </SectionLabel>
+        <p style={{ fontFamily: C.serif, fontSize: 14, color: C.cream, lineHeight: 1.85, marginBottom: 14 }}>
+          In this activity the weights are <strong style={{color:C.amber}}>locked</strong> — you can only change the <strong style={{color:C.gold}}>bias</strong>.
+          Watch how changing a single number (the bias) shifts which emails get flagged as spam.
+          This demonstrates that bias controls the neuron's "default lean" independently of any specific input.
+        </p>
+
+        {/* Bias control — large */}
+        <div style={{ display: "flex", gap: 20, alignItems: "center", marginBottom: 20 }}>
+          <DialKnob value={bias} min={-2} max={2} onChange={setBias} color={C.gold} label="bias only" size={100} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: C.mono, fontSize: 10, color: C.dim, letterSpacing: 3, marginBottom: 8, textTransform: "uppercase" }}>Bias tiltometer</div>
+            <div style={{ height: 24, background: "#050a14", borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden", position: "relative" }}>
+              <div style={{
+                position: "absolute", left: "50%", top: 2, bottom: 2, width: 2,
+                background: C.dimmer, transform: "translateX(-50%)"
+              }} />
+              <div style={{
+                position: "absolute",
+                left: bias < 0 ? `${50 + bias*25}%` : "50%",
+                right: bias > 0 ? `${50 - bias*25}%` : "50%",
+                top: 2, bottom: 2,
+                background: bias > 0 ? C.green + "60" : C.red + "60",
+                borderRadius: 10,
+                transition: "all 0.2s"
+              }} />
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+              <span style={{ fontFamily: C.mono, fontSize: 10, color: C.red }}>← biased toward NO</span>
+              <span style={{ fontFamily: C.mono, fontSize: 10, color: C.gold }}>neutral</span>
+              <span style={{ fontFamily: C.mono, fontSize: 10, color: C.green }}>biased toward YES →</span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12 }}>
+              <Readout label="emails flagged SPAM" value={`${yesCount} / 6`} color={yesCount>3?C.red:C.green} />
+              <Readout label="avg confidence" value={f3(avgConf)} color={C.gold} />
+            </div>
+          </div>
+        </div>
+
+        {/* Fixed weights display */}
+        <Code color={C.dim}>{`Fixed weights (cannot change): w₁(FREE)=${f2(FIXED_WS[0])}  w₂(link)=${f2(FIXED_WS[1])}  w₃(unknown)=${f2(FIXED_WS[2])}
+Current bias: ${f2(bias)}
+
+For each email, z = x₁×${f2(FIXED_WS[0])} + x₂×${f2(FIXED_WS[1])} + x₃×${f2(FIXED_WS[2])} + ${f2(bias)}`}</Code>
+      </Panel>
+
+      {/* Email grid */}
+      <Panel glow={C.gold}>
+        <SectionLabel color={C.gold} sub="Observe which emails flip between SPAM and NOT SPAM as you adjust bias above.">
+          📊 Results — All 6 Emails at Current Bias = {f2(bias)}
+        </SectionLabel>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+          {results.map((r, i) => {
+            const zLocal = r.xs.reduce((s,x,j)=>s+x*FIXED_WS[j],bias);
+            return (
+              <div key={i} style={{
+                background: "#050a14", borderRadius: 10, padding: 14,
+                border: `2px solid ${r.pred===1?C.red:C.green}50`,
+                transition: "border-color 0.2s"
+              }}>
+                <div style={{ fontFamily: C.serif, fontSize: 13, fontWeight: 700, color: C.cream, marginBottom: 6 }}>{r.name}</div>
+                <div style={{ fontFamily: C.mono, fontSize: 10, color: C.dim, marginBottom: 8 }}>
+                  inputs: [{r.xs.join(",")}] | true: {r.y}
+                </div>
+                <div style={{ background: "#080c14", borderRadius: 6, height: 8, overflow: "hidden", marginBottom: 6 }}>
+                  <div style={{ height: "100%", width: `${r.raw*100}%`, background: r.pred===1?C.red:C.green, transition: "width 0.2s", borderRadius: 6 }} />
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ fontFamily: C.mono, fontSize: 11, color: C.dim }}>σ = {f3(r.raw)}</span>
+                  <span style={{ fontFamily: C.mono, fontSize: 12, fontWeight: 700, color: r.pred===1?C.red:C.green }}>
+                    {r.pred===1?"🚨 SPAM":"✅ NOT SPAM"}
+                  </span>
+                </div>
+                {r.pred !== r.y && (
+                  <div style={{ fontFamily: C.mono, fontSize: 9, color: C.red, marginTop: 4 }}>⚠ wrong prediction (should be {r.y})</div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{ marginTop: 16, padding: "14px 16px", background: "#050a14", borderRadius: 10, border: `1px solid ${C.gold}30` }}>
+          <div style={{ fontFamily: C.mono, fontSize: 10, color: C.gold, letterSpacing: 3, marginBottom: 8 }}>CLASS DISCUSSION PROMPTS</div>
+          {[
+            `At bias = 0: ${results.filter(r=>r.pred===1).length} emails are flagged. Try setting bias to −1.5 — what happens?`,
+            `When bias is very positive, even emails with no spam signals get flagged. Why is that dangerous?`,
+            `Find a bias value that correctly classifies all 6 emails. Is it possible?`,
+          ].map((q,i)=>(
+            <div key={i} style={{ fontFamily: C.serif, fontSize: 13, color: C.dim, marginBottom: 8, lineHeight: 1.7 }}>
+              <span style={{color:C.gold}}>Q{i+1}:</span> {q}
+            </div>
+          ))}
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ACTIVITY 3: ERROR DETECTIVE
+// ═══════════════════════════════════════════════════════════════════════════════
+function Activity3() {
+  const [caseIdx, setCaseIdx] = useState(0);
+  const [votes, setVotes] = useState([null, null, null, null]); // w0,w1,w2,bias
+  const [revealed, setRevealed] = useState(false);
+
+  const cas = DETECTIVE_CASES[caseIdx];
+  const { z, raw, pred } = fwd(cas.xs, cas.ws, cas.b);
+  const { newWs, newB, δ, diffs } = nudge(cas.ws, cas.b, cas.xs, cas.y, raw);
+
+  const correctDir = (i) => {
+    if (i < 3) return diffs[i] > 0.001 ? "increase" : diffs[i] < -0.001 ? "decrease" : "no_change";
+    return (newB - cas.b) > 0.001 ? "increase" : (newB - cas.b) < -0.001 ? "decrease" : "no_change";
+  };
+  const changeLabel = (i) => {
+    const d = correctDir(i);
+    if (d === "increase") return { label: "↑ Increase", color: C.green };
+    if (d === "decrease") return { label: "↓ Decrease", color: C.red };
+    return { label: "— No change", color: C.dim };
+  };
+
+  const voteLabel = (v) => {
+    if (v === "increase") return { label: "↑ Increase", color: C.green };
+    if (v === "decrease") return { label: "↓ Decrease", color: C.red };
+    if (v === "no_change") return { label: "— No change", color: C.dim };
+    return { label: "?", color: C.dimmer };
+  };
+
+  const resetCase = (idx) => {
+    setCaseIdx(idx);
+    setVotes([null,null,null,null]);
+    setRevealed(false);
+  };
+
+  return (
+    <div>
+      <Panel glow={C.red} style={{ marginBottom: 16 }}>
+        <SectionLabel color={C.red}>
+          🔍 Activity 3 — Error Detective
+        </SectionLabel>
+        <p style={{ fontFamily: C.serif, fontSize: 14, color: C.cream, lineHeight: 1.85 }}>
+          Something went wrong! The network made a bad prediction. Your job is to figure out
+          <strong style={{color:C.red}}> which weights and the bias caused the error</strong>,
+          and decide whether each should <Tag color={C.green}>increase ↑</Tag> or <Tag color={C.red}>decrease ↓</Tag>.
+          Then reveal the correct answer to see if you were right!
+        </p>
+      </Panel>
+
+      {/* Case selector */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+        {DETECTIVE_CASES.map((c, i) => (
+          <Btn key={i} onClick={() => resetCase(i)} color={caseIdx===i?C.red:C.dimmer} small>{c.title.split("—")[0]}</Btn>
+        ))}
+      </div>
+
+      {/* The crime scene */}
+      <Panel glow={C.red} style={{ marginBottom: 14 }}>
+        <div style={{ display: "flex", gap: 12, alignItems: "flex-start", marginBottom: 14 }}>
+          <div style={{ fontSize: 36, lineHeight: 1 }}>🔍</div>
+          <div>
+            <div style={{ fontFamily: C.mono, fontSize: 14, color: C.red, fontWeight: 700, marginBottom: 4 }}>{cas.title}</div>
+            <div style={{ fontFamily: C.serif, fontSize: 14, color: C.cream, lineHeight: 1.75 }}>{cas.scenario}</div>
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+          <div>
+            <div style={{ fontFamily: C.mono, fontSize: 10, color: C.dim, letterSpacing: 3, marginBottom: 10, textTransform: "uppercase" }}>Evidence (inputs + weights)</div>
+            {cas.inputLabels.map((inp, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#050a14", borderRadius: 7, padding: "10px 14px", marginBottom: 8, border: `1px solid ${cas.xs[i]?C.amber+"40":C.border}` }}>
+                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                  <span style={{ fontSize: 18 }}>{inp.icon}</span>
+                  <span style={{ fontFamily: C.serif, fontSize: 12, color: C.cream }}>{inp.label}</span>
+                </div>
+                <div style={{ display: "flex", gap: 10, fontFamily: C.mono, fontSize: 13 }}>
+                  <span style={{ color: cas.xs[i]?C.amber:C.dim }}>x={cas.xs[i]}</span>
+                  <span style={{ color: C.gold }}>w={f2(cas.ws[i])}</span>
+                  <span style={{ color: C.teal }}>={f2(cas.xs[i]*cas.ws[i])}</span>
+                </div>
+              </div>
+            ))}
+            <div style={{ display: "flex", justifyContent: "space-between", background: "#050a14", borderRadius: 7, padding: "10px 14px", border: `1px solid ${C.gold}40` }}>
+              <span style={{ fontFamily: C.serif, fontSize: 12, color: C.cream }}>⚙️ Bias</span>
+              <span style={{ fontFamily: C.mono, fontSize: 13, color: C.gold }}>b = {f2(cas.b)}</span>
+            </div>
+          </div>
+          <div>
+            <NeuronDiagram xs={cas.xs} ws={cas.ws} b={cas.b} z={z} raw={raw} pred={pred} inputLabels={cas.inputLabels} />
+            <Code color={C.red}>{`z = ${f2(z)}
+σ(z) = ${f3(raw)} → prediction: ${pred}
+True label: ${cas.y}  ← MISMATCH!`}</Code>
+          </div>
+        </div>
+      </Panel>
+
+      {/* Vote panel */}
+      <Panel glow={C.amber} style={{ marginBottom: 14 }}>
+        <SectionLabel color={C.amber} sub="Should each weight / bias go UP or DOWN to fix this mistake?">🗳️ Your Vote</SectionLabel>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12, marginBottom: 14 }}>
+          {[...cas.inputLabels.map((inp,i)=>({label:`${inp.icon} Weight for ${inp.label}`, idx:i})), {label:"⚙️ Bias", idx:3}].map(item => (
+            <div key={item.idx} style={{ background: "#050a14", borderRadius: 9, padding: 14, border: `1px solid ${C.border}` }}>
+              <div style={{ fontFamily: C.serif, fontSize: 13, color: C.cream, marginBottom: 10 }}>{item.label}</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                {["increase","decrease","no_change"].map(opt => (
+                  <button key={opt} onClick={() => {
+                    const v = [...votes]; v[item.idx] = opt; setVotes(v);
+                  }} style={{
+                    flex: 1, padding: "7px 4px", borderRadius: 6, cursor: "pointer",
+                    border: `1px solid ${votes[item.idx]===opt ? (opt==="increase"?C.green:opt==="decrease"?C.red:C.dim) : C.border}`,
+                    background: votes[item.idx]===opt ? (opt==="increase"?C.green+"20":opt==="decrease"?C.red+"20":C.dimmer+"20") : "transparent",
+                    color: opt==="increase"?C.green:opt==="decrease"?C.red:C.dim,
+                    fontFamily: C.mono, fontSize: 10, fontWeight: votes[item.idx]===opt?700:400,
+                  }}>
+                    {opt==="increase"?"↑ Up":opt==="decrease"?"↓ Down":"— Same"}
+                  </button>
+                ))}
+              </div>
+              {revealed && (
+                <div style={{ marginTop: 8, padding: "5px 10px", borderRadius: 5, background: votes[item.idx]===correctDir(item.idx)?C.green+"15":C.red+"15", border:`1px solid ${votes[item.idx]===correctDir(item.idx)?C.green:C.red}40` }}>
+                  <span style={{ fontFamily: C.mono, fontSize: 10, color: C.dim }}>Correct answer: </span>
+                  <span style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, color: changeLabel(item.idx).color }}>{changeLabel(item.idx).label}</span>
+                  {votes[item.idx]===correctDir(item.idx)
+                    ? <span style={{ color: C.green, fontFamily: C.mono, fontSize: 11 }}> ✓ You got it!</span>
+                    : <span style={{ color: C.red, fontFamily: C.mono, fontSize: 11 }}> ✗ Incorrect</span>
+                  }
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+        <Btn onClick={() => setRevealed(true)} color={C.red} disabled={revealed || votes.some(v=>v===null)}>
+          {votes.some(v=>v===null) ? `Vote on all ${4-votes.filter(v=>v!==null).length} remaining first` : "🔍 Reveal Correct Answers"}
+        </Btn>
+      </Panel>
+
+      {revealed && (
+        <Panel glow={C.green}>
+          <SectionLabel color={C.green}>✅ Explanation & Full Calculation</SectionLabel>
+          <p style={{ fontFamily: C.serif, fontSize: 14, color: C.cream, lineHeight: 1.8, marginBottom: 12 }}>{cas.hint}</p>
+          <Code color={C.green}>{
+`Mathematical weight update (lr = 0.4):
+  δ = raw − target = ${f3(raw)} − ${cas.y} = ${f3(δ)}
+
+${cas.inputLabels.map((inp,i)=>`  Δw${i+1} (${inp.label.padEnd(16)}): −lr×δ×x${i+1} = −0.4×${f3(δ)}×${cas.xs[i]} = ${f3(diffs[i])}  → w${i+1}: ${f2(cas.ws[i])} → ${f2(newWs[i])}`).join("\n")}
+  Δb  (bias): −lr×δ = −0.4×${f3(δ)} = ${f3(newB-cas.b)}  → b: ${f2(cas.b)} → ${f2(newB)}`
+          }</Code>
+        </Panel>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ACTIVITY 4: MINI-LAB WORKSHEET
+// ═══════════════════════════════════════════════════════════════════════════════
+function Activity4() {
+  const [answers, setAnswers] = useState(
+    WORKSHEET_ROWS.map(r => ({ parts: r.xs.map(() => ""), total: "", prediction: "" }))
+  );
+  const [checked, setChecked] = useState(false);
+  const [revealed, setRevealed] = useState(false);
+
+  const setAns = (ri, field, val) => {
+    setAnswers(ans => ans.map((a, i) => i===ri ? (field === "parts" ? {...a, parts: a.parts.map((p,j)=>j===val.idx?val.v:p)} : {...a, [field]: val}) : a));
+    setChecked(false);
+  };
+
+  const check = (ri, row, ans) => {
+    const correct_parts = row.xs.map((x,i) => +(x*row.ws[i]).toFixed(3));
+    const correct_z = +(row.xs.reduce((s,x,i)=>s+x*row.ws[i],row.b)).toFixed(3);
+    const correct_pred = sig(correct_z) >= 0.5 ? "1" : "0";
+    return {
+      parts: ans.parts.map((p,i) => Math.abs(+p - correct_parts[i]) < 0.01),
+      total: Math.abs(+ans.total - correct_z) < 0.01,
+      prediction: ans.prediction.trim() === correct_pred,
+    };
+  };
+
+  return (
+    <div>
+      <Panel glow={C.blue} style={{ marginBottom: 16 }}>
+        <SectionLabel color={C.blue}>📋 Activity 4 — Mini-Lab Worksheet</SectionLabel>
+        <p style={{ fontFamily: C.serif, fontSize: 14, color: C.cream, lineHeight: 1.85, marginBottom: 14 }}>
+          Complete this worksheet by hand (or using the input boxes). For each email example,
+          compute each <Tag color={C.amber}>"weighted product"</Tag> (input × weight), then sum them up and
+          add the bias to get <Tag color={C.teal}>z</Tag>. Finally, decide: is the email
+          SPAM (prediction = 1) if z is positive, or NOT SPAM (prediction = 0)?
+        </p>
+        <p style={{ fontFamily: C.serif, fontSize: 13, color: C.dim, lineHeight: 1.75 }}>
+          The weights for this worksheet are: <Tag color={C.amber}>w₁(FREE) = given per row</Tag>, <Tag color={C.amber}>w₂(link)</Tag>, <Tag color={C.amber}>w₃(unknown)</Tag>.
+          Rule: if σ(z) ≥ 0.5 (equivalently z ≥ 0), predict 1 (spam).
+        </p>
+      </Panel>
+
+      {WORKSHEET_ROWS.map((row, ri) => {
+        const ans = answers[ri];
+        const result = checked ? check(ri, row, ans) : null;
+        const correct_z = row.xs.reduce((s,x,i)=>s+x*row.ws[i],row.b);
+        const correct_raw = sig(correct_z);
+        const correct_pred = correct_raw >= 0.5 ? 1 : 0;
+
+        return (
+          <Panel key={ri} glow={result ? (result.total && result.prediction ? C.green : C.red) : C.border} style={{ marginBottom: 14 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <div>
+                <div style={{ fontFamily: C.mono, fontSize: 11, color: C.dim, letterSpacing: 3 }}>EXAMPLE {row.id}</div>
+                <div style={{ fontFamily: C.serif, fontSize: 15, color: C.cream, fontWeight: 700, marginTop: 3 }}>
+                  Inputs: [{row.xs.join(", ")}] &nbsp;|&nbsp; Weights: [{row.ws.join(", ")}] &nbsp;|&nbsp; Bias: {row.b}
+                </div>
+              </div>
+              {result && (
+                <div style={{ fontFamily: C.mono, fontSize: 14, fontWeight: 700, color: result.total&&result.prediction?C.green:C.red }}>
+                  {result.total&&result.prediction ? "✓ CORRECT" : "✗ CHECK AGAIN"}
+                </div>
+              )}
+            </div>
+
+            {/* Step 1: Weighted products */}
+            <div style={{ fontFamily: C.mono, fontSize: 10, color: C.dim, letterSpacing: 3, marginBottom: 10, textTransform: "uppercase" }}>
+              Step 1 — compute each x_i × w_i:
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 14 }}>
+              {SPAM_INPUTS.map((inp, i) => {
+                const correct = +(row.xs[i]*row.ws[i]).toFixed(3);
+                const ok = result ? result.parts[i] : null;
+                return (
+                  <div key={i} style={{ background: "#050a14", borderRadius: 8, padding: 12, border: `1px solid ${ok===true?C.green:ok===false?C.red:C.border}` }}>
+                    <div style={{ fontFamily: C.serif, fontSize: 12, color: C.cream, marginBottom: 8 }}>
+                      {inp.icon} {inp.label}
+                    </div>
+                    <div style={{ fontFamily: C.mono, fontSize: 13, color: C.amber, marginBottom: 8 }}>
+                      {row.xs[i]} × {row.ws[i]} = ?
+                    </div>
+                    <input
+                      type="number" step="0.01"
+                      value={ans.parts[i]}
+                      onChange={e => setAns(ri, "parts", { idx: i, v: e.target.value })}
+                      placeholder="your answer"
+                      style={{
+                        width: "100%", background: "#080d14", border: `1px solid ${C.border}`,
+                        borderRadius: 6, padding: "6px 10px", color: C.amber,
+                        fontFamily: C.mono, fontSize: 13, outline: "none", boxSizing: "border-box"
+                      }}
+                    />
+                    {revealed && (
+                      <div style={{ fontFamily: C.mono, fontSize: 11, color: C.teal, marginTop: 6 }}>
+                        Answer: {f3(correct)}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Step 2: Total + bias */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, alignItems: "center" }}>
+              <div>
+                <div style={{ fontFamily: C.mono, fontSize: 10, color: C.dim, letterSpacing: 3, marginBottom: 8, textTransform: "uppercase" }}>
+                  Step 2 — sum all products + bias = z:
+                </div>
+                <div style={{ fontFamily: C.mono, fontSize: 12, color: C.dim, marginBottom: 6 }}>
+                  {row.xs.map((x,i)=>`(${x}×${row.ws[i]})`).join(" + ")} + {row.b} = z
+                </div>
+                <input
+                  type="number" step="0.001"
+                  value={ans.total}
+                  onChange={e => setAns(ri, "total", e.target.value)}
+                  placeholder="z = ?"
+                  style={{
+                    width: "100%", background: "#080d14", border: `1px solid ${result?result.total?C.green:C.red:C.border}`,
+                    borderRadius: 6, padding: "8px 12px", color: C.teal,
+                    fontFamily: C.mono, fontSize: 14, outline: "none", marginBottom: 6, boxSizing: "border-box"
+                  }}
+                />
+                {revealed && <div style={{ fontFamily: C.mono, fontSize: 11, color: C.teal }}>z = {f3(correct_z)}</div>}
+              </div>
+              <div>
+                <div style={{ fontFamily: C.mono, fontSize: 10, color: C.dim, letterSpacing: 3, marginBottom: 8, textTransform: "uppercase" }}>
+                  Step 3 — prediction (0 or 1):
+                </div>
+                <div style={{ fontFamily: C.mono, fontSize: 12, color: C.dim, marginBottom: 6 }}>
+                  if z ≥ 0, predict 1 (spam); else predict 0
+                </div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  {["0","1"].map(opt => (
+                    <button key={opt} onClick={() => setAns(ri, "prediction", opt)} style={{
+                      flex: 1, padding: "9px", borderRadius: 7, cursor: "pointer",
+                      border: `2px solid ${ans.prediction===opt?(opt==="1"?C.red:C.green):C.border}`,
+                      background: ans.prediction===opt?(opt==="1"?C.red+"20":C.green+"20"):"transparent",
+                      color: opt==="1"?C.red:C.green,
+                      fontFamily: C.mono, fontSize: 15, fontWeight: ans.prediction===opt?700:400,
+                    }}>
+                      {opt} {opt==="1"?"🚨":"✅"}
+                    </button>
+                  ))}
+                </div>
+                {revealed && (
+                  <div style={{ fontFamily: C.mono, fontSize: 11, color: correct_pred===1?C.red:C.green, marginTop: 6 }}>
+                    Answer: {correct_pred} (σ({f2(correct_z)})={f3(correct_raw)})
+                  </div>
+                )}
+              </div>
+            </div>
+          </Panel>
+        );
+      })}
+
+      <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
+        <Btn onClick={() => setChecked(true)} color={C.amber}>🔎 Check My Answers</Btn>
+        <Btn onClick={() => setRevealed(true)} color={C.dim} small>Show All Answers</Btn>
+        <Btn onClick={() => { setAnswers(WORKSHEET_ROWS.map(r=>({parts:r.xs.map(()=>""),total:"",prediction:""}))); setChecked(false); setRevealed(false); }} color={C.dimmer} small>↺ Reset</Btn>
+      </div>
+
+      {checked && (
+        <Panel glow={C.blue}>
+          <SectionLabel color={C.blue}>📊 Score Summary</SectionLabel>
+          {WORKSHEET_ROWS.map((row, ri) => {
+            const result = check(ri, row, answers[ri]);
+            const correct_z = row.xs.reduce((s,x,i)=>s+x*row.ws[i],row.b);
+            const correct_pred = sig(correct_z) >= 0.5 ? 1 : 0;
+            const score = [result.total, result.prediction].filter(Boolean).length;
+            return (
+              <div key={ri} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "#050a14", borderRadius: 8, marginBottom: 8, border:`1px solid ${score===2?C.green:C.red}40` }}>
+                <span style={{ fontFamily: C.serif, fontSize: 14, color: C.cream }}>Example {row.id}</span>
+                <span style={{ fontFamily: C.mono, fontSize: 12, color: score===2?C.green:C.red }}>{score === 2 ? "✓ Perfect" : "✗ Review needed"}</span>
+                <span style={{ fontFamily: C.mono, fontSize: 11, color: C.dim }}>z={f3(correct_z)}, pred={correct_pred}</span>
+              </div>
+            );
+          })}
+          <div style={{ marginTop: 14, padding: "12px 16px", background: "#050a14", borderRadius: 8, border:`1px solid ${C.border}` }}>
+            <div style={{ fontFamily: C.mono, fontSize: 10, color: C.blue, letterSpacing: 3, marginBottom: 8 }}>CLASS DISCUSSION</div>
+            {[
+              "In Example A the bias is −0.3 (negative). What does that mean about how the network approaches an email by default?",
+              "In Example B, one input was 0. What happens to that weight's contribution? Does that weight update during training?",
+              "Look at Example C. Even though two inputs were 1, the prediction was 0. Why? What role did the bias play?",
+              "After many rounds of training, what do you expect will happen to weights connected to inputs that are never active (always 0)?",
+            ].map((q,i)=>(
+              <div key={i} style={{ fontFamily: C.serif, fontSize: 13, color: C.dim, marginBottom: 8, lineHeight: 1.7 }}>
+                <span style={{color:C.blue}}>Q{i+1}:</span> {q}
+              </div>
+            ))}
+          </div>
+        </Panel>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ROOT COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════════
+const NAV = [
+  { id: "intro",    label: "📖 How It Learns",         color: C.blue  },
+  { id: "spam",     label: "📧 Spam Detector",          color: C.red   },
+  { id: "movie",    label: "🎬 Movie Predictor",        color: C.teal  },
+  { id: "game",     label: "🎮 Act 1 · Neuron Game",    color: C.amber },
+  { id: "tilt",     label: "⚖️ Act 2 · Bias Tilt",     color: C.gold  },
+  { id: "detect",   label: "🔍 Act 3 · Error Detective",color: C.red   },
+  { id: "worksheet",label: "📋 Act 4 · Worksheet",      color: C.blue  },
+];
+
+function DecisionMachineAcademy() {
+  const [tab, setTab] = useState("intro");
+  const col = NAV.find(n => n.id === tab)?.color || C.amber;
+
+  const SECTIONS = { intro: IntroSection, spam: SpamDemo, movie: MoviePredictor, game: Activity1, tilt: Activity2, detect: Activity3, worksheet: Activity4 };
+  const Active = SECTIONS[tab];
+
+  return (
+    <div style={{ minHeight: "100vh", background: C.bg, color: C.cream, fontFamily: C.serif }}>
+      {/* Ambient glow */}
+      <div style={{ position:"fixed", inset:0, pointerEvents:"none", zIndex:0,
+        background:`radial-gradient(ellipse 60% 40% at 50% 0%, ${col}0d, transparent 60%)`,
+        transition:"background 0.5s" }} />
+      {/* Grid texture */}
+      <div style={{ position:"fixed", inset:0, pointerEvents:"none", zIndex:0, opacity:0.025,
+        backgroundImage:`linear-gradient(${C.amber} 1px, transparent 1px), linear-gradient(90deg, ${C.amber} 1px, transparent 1px)`,
+        backgroundSize:"32px 32px" }} />
+
+      <div style={{ position:"relative", zIndex:1, maxWidth:1040, margin:"0 auto", padding:"24px 14px" }}>
+        {/* Header */}
+        <div style={{ textAlign:"center", marginBottom:28 }}>
+          <div style={{ fontFamily:C.mono, fontSize:9, letterSpacing:8, color:C.dim, marginBottom:6, textTransform:"uppercase" }}>
+            Neural Network Fundamentals · Classroom Activity
+          </div>
+          <h1 style={{ margin:0, fontFamily:C.mono, fontWeight:900, letterSpacing:-1,
+            fontSize:"clamp(20px,4vw,36px)",
+            background:`linear-gradient(90deg, ${C.amber}, ${C.gold}, ${C.amber})`,
+            WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", backgroundClip:"text" }}>
+            The Decision Machine
+          </h1>
+          <p style={{ color:C.dim, fontSize:13, marginTop:7, fontFamily:C.mono }}>
+            Weights · Biases · Errors · Gradient Descent — Interactive Learning
+          </p>
+        </div>
+
+        {/* Navigation */}
+        <div style={{ background:C.panel, borderRadius:14, padding:6, border:`1px solid ${C.border}`,
+          display:"flex", gap:3, flexWrap:"wrap", justifyContent:"center", marginBottom:24 }}>
+          {NAV.map(n => (
+            <button key={n.id} onClick={() => setTab(n.id)} style={{
+              padding:"7px 14px", borderRadius:10, cursor:"pointer",
+              border:`1px solid ${tab===n.id?n.color:"transparent"}`,
+              background:tab===n.id?n.color+"18":"transparent",
+              color:tab===n.id?n.color:C.dim,
+              fontFamily:C.mono, fontSize:11, fontWeight:tab===n.id?700:400,
+              transition:"all 0.15s",
+              boxShadow:tab===n.id?`0 0 14px ${n.color}20`:"none"
+            }}>{n.label}</button>
+          ))}
+        </div>
+
+        {/* Content */}
+        <div style={{ background:C.panel+"bb", borderRadius:18,
+          border:`1px solid ${col}25`, padding:"24px 20px",
+          boxShadow:`0 0 50px ${col}12` }}>
+          <Active key={tab} />
+        </div>
+
+        <div style={{ textAlign:"center", marginTop:20, color:C.dimmer, fontFamily:C.mono, fontSize:9, letterSpacing:3 }}>
+          DECISION MACHINE ACADEMY · ALL COMPUTATIONS IN-BROWSER · NO EXTERNAL DEPENDENCIES
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+        const _container = document.getElementById('root');
+        const _root = ReactDOM.createRoot(_container);
+        _root.render(React.createElement(DecisionMachineAcademy));
+        document.getElementById('loading').style.display = 'none';
+    </script>
+
+    <script>
+    try {
+        const src = document.getElementById('jsx-source').textContent;
+        const compiled = Babel.transform(src, {
+            presets: [['env', { targets: { esmodules: true } }], 'react'],
+            filename: 'DeepLearningClassroom.jsx'
+        });
+        // Use indirect eval so strict-mode globals (React, ReactDOM) are in scope
+        const fn = new Function('React', 'ReactDOM', 'showError', compiled.code);
+        fn(React, ReactDOM, showError);
+    } catch(e) {
+        showError('Babel / Compile Error:\n' + (e.message || String(e)) + (e.stack ? '\n\n' + e.stack : ''));
+    }
+    </script>
+</body>
+</html>
