@@ -670,11 +670,12 @@ trimmed    = stats.trim_mean(salaries, 0.1)  # trim 10% each tail
 # Find the outlier's Z-score:
 z_scores = (np.array(salaries) - mean_sal) / np.std(salaries)
 
-print(f"Mean          : ${mean_sal:>10,.0f}")
-print(f"Median        : ${median_sal:>10,.0f}")
-print(f"10% Trimmed   : ${trimmed:>10,.0f}")
+print(f"Mean          : \${mean_sal:>10,.0f}")
+print(f"Median        : \${median_sal:>10,.0f}")
+print(f"10% Trimmed   : \${trimmed:>10,.0f}")
 print(f"CEO z-score   : {z_scores[-1]:.2f} σ from mean")
 print("Best representation for 'typical salary':", ???)`,
+
         sol:`import numpy as np
 from scipy import stats
 
@@ -687,9 +688,9 @@ trimmed    = stats.trim_mean(salaries, 0.1)
 
 z_scores = (np.array(salaries) - mean_sal) / np.std(salaries)
 
-print(f"Mean          : ${mean_sal:>10,.0f}")  # $130,700 ← distorted!
-print(f"Median        : ${median_sal:>10,.0f}") # $51,000 ← robust
-print(f"10% Trimmed   : ${trimmed:>10,.0f}")   # $50,750 ← robust
+print(f"Mean          : \${mean_sal:>10,.0f}")  # $130,700 ← distorted!
+print(f"Median        : \${median_sal:>10,.0f}") # $51,000 ← robust
+print(f"10% Trimmed   : \${trimmed:>10,.0f}")   # $50,750 ← robust
 print(f"CEO z-score   : {z_scores[-1]:.2f} σ from mean")  # 7.09
 print("Best representation for 'typical salary': Median or Trimmed Mean")
 # Lesson: when outliers exist, median/trimmed mean are better representatives`,
