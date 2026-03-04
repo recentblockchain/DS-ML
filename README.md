@@ -8,6 +8,9 @@ https://recentblockchain.github.io/DS-ML/
 
 The landing page lists links to all deployed interactive pages.
 
+Direct link to the DeepLearningClassroom runner:
+https://recentblockchain.github.io/DS-ML/1.%20DeepLearningClassroom-runner.html
+
 If this is your first time using Pages for this repo, set:
 `Settings → Pages → Build and deployment → Source: Deploy from a branch`, then
 `Branch: gh-pages` and `/ (root)`.
