@@ -80,8 +80,8 @@ const html = `<!DOCTYPE html>
     try {
         const src = document.getElementById('jsx-source').textContent;
         const compiled = Babel.transform(src, {
-            presets: [['env', { targets: { esmodules: true } }], 'react'],
-            filename: 'DeepLearningClassroom.jsx'
+            presets: [['env', { targets: { browsers: ['last 2 Chrome versions'] }, modules: false }], 'react'],
+            filename: '${baseName}.jsx'
         });
         // Use indirect eval so strict-mode globals (React, ReactDOM) are in scope
         const fn = new Function('React', 'ReactDOM', 'showError', compiled.code);

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DeepLearning Classroom</title>
+    <title>1. DeepLearningClassroom</title>
     <!-- React + Babel with crossorigin so errors are not masked -->
     <script crossorigin="anonymous" src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin="anonymous" src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -1792,8 +1792,8 @@ function Classroom() {
     try {
         const src = document.getElementById('jsx-source').textContent;
         const compiled = Babel.transform(src, {
-            presets: [['env', { targets: { esmodules: true } }], 'react'],
-            filename: 'DeepLearningClassroom.jsx'
+            presets: [['env', { targets: { browsers: ['last 2 Chrome versions'] }, modules: false }], 'react'],
+            filename: '1. DeepLearningClassroom.jsx'
         });
         // Use indirect eval so strict-mode globals (React, ReactDOM) are in scope
         const fn = new Function('React', 'ReactDOM', 'showError', compiled.code);
