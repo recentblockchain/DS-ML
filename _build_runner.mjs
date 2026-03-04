@@ -17,11 +17,14 @@ while ((m = namedImportRe.exec(jsx)) !== null) {
 }
 
 // Strip import lines, convert export default function → function,
-// and remove standalone "export default Foo;" lines
+// remove standalone "export default Foo;" lines,
+// and strip any remaining export keywords so Babel sees no ES module syntax
 const body = jsx
   .replace(/^import\s[\s\S]*?from\s['"].*?['"];?\r?\n/gm, '')
   .replace(/export\s+default\s+function\b/, 'function')
-  .replace(/^\s*export\s+default\s+\w+\s*;?\s*$/gm, '');
+  .replace(/^\s*export\s+default\s+\w+\s*;?\s*$/gm, '')
+  .replace(/^export\s+(const|let|var|function|class)\b/gm, '$1')
+  .replace(/^\s*export\s+\{[^}]*\}\s*;?\s*$/gm, '');
 
 const baseName = path.basename(jsxArg, path.extname(jsxArg));
 // Match either: export default function Foo  OR  export default Foo;
