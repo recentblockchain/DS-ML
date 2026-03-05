@@ -1,6 +1,6 @@
 /* ============================================================
    CMPSC 348 – DS & ML Courseware  |  Global Stylesheet
-   Font : Times New Roman (Times), 11 pt ≈ 14.67 px
+   Font : Times New Roman (Times), 10 pt ≈ 13.33 px
    ============================================================ */
 
 /* ---------- Google Fonts backup (system Times first) ---------- */
@@ -14,8 +14,8 @@
 }
 
 :root {
-  /* 11 pt  = 11 × (96 / 72) px = 14.667 px */
-  --font-size-base : 14.667px;
+  /* 10 pt  = 10 × (96 / 72) px = 13.333 px */
+  --font-size-base : 13.333px;
   --line-height    : 1.6;
   --font-family    : "Times New Roman", Times, "Tinos", serif;
 

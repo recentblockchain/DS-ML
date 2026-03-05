@@ -54,7 +54,7 @@ const esbuildFixPlugin = {
 
 export default defineConfig({
   plugins: [fixDuplicateDeclarations, react()],
-  base: process.env.NODE_ENV === 'production' ? '/DS-ML/' : '/',
+  base: process.env.NODE_ENV === 'production' ? '/ML-DS/' : '/',
   // Downgrade esbuild warnings to silent so they never cause exit-code 1 in CI
   esbuild: {
     logOverride: {
